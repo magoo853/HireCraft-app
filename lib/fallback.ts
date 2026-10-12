@@ -623,15 +623,21 @@ export function generateCoverLetter(
 export function generateLinkedIn(
   resume: StructuredResume,
   jobText: string,
-  targetTitle: string
+  targetTitle: string,
+  linkedinText = "",
+  feedback = ""
 ): LinkedInResult {
-  const keywords = extractKeywords(jobText, resume.rawText, 12);
+  // Prefer the uploaded LinkedIn profile as the source of truth when present.
+  const sourceText = linkedinText.trim() || resume.rawText;
+  const keywords = extractKeywords(jobText, sourceText, 12);
   const matched = keywords.filter((k) => k.matched).map((k) => k.term);
   const missing = keywords.filter((k) => !k.matched).map((k) => k.term);
   const title = targetTitle || resume.experience[0]?.title || "Professional";
   const topSkills = (resume.skills.length ? resume.skills : matched).slice(0, 3);
+  const fb = feedback.toLowerCase();
+  const applied: string[] = [];
 
-  const headlines = [
+  let headlines = [
     `${title} | ${topSkills.slice(0, 2).join(" · ")}${topSkills[2] ? ` · ${topSkills[2]}` : ""}`,
     `${title} helping teams ${matched[0] ? `with ${matched[0]}` : "deliver results"} | Open to new opportunities`,
     `${title} | ${resume.experience[0]?.company ? `Previously ${resume.experience[0].company} · ` : ""}${topSkills[0] ?? "Results-driven"}`,
@@ -640,12 +646,33 @@ export function generateLinkedIn(
   const summaryBits = resume.summary
     ? resume.summary
     : `I'm a ${title.toLowerCase()} focused on delivering measurable results.`;
-  const about =
+  let about =
     `${summaryBits}\n\n` +
     `What I bring: ${topSkills.join(", ")}${matched.length ? `, with proven experience in ${matched.slice(0, 3).join(", ")}` : ""}.\n\n` +
     `Currently ${targetTitle ? `pursuing ${targetTitle} opportunities` : "open to new opportunities"} — let's connect.`;
 
-  const bullets = extractBullets(resume.rawText).slice(0, 6);
+  // Feedback heuristics — deterministic adjustments so regeneration visibly responds.
+  if (/\b(short|concis|brief|tight)/.test(fb)) {
+    const sentences = about.split(/(?<=[.!?])\s+/);
+    about = sentences.slice(0, 2).join(" ");
+    headlines = [...headlines].sort((a, b) => a.length - b.length);
+    applied.push("Tightened: shorter About and most concise headline first.");
+  }
+  if (/\b(punch|bold|confident|strong|assertive)/.test(fb)) {
+    headlines = [headlines[1], headlines[0], headlines[2]];
+    about = about.replace("let's connect.", "let's build something worth talking about.");
+    applied.push("Turned up the confidence: bolder headline first, stronger close.");
+  }
+  if (/\b(warm|friendly|casual|approachable|personable)/.test(fb)) {
+    about = about.replace("let's connect.", "always happy to chat — my inbox is open.");
+    applied.push("Warmed it up: friendlier, more approachable tone.");
+  }
+  if (/\b(formal|professional|corporate|polished)/.test(fb)) {
+    about = about.replace(/let's connect\.|my inbox is open\./, "I welcome the opportunity to discuss how I can contribute.");
+    applied.push("More formal: polished corporate phrasing.");
+  }
+
+  const bullets = extractBullets(sourceText).slice(0, 6);
   const polishedBullets = bullets.map((b) => ({ original: b, polished: rewriteBullet(b, "general").rewritten }));
 
   return {
@@ -656,5 +683,6 @@ export function generateLinkedIn(
     tip: missing.length
       ? `Add these to your Skills section if truthful: ${missing.slice(0, 5).join(", ")}. LinkedIn search ranks profiles on keyword matches.`
       : "Your profile already covers the posting's key terms — keep endorsements flowing on your top 3 skills.",
+    appliedFeedback: applied.length ? applied : undefined,
   };
 }

@@ -2,34 +2,33 @@
 
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
-import { GOAL_EXAMPLES, HorizonGoal, RoadmapNode, fmtSalary } from "@/lib/careers";
+import { GOAL_EXAMPLES, RoadmapGoal, RoadmapNode, fmtSalary } from "@/lib/careers";
 import { AiResponse } from "@/lib/types";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, Pill, inputCls } from "@/components/ui";
 
-const HORIZONS = [
-  { key: "h2", label: "2 years", hint: "Your next move — a promotion, a pivot, or a first big role." },
-  { key: "h5", label: "5 years", hint: "Where you want to be established — senior, lead, or specialist." },
-  { key: "h10", label: "10 years", hint: "The long game — leadership, mastery, or independence." },
-] as const;
+const LS_KEY = "hirecraft-roadmap-goals-v2";
+const LS_OLD = "hirecraft-roadmap-goals";
 
-type HKey = (typeof HORIZONS)[number]["key"];
-
-const blankGoals = (): Record<HKey, HorizonGoal> => ({
-  h2: { text: "", salary: 0 },
-  h5: { text: "", salary: 0 },
-  h10: { text: "", salary: 0 },
-});
-
-const LS_KEY = "hirecraft-roadmap-goals";
+const defaultGoals = (): RoadmapGoal[] => [
+  { years: 2, text: "", salary: 0 },
+  { years: 5, text: "", salary: 0 },
+  { years: 10, text: "", salary: 0 },
+];
 
 function parseSalary(s: string): number {
   const n = parseInt(s.replace(/[^0-9]/g, ""), 10);
   return isNaN(n) ? 0 : n;
 }
 
+function parseYears(s: string): number {
+  const n = parseInt(s.replace(/[^0-9]/g, ""), 10);
+  if (isNaN(n)) return 1;
+  return Math.min(30, Math.max(1, n));
+}
+
 export default function RoadmapPage() {
   const { resume, mode, hasResume } = useApp();
-  const [goals, setGoals] = useState<Record<HKey, HorizonGoal>>(blankGoals());
+  const [goals, setGoals] = useState<RoadmapGoal[]>(defaultGoals());
   const [loading, setLoading] = useState(false);
   const [nodes, setNodes] = useState<AiResponse<RoadmapNode[]> | null>(null);
   const [error, setError] = useState("");
@@ -38,7 +37,21 @@ export default function RoadmapPage() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) setGoals({ ...blankGoals(), ...JSON.parse(raw) });
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) { setGoals(parsed); return; }
+      }
+      // Migrate the old fixed-horizon shape
+      const old = localStorage.getItem(LS_OLD);
+      if (old) {
+        const o = JSON.parse(old);
+        const migrated = [
+          { years: 2, text: o.h2?.text ?? "", salary: o.h2?.salary ?? 0 },
+          { years: 5, text: o.h5?.text ?? "", salary: o.h5?.salary ?? 0 },
+          { years: 10, text: o.h10?.text ?? "", salary: o.h10?.salary ?? 0 },
+        ].filter((g) => g.text || g.salary);
+        if (migrated.length) setGoals(migrated);
+      }
     } catch { /* noop */ }
   }, []);
 
@@ -58,10 +71,20 @@ export default function RoadmapPage() {
     );
   }
 
+  function setGoal(i: number, patch: Partial<RoadmapGoal>) {
+    setGoals(goals.map((g, j) => (j === i ? { ...g, ...patch } : g)));
+  }
+
+  function addHorizon() {
+    if (goals.length >= 5) return;
+    const maxYears = Math.max(...goals.map((g) => g.years), 0);
+    setGoals([...goals, { years: Math.min(30, maxYears + 3), text: "", salary: 0 }]);
+  }
+
   async function build() {
-    const anyGoal = HORIZONS.some((h) => goals[h.key].text.trim());
+    const anyGoal = goals.some((g) => g.text.trim());
     if (!anyGoal) {
-      setError("Set at least one horizon goal — even a rough one. The roadmap needs a destination.");
+      setError("Set at least one goal — even a rough one. The roadmap needs a destination.");
       return;
     }
     setLoading(true);
@@ -84,11 +107,12 @@ export default function RoadmapPage() {
   }
 
   const examples = GOAL_EXAMPLES[mode] ?? GOAL_EXAMPLES.general;
+  const maxYears = nodes ? Math.max(...nodes.data.map((n) => n.years)) : 0;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <SectionTitle sub="Tell us where you want to be. We'll map how to get there — roles, stepping stones, and the gaps to close.">
+        <SectionTitle sub="Tell us where you want to be. We'll map how to get there — roles, the skills each checkpoint demands, and the gaps to close.">
           Career roadmap
         </SectionTitle>
         <span className="text-[10px] font-extrabold uppercase tracking-wide bg-navy text-white rounded-full px-2.5 py-1 shrink-0 ml-2">
@@ -99,15 +123,33 @@ export default function RoadmapPage() {
       {!nodes && (
         <>
           <div className="grid gap-3 mb-4">
-            {HORIZONS.map((h) => (
-              <Card key={h.key} className="!p-4">
-                <div className="flex items-baseline justify-between mb-1">
-                  <p className="font-extrabold text-navy">{h.label}</p>
-                  <p className="text-xs text-muted">{h.hint}</p>
+            {goals.map((g, i) => (
+              <Card key={i} className="!p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-muted">In</span>
+                    <input
+                      value={String(g.years)}
+                      onChange={(e) => setGoal(i, { years: parseYears(e.target.value) })}
+                      inputMode="numeric"
+                      aria-label="Years out"
+                      className="w-14 text-center font-extrabold text-navy text-[15px] border-[1.5px] border-line rounded-lg py-1.5 min-h-[44px]"
+                    />
+                    <span className="text-xs font-bold text-muted">year{g.years === 1 ? "" : "s"}</span>
+                  </div>
+                  {goals.length > 1 && (
+                    <button onClick={() => setGoals(goals.filter((_, j) => j !== i))}
+                      className="text-xs text-muted underline min-h-[44px] px-2">remove</button>
+                  )}
                 </div>
+                <p className="text-xs text-muted mb-2">
+                  {g.years <= 2 ? "Your next move — a promotion, a pivot, or a first big role."
+                    : g.years <= 5 ? "Where you want to be established — senior, lead, or specialist."
+                    : "The long game — leadership, mastery, or independence."}
+                </p>
                 <textarea
-                  value={goals[h.key].text}
-                  onChange={(e) => setGoals({ ...goals, [h.key]: { ...goals[h.key], text: e.target.value } })}
+                  value={g.text}
+                  onChange={(e) => setGoal(i, { text: e.target.value })}
                   rows={2}
                   placeholder={`e.g. ${examples[0]}`}
                   className={`${inputCls} !text-sm mb-2`}
@@ -116,7 +158,7 @@ export default function RoadmapPage() {
                   {examples.map((ex) => (
                     <button
                       key={ex}
-                      onClick={() => setGoals({ ...goals, [h.key]: { ...goals[h.key], text: ex } })}
+                      onClick={() => setGoal(i, { text: ex })}
                       className="text-[11px] font-semibold text-pine bg-mint border border-brand/30 rounded-full px-2.5 py-1.5 min-h-[36px]"
                     >
                       {ex}
@@ -127,20 +169,26 @@ export default function RoadmapPage() {
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">$</span>
                     <input
-                      value={goals[h.key].salary ? String(goals[h.key].salary) : ""}
-                      onChange={(e) => setGoals({ ...goals, [h.key]: { ...goals[h.key], salary: parseSalary(e.target.value) } })}
+                      value={g.salary ? String(g.salary) : ""}
+                      onChange={(e) => setGoal(i, { salary: parseSalary(e.target.value) })}
                       inputMode="numeric"
                       placeholder="120000"
                       className={`${inputCls} !pl-8`}
                     />
                   </div>
                 </Field>
-                {goals[h.key].salary > 0 && (
-                  <p className="text-xs text-emerald-900 font-semibold -mt-2">Target: {fmtSalary(goals[h.key].salary)}/yr</p>
+                {g.salary > 0 && (
+                  <p className="text-xs text-emerald-900 font-semibold -mt-2">Target: {fmtSalary(g.salary)}/yr</p>
                 )}
               </Card>
             ))}
           </div>
+          {goals.length < 5 && (
+            <button onClick={addHorizon}
+              className="w-full mb-3 bg-white border-2 border-dashed border-brand/50 rounded-2xl p-4 text-center min-h-[44px] text-sm font-extrabold text-pine">
+              + Add another checkpoint
+            </button>
+          )}
           <Button variant="emerald" onClick={build} disabled={loading} className="w-full !min-h-[52px]">
             {loading ? "Mapping your future…" : "🗺 Build my roadmap"}
           </Button>
@@ -152,7 +200,7 @@ export default function RoadmapPage() {
       {nodes && (
         <>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-bold text-navy">Your next 10 years</p>
+            <p className="text-sm font-bold text-navy">Your next {maxYears} year{maxYears === 1 ? "" : "s"}</p>
             <button onClick={() => setNodes(null)} className="text-xs text-muted underline min-h-[44px] px-2">
               edit goals
             </button>
@@ -162,7 +210,8 @@ export default function RoadmapPage() {
             <div className="absolute left-[11px] top-2 bottom-2 w-[2px] bg-line" />
             {nodes.data.map((n, i) => {
               const isOpen = open === i;
-              const salaryTarget = i === 1 ? goals.h2.salary : i === 2 ? goals.h5.salary : i === 3 ? goals.h10.salary : 0;
+              const goal = goals.find((g) => g.years === n.years);
+              const salaryTarget = goal?.salary ?? 0;
               return (
                 <div key={i} className="relative mb-3">
                   <button
@@ -193,7 +242,10 @@ export default function RoadmapPage() {
                         {n.titles.filter((t) => t.title).map((t, j) => (
                           <div key={j} className="mb-2.5 last:mb-0 bg-paper rounded-xl p-3 border border-line">
                             <p className="font-bold text-ink text-sm">{t.title}</p>
-                            <p className="text-xs text-muted mt-0.5">Est. salary band — not a guarantee</p>
+                            {t.dayInLife ? (
+                              <p className="text-xs text-muted mt-1 leading-relaxed">👀 {t.dayInLife} <span className="italic">(illustrative)</span></p>
+                            ) : null}
+                            <p className="text-xs text-muted mt-1.5">Est. salary band — not a guarantee</p>
                             <div className="mt-1">
                               {t.salaryFlag === "hit" && <Pill tone="ok">{t.salaryNote}</Pill>}
                               {t.salaryFlag === "can-hit" && <Pill tone="warn">{t.salaryNote}</Pill>}
@@ -201,6 +253,25 @@ export default function RoadmapPage() {
                             </div>
                           </div>
                         ))}
+
+                        {n.skillsToHave.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">
+                              {i === 0 ? "Your current skill set" : `Skills to have by year ${n.years}`}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {n.skillsToHave.map((s, k) => (
+                                <span key={k} className={`text-xs font-semibold rounded-full px-2.5 py-1.5 border ${
+                                  s.have
+                                    ? "bg-mint text-emerald-900 border-brand/30"
+                                    : "bg-white text-slate-600 border-line"
+                                }`}>
+                                  {s.have ? "✓ " : "○ "}{s.skill}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {n.steppingStones.length > 0 && (
                           <div className="mt-3">

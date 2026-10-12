@@ -3,7 +3,7 @@ import {
   buildRoadmap,
   matchJobs,
   scoreQuiz,
-  HorizonGoal,
+  RoadmapGoal,
 } from "@/lib/careers";
 import {
   generateCoverLetter,
@@ -23,8 +23,10 @@ interface AiRequest {
   targetTitle?: string;
   company?: string;
   tone?: "professional" | "confident" | "warm";
-  goals?: { h2: HorizonGoal; h5: HorizonGoal; h10: HorizonGoal };
+  goals?: RoadmapGoal[];
   answers?: number[];
+  linkedinText?: string;
+  feedback?: string;
 }
 
 const API_KEY = process.env.AI_API_KEY;
@@ -89,13 +91,15 @@ function runFallback(b: AiRequest) {
   if (task === "cover-letter") return generateCoverLetter(resume, jobText, targetTitle, company, (tone ?? "professional") as "professional" | "confident" | "warm");
   if (task === "roadmap") {
     const current = resume.experience[0]?.title || "";
-    return buildRoadmap(current, resume.rawText, resume.skills, goals ?? { h2: { text: "", salary: 0 }, h5: { text: "", salary: 0 }, h10: { text: "", salary: 0 } });
+    const gs = (goals ?? []) as { years: number; text: string; salary: number }[];
+    const fallbackGoals = gs.length ? gs : [{ years: 2, text: "", salary: 0 }, { years: 5, text: "", salary: 0 }, { years: 10, text: "", salary: 0 }];
+    return buildRoadmap(current, resume.rawText, resume.skills, fallbackGoals);
   }
   if (task === "discover") {
     const { scores, code, top } = scoreQuiz(answers ?? []);
     return { scores, code, top, matches: matchJobs(scores, resume.rawText, resume.skills, 10) };
   }
-  return generateLinkedIn(resume, jobText, targetTitle);
+  return generateLinkedIn(resume, jobText, targetTitle, b.linkedinText ?? "", b.feedback ?? "");
 }
 
 async function runAi(b: AiRequest) {
@@ -131,17 +135,18 @@ async function runAi(b: AiRequest) {
 
   const text = await callLLM(
     `You are a LinkedIn profile coach. ${HONESTY}${modeContext}\n\nReturn JSON: {"headlines":[string,string,string],"about":string,"polishedBullets":[{"original":string,"polished":string}],"skillsGap":[string],"tip":string}`,
-    `${resumeContext}${jobContext}\n\nTarget title: ${targetTitle || "(not specified)"}\n\nProduce 3 headline options, a first-person About section (~120 words), polished experience bullets, skills missing vs the posting, and one actionable tip.`
+    `${resumeContext}${b.linkedinText ? `\n\nCURRENT LINKEDIN PROFILE:\n${b.linkedinText.slice(0, 4000)}` : ""}${jobContext}${b.feedback ? `\n\nUSER FEEDBACK ON PRIOR DRAFT — apply it: ${b.feedback.slice(0, 500)}` : ""}\n\nTarget title: ${targetTitle || "(not specified)"}\n\nProduce 3 headline options, a first-person About section (~120 words), polished experience bullets, skills missing vs the posting, and one actionable tip.`
   );
   return extractJson(text);
 }
 
 async function runAiRoadmap(b: AiRequest) {
   const { resume, goals } = b;
-  const g = goals ?? { h2: { text: "", salary: 0 }, h5: { text: "", salary: 0 }, h10: { text: "", salary: 0 } };
+  const gs: RoadmapGoal[] = goals?.length ? goals : [{ years: 2, text: "", salary: 0 }, { years: 5, text: "", salary: 0 }, { years: 10, text: "", salary: 0 }];
+  const goalLines = gs.map((g) => `${g.years} years: ${g.text || "(no goal set)"} (salary target: ${g.salary || "not set"})`).join("\n");
   const text = await callLLM(
-    `You are a career strategist. Build a 2/5/10-year career roadmap. ${HONESTY}\n\nSalary bands must be realistic US estimates — label every band as an estimate. For each recommended title, compare its band against the user's salary target and set salaryFlag: "hit" (target <= low end), "can-hit" (target within band), or "below" (target above band), with a one-line salaryNote.\n\nReturn JSON: {"nodes":[{"horizon":string,"goalText":string,"titles":[{"title":string,"salaryLow":number,"salaryHigh":number,"salaryFlag":string,"salaryNote":string}],"steppingStones":[string],"gaps":[string]}]}`,
-    `RESUME:\n${resume.rawText.slice(0, 5000)}\n\nCurrent title: ${resume.experience[0]?.title || "(unknown)"}\n\nGOALS:\n2 years: ${g.h2.text} (salary target: ${g.h2.salary || "not set"})\n5 years: ${g.h5.text} (salary target: ${g.h5.salary || "not set"})\n10 years: ${g.h10.text} (salary target: ${g.h10.salary || "not set"})\n\nReturn 4 nodes: "Now", "2 years", "5 years", "10 years".`
+    `You are a career strategist. Build a career roadmap for the user's custom checkpoints. ${HONESTY}\n\nSalary bands must be realistic US estimates — label every band as an estimate. For each recommended title, compare its band against the user's salary target and set salaryFlag: "hit" (target <= low end), "can-hit" (target within band), or "below" (target above band), with a one-line salaryNote. For each checkpoint list skillsToHave: every skill the recommended titles expect, each with have: true/false based on the resume. For each title include dayInLife: a one-sentence illustrative preview of what the job is like day to day.\n\nReturn JSON: {"nodes":[{"horizon":string,"years":number,"goalText":string,"titles":[{"title":string,"salaryLow":number,"salaryHigh":number,"salaryFlag":string,"salaryNote":string,"dayInLife":string}],"steppingStones":[string],"gaps":[string],"skillsToHave":[{"skill":string,"have":boolean}]}]}`,
+    `RESUME:\n${resume.rawText.slice(0, 5000)}\n\nCurrent title: ${resume.experience[0]?.title || "(unknown)"}\n\nCHECKPOINTS:\n${goalLines}\n\nReturn one node per checkpoint plus a "Now" node (years: 0) first.`
   );
   return (extractJson(text) as { nodes: unknown }).nodes;
 }

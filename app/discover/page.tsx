@@ -11,9 +11,10 @@ import {
   JobMatch,
   RiasecScores,
   fmtSalary,
+  jobSearchLinks,
 } from "@/lib/careers";
 import { AiResponse } from "@/lib/types";
-import { Button, Card, EmptyState, SectionTitle, SourceNote } from "@/components/ui";
+import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
 
 interface DiscoverResult {
   scores: RiasecScores;
@@ -26,7 +27,7 @@ type Stage = "intro" | "quiz" | "results";
 const LS_KEY = "hirecraft-quiz";
 
 export default function DiscoverPage() {
-  const { resume, hasResume } = useApp();
+  const { resume, hasResume, mode } = useApp();
   const [stage, setStage] = useState<Stage>("intro");
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -35,6 +36,7 @@ export default function DiscoverPage() {
   const [error, setError] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  const [location, setLocation] = useState("");
 
   useEffect(() => {
     try {
@@ -46,9 +48,18 @@ export default function DiscoverPage() {
           setResult(saved.result);
           setStage("results");
         }
+        if (saved.location) setLocation(saved.location);
       }
     } catch { /* noop */ }
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      const saved = raw ? JSON.parse(raw) : {};
+      localStorage.setItem(LS_KEY, JSON.stringify({ ...saved, location }));
+    } catch { /* noop */ }
+  }, [location]);
 
   if (!hasResume) {
     return (
@@ -193,12 +204,20 @@ export default function DiscoverPage() {
                 <p className="text-sm font-extrabold text-navy">Top matches for you</p>
                 <button onClick={retake} className="text-xs text-muted underline min-h-[44px] px-2">retake quiz</button>
               </div>
+              <Card className="mb-3 !p-3.5">
+                <Field label="Where should we look? (optional)" hint="Adds location to every job-board search.">
+                  <input value={location} onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Tampa, FL or Remote" className={inputCls} />
+                </Field>
+              </Card>
 
               <MatchList
                 matches={result.data.matches.slice(0, 3)}
                 selected={selected}
                 onSelect={setSelected}
                 offset={0}
+                location={location}
+                veteran={mode === "veteran"}
               />
 
               {!unlocked ? (
@@ -214,6 +233,8 @@ export default function DiscoverPage() {
                     selected={selected}
                     onSelect={setSelected}
                     offset={3}
+                    location={location}
+                    veteran={mode === "veteran"}
                   />
                 </>
               )}
@@ -227,14 +248,16 @@ export default function DiscoverPage() {
   );
 }
 
-function MatchList({ matches, selected, onSelect, offset }: {
+function MatchList({ matches, selected, onSelect, offset, location, veteran }: {
   matches: JobMatch[]; selected: number | null; onSelect: (i: number | null) => void; offset: number;
+  location: string; veteran: boolean;
 }) {
   return (
     <div className="grid gap-2">
       {matches.map((m, i) => {
         const idx = offset + i;
         const isOpen = selected === idx;
+        const links = jobSearchLinks(m.role.title, location, veteran);
         return (
           <div key={idx} className="bg-white border border-line rounded-2xl overflow-hidden">
             <button onClick={() => onSelect(isOpen ? null : idx)} className="w-full text-left p-4 min-h-[44px]">
@@ -250,6 +273,15 @@ function MatchList({ matches, selected, onSelect, offset }: {
             {isOpen && (
               <div className="px-4 pb-4 border-t border-line pt-3">
                 <p className="text-xs text-muted mb-1">Est. salary <span className="font-bold text-ink">{fmtSalary(m.role.salaryLow)}–{fmtSalary(m.role.salaryHigh)}/yr</span></p>
+                <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mt-3 mb-1.5">🔎 Real postings right now</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {links.map((l) => (
+                    <a key={l.name} href={l.url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs font-bold bg-navy text-white rounded-full px-3 py-2 min-h-[36px] inline-flex items-center">
+                      {l.name} ↗
+                    </a>
+                  ))}
+                </div>
                 {m.matchedSkills.length > 0 && (
                   <div className="mt-2">
                     <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">You already have</p>

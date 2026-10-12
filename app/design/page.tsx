@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
-import { TEMPLATES, EdFn } from "@/lib/templates";
+import {
+  TEMPLATES, EdFn, DesignOptions, DEFAULT_DESIGN_OPTIONS,
+  DESIGN_ACCENTS, DESIGN_FONTS, DESIGN_HEADERS, renderCustom,
+} from "@/lib/templates";
 import { structuredToText } from "@/lib/parse";
 import { Button, Card, EmptyState, SectionTitle } from "@/components/ui";
 
@@ -12,7 +15,13 @@ const THUMB_ACCENT: Record<string, string> = {
   minimal: "#111111",
   executive: "#7C2D12",
   bold: "#6D28D9",
+  slate: "#1e293b",
+  ocean: "#0A66C2",
+  mono: "#555555",
+  custom: "#0B6E4F",
 };
+
+const LS_DESIGN_OPTS = "hirecraft-design-opts";
 
 function Thumb({ id }: { id: string }) {
   const accent = THUMB_ACCENT[id] ?? "#0B3B2E";
@@ -33,7 +42,21 @@ export default function DesignPage() {
   const [editing, setEditing] = useState(false);
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [pages, setPages] = useState(1);
+  const [designOpts, setDesignOpts] = useState<DesignOptions>(DEFAULT_DESIGN_OPTIONS);
   const previewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_DESIGN_OPTS);
+      if (raw) setDesignOpts({ ...DEFAULT_DESIGN_OPTIONS, ...JSON.parse(raw) });
+    } catch { /* noop */ }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_DESIGN_OPTS, JSON.stringify(designOpts));
+    } catch { /* noop */ }
+  }, [designOpts]);
 
   // 2-page guard: estimate printed pages from rendered height vs. US Letter ratio.
   useEffect(() => {
@@ -47,7 +70,7 @@ export default function DesignPage() {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [templateId, resume, density]);
+  }, [templateId, resume, density, designOpts]);
 
   if (!hasResume) {
     return (
@@ -107,32 +130,63 @@ export default function DesignPage() {
 
   return (
     <div>
-      <SectionTitle sub="Your content, five ways. Tap to preview — export to PDF when it's perfect.">
+      <SectionTitle sub="Your content, nine ways. Tap to preview — export to PDF when it's perfect.">
         Design
       </SectionTitle>
 
-      <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-        {TEMPLATES.slice(0, 4).map((t) => (
+      <div className="grid grid-cols-3 gap-2.5 mb-4 print:hidden">
+        {TEMPLATES.map((t) => (
           <button key={t.id} onClick={() => setTemplateId(t.id)}
             className={`bg-white rounded-xl border-2 p-2 text-center transition active:scale-[0.98] ${templateId === t.id ? "border-brand" : "border-line"}`}>
             <Thumb id={t.id} />
-            <span className="block text-[11.5px] font-bold text-ink mt-1.5">{t.name}{templateId === t.id ? " ✓" : ""}</span>
+            <span className="block text-[11px] font-bold text-ink mt-1.5 leading-tight">{t.name}{templateId === t.id ? " ✓" : ""}</span>
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-2.5 mb-4">
-        {TEMPLATES.slice(4).map((t) => (
-          <button key={t.id} onClick={() => setTemplateId(t.id)}
-            className={`bg-white rounded-xl border-2 p-2 text-center transition active:scale-[0.98] ${templateId === t.id ? "border-brand" : "border-line"}`}>
-            <div className="bg-[#F8FAFC] rounded-md h-16 p-2 border border-slate-100">
-              <div className="h-2 rounded-full mb-1.5" style={{ background: THUMB_ACCENT[t.id], width: "40%" }} />
-              <div className="h-[5px] rounded-full bg-slate-300" style={{ width: "80%" }} />
-            </div>
-            <span className="block text-[11.5px] font-bold text-ink mt-1.5">{t.name}{templateId === t.id ? " ✓" : ""}</span>
-          </button>
-        ))}
-      </div>
-      <p className="text-xs text-muted mb-4"><b className="text-ink">{template.name}.</b> {template.blurb}</p>
+      <p className="text-xs text-muted mb-4 print:hidden"><b className="text-ink">{template.name}.</b> {template.blurb}</p>
+
+      {templateId === "custom" && (
+        <Card className="mb-4 print:hidden">
+          <p className="text-[13px] font-extrabold text-navy mb-3">🎨 Custom studio</p>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Accent color</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {DESIGN_ACCENTS.map((c) => (
+              <button key={c} onClick={() => setDesignOpts({ ...designOpts, accent: c })}
+                aria-label={`Accent ${c}`}
+                className={`w-10 h-10 rounded-full min-h-[40px] border-[3px] transition ${designOpts.accent === c ? "border-ink scale-110" : "border-transparent"}`}
+                style={{ background: c }} />
+            ))}
+          </div>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Font</p>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {DESIGN_FONTS.map((f) => (
+              <button key={f.id} onClick={() => setDesignOpts({ ...designOpts, font: f.id })}
+                className={`text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.font === f.id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}
+                style={{ fontFamily: f.stack }}>
+                {f.name}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Section headers</p>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {DESIGN_HEADERS.map((h) => (
+              <button key={h.id} onClick={() => setDesignOpts({ ...designOpts, headerStyle: h.id })}
+                className={`text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.headerStyle === h.id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                {h.name}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Name alignment</p>
+          <div className="flex gap-1.5">
+            {(["left", "center"] as const).map((a) => (
+              <button key={a} onClick={() => setDesignOpts({ ...designOpts, nameAlign: a })}
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] capitalize ${designOpts.nameAlign === a ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                {a}
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="flex gap-2 mb-4 print:hidden">
         <Button variant={editing ? "emerald" : "secondary"} onClick={() => setEditing(!editing)} className="flex-1">
@@ -166,7 +220,7 @@ export default function DesignPage() {
           </p>
         )}
         <div ref={previewRef} style={density === "compact" ? { zoom: 0.88 } : undefined}>
-          {template.render(resume, ed)}
+          {templateId === "custom" ? renderCustom(resume, ed, designOpts) : template.render(resume, ed)}
         </div>
       </div>
 

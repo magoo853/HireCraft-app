@@ -230,6 +230,24 @@ export function matchJobs(
   return results.sort((a, b) => b.fit - a.fit).slice(0, limit);
 }
 
+/** Deep links to live job-board searches for a title. No API key needed —
+ *  the boards do the searching; we just send the user to the right query. */
+export function jobSearchLinks(title: string, location = "", veteranFirst = false): { name: string; url: string }[] {
+  const q = encodeURIComponent(title);
+  const l = encodeURIComponent(location.trim());
+  const links = [
+    { name: "Indeed", url: `https://www.indeed.com/jobs?q=${q}${l ? `&l=${l}` : ""}` },
+    { name: "LinkedIn", url: `https://www.linkedin.com/jobs/search/?keywords=${q}${l ? `&location=${l}` : ""}` },
+    { name: "Glassdoor", url: `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${q}${l ? `&locT=C&locKeyword=${l}` : ""}` },
+    { name: "USAJobs", url: `https://www.usajobs.gov/Search/Results?k=${q}` },
+  ];
+  if (veteranFirst) {
+    const usajobs = links.pop()!;
+    return [usajobs, ...links];
+  }
+  return links;
+}
+
 /* ------------------------------------------------------------------ */
 /* Roadmap                                                             */
 /* ------------------------------------------------------------------ */
@@ -239,18 +257,29 @@ export interface HorizonGoal {
   salary: number; // annual USD target, 0 = not set
 }
 
+/** A user-defined checkpoint: N years out, with a goal and salary target. */
+export interface RoadmapGoal {
+  years: number;
+  text: string;
+  salary: number; // annual USD target, 0 = not set
+}
+
 export interface RoadmapNode {
-  horizon: string; // "Now" | "2 years" | "5 years" | "10 years"
+  horizon: string; // "Now" | "2 years" | "5 years" | custom e.g. "3 years"
+  years: number; // 0 = now
   titles: {
     title: string;
     salaryLow: number;
     salaryHigh: number;
     salaryFlag: "hit" | "can-hit" | "below";
     salaryNote: string;
+    dayInLife?: string; // illustrative preview of the role, derived from its skill profile
   }[];
   steppingStones: string[];
   gaps: string[];
   goalText: string;
+  /** Every skill the checkpoint's target roles expect, marked against the user's resume. */
+  skillsToHave: { skill: string; have: boolean }[];
 }
 
 function salaryFlag(low: number, high: number, target: number): RoadmapNode["titles"][number] {
@@ -318,28 +347,41 @@ export function pathBetween(fromTitle: string, toTitle: string, maxDepth = 4): s
   return [];
 }
 
+/** Illustrative "what this job looks like" preview, derived from the role's skill profile. */
+export function dayInLife(role: Role): string {
+  const s = role.skills;
+  const head = s.slice(0, 3).join(", ");
+  const tail = s.length > 3 ? `, plus ${s.slice(3, 5).join(" and ")}` : "";
+  return `Day to day, expect your time to revolve around ${head}${tail}.`;
+}
+
 export function buildRoadmap(
   currentTitle: string,
   resumeText: string,
   resumeSkills: string[],
-  goals: { h2: HorizonGoal; h5: HorizonGoal; h10: HorizonGoal }
+  goals: RoadmapGoal[]
 ): RoadmapNode[] {
   const have = resumeSkillSet(resumeText, resumeSkills);
-  const horizons: { key: string; goal: HorizonGoal }[] = [
-    { key: "2 years", goal: goals.h2 },
-    { key: "5 years", goal: goals.h5 },
-    { key: "10 years", goal: goals.h10 },
-  ];
+  const horizons = [...goals]
+    .filter((g) => g.years > 0)
+    .sort((a, b) => a.years - b.years);
+
+  const currentRole = currentTitle ? findRoleWithMilitary(currentTitle) : undefined;
+  const nowSkills = currentRole
+    ? currentRole.skills.map((s) => ({ skill: s, have: have.has(s.toLowerCase()) }))
+    : [];
 
   const nodes: RoadmapNode[] = [
     {
       horizon: "Now",
+      years: 0,
       titles: currentTitle
-        ? [{ title: currentTitle, salaryLow: 0, salaryHigh: 0, salaryFlag: "can-hit", salaryNote: "Your current lane" }]
+        ? [{ title: currentRole?.title ?? currentTitle, salaryLow: 0, salaryHigh: 0, salaryFlag: "can-hit", salaryNote: "Your current lane", dayInLife: currentRole ? dayInLife(currentRole) : "" }]
         : [],
       steppingStones: [],
       gaps: [],
       goalText: currentTitle ? `Current: ${currentTitle}` : "Starting point",
+      skillsToHave: nowSkills,
     },
   ];
 
@@ -347,9 +389,10 @@ export function buildRoadmap(
   // Resolve the current title onto the ladder (with military translation).
   const startRole = currentTitle ? findRoleWithMilitary(currentTitle) : undefined;
   if (startRole) prevTitle = startRole.title;
-  for (const { key, goal } of horizons) {
+  for (const goal of horizons) {
+    const key = `${goal.years} year${goal.years === 1 ? "" : "s"}`;
     const roles = rolesForGoal(goal.text, 2);
-    const titles = roles.map((r) => ({ ...salaryFlag(r.salaryLow, r.salaryHigh, goal.salary), title: r.title }));
+    const titles = roles.map((r) => ({ ...salaryFlag(r.salaryLow, r.salaryHigh, goal.salary), title: r.title, dayInLife: dayInLife(r) }));
 
     // Stepping stones: path from previous title to the top target
     let stones: string[] = [];
@@ -381,6 +424,14 @@ export function buildRoadmap(
     const needed = new Set<string>();
     for (const r of roles) for (const s of r.skills) needed.add(s.toLowerCase());
     const gaps = Array.from(needed).filter((s) => !have.has(s)).slice(0, 6);
+    // Skills to have by this checkpoint: every skill the target roles expect,
+    // checked against what the resume already shows.
+    const skillsToHave = Array.from(needed)
+      .slice(0, 10)
+      .map((s) => {
+        const canonical = roles.flatMap((r) => r.skills).find((x) => x.toLowerCase() === s) ?? s;
+        return { skill: canonical, have: have.has(s) };
+      });
 
     // Salary upgrade suggestion when the top pick is below target
     if (roles.length && goal.salary > 0 && roles[0].salaryHigh < goal.salary) {
@@ -391,7 +442,7 @@ export function buildRoadmap(
       if (upgrades.length && !stones.includes(upgrades[0])) stones = [...stones, ...upgrades].slice(0, 4);
     }
 
-    nodes.push({ horizon: key, titles, steppingStones: stones, gaps, goalText: goal.text || "No goal set" });
+    nodes.push({ horizon: key, years: goal.years, titles, steppingStones: stones, gaps, goalText: goal.text || "No goal set", skillsToHave });
     if (roles.length) prevTitle = roles[0].title;
   }
   return nodes;

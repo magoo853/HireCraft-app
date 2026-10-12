@@ -151,29 +151,55 @@ export function CoverLetter() {
 /* ---------------- LinkedIn ---------------- */
 
 export function LinkedIn() {
-  const { resume, jobText, targetTitle } = useApp();
+  const { resume, jobText, targetTitle, linkedinText, setLinkedinText } = useApp();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<LinkedInResult> | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
   const [picked, setPicked] = useState(0);
+  const [feedback, setFeedback] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
+  // Editable copies of the generated content
+  const [headlines, setHeadlines] = useState<string[]>([]);
+  const [about, setAbout] = useState("");
+  const [bullets, setBullets] = useState<{ original: string; polished: string }[]>([]);
 
-  async function generate() {
+  async function generate(fb = "") {
     setLoading(true);
     setError("");
     try {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "linkedin", mode: "general", resume, jobText, targetTitle }),
+        body: JSON.stringify({ task: "linkedin", mode: "general", resume, jobText, targetTitle, linkedinText, feedback: fb }),
       });
       const json = (await res.json()) as AiResponse<LinkedInResult>;
       setResult(json);
       setPicked(0);
+      setHeadlines(json.data.headlines);
+      setAbout(json.data.about);
+      setBullets(json.data.polishedBullets);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function uploadProfile(f: File) {
+    setUploading(true);
+    setUploadMsg("");
+    try {
+      const { parseFile } = await import("@/lib/parse");
+      const text = await parseFile(f);
+      if (text.trim().length < 50) throw new Error("Couldn't read much text from that file — try the LinkedIn PDF export or paste the text below.");
+      setLinkedinText(text);
+      setUploadMsg(`Profile loaded (~${text.split(/\s+/).length} words).`);
+    } catch (e) {
+      setUploadMsg(e instanceof Error ? e.message : "Upload failed — paste the text below instead.");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -186,58 +212,94 @@ export function LinkedIn() {
 
   function copyAll() {
     if (!result) return;
-    const all = `HEADLINE\n${result.data.headlines[picked]}\n\nABOUT\n${result.data.about}`;
+    const all = `HEADLINE\n${headlines[picked]}\n\nABOUT\n${about}`;
     copy(all, "all");
   }
 
   return (
     <>
       {!result && !loading && (
-        <Card className="text-center py-8">
-          <p className="font-extrabold text-navy mb-2">A LinkedIn profile that gets found</p>
-          <p className="text-sm text-muted mb-5 max-w-xs mx-auto">
-            Headline options, an About rewrite, polished experience bullets, and the skills you're missing vs. the posting.
-          </p>
-          <Button variant="emerald" onClick={generate} className="w-full !min-h-[52px]">
-            Build my LinkedIn content
-          </Button>
-          {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
-        </Card>
+        <>
+          <Card className="mb-3">
+            <Field label="Your LinkedIn profile" hint="Export your profile as a PDF from LinkedIn (Me → View Profile → More → Save to PDF), or paste the text — generation uses it as the source of truth.">
+              <label className={`${inputCls} flex items-center justify-center gap-2 cursor-pointer text-center !text-pine font-bold`}>
+                {uploading ? "Reading file…" : linkedinText ? "↻ Replace profile file" : "⬆ Upload LinkedIn PDF / DOCX / TXT"}
+                <input type="file" accept=".pdf,.docx,.txt" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadProfile(f); e.target.value = ""; }} />
+              </label>
+            </Field>
+            {uploadMsg && <p className="text-sm text-emerald-900 font-medium -mt-2 mb-2">{uploadMsg}</p>}
+            <Field label="…or paste your profile text">
+              <textarea value={linkedinText} onChange={(e) => setLinkedinText(e.target.value)} rows={5}
+                placeholder="Paste your LinkedIn About + Experience here…" className={inputCls} />
+            </Field>
+            {linkedinText.trim().length > 100 && (
+              <p className="text-sm text-emerald-900 font-medium">✓ Profile loaded (~{linkedinText.split(/\s+/).length} words).</p>
+            )}
+          </Card>
+          <Card className="text-center py-8">
+            <p className="font-extrabold text-navy mb-2">A LinkedIn profile that gets found</p>
+            <p className="text-sm text-muted mb-5 max-w-xs mx-auto">
+              Headline options, an About rewrite, polished experience bullets, and the skills you're missing vs. the posting.
+            </p>
+            <Button variant="emerald" onClick={() => generate()} className="w-full !min-h-[52px]">
+              Build my LinkedIn content
+            </Button>
+            {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
+          </Card>
+        </>
       )}
       {loading && <p className="text-sm text-muted text-center py-8">Building your profile content…</p>}
 
       {result && (
         <>
-          <p className="text-[13px] font-extrabold text-navy mt-1 mb-1">Headline — pick one</p>
+          {result.data.appliedFeedback?.length ? (
+            <div className="bg-mint border border-emerald-200 rounded-xl p-3 mb-3">
+              {result.data.appliedFeedback.map((a, i) => (
+                <p key={i} className="text-xs text-emerald-900 leading-relaxed">✓ {a}</p>
+              ))}
+            </div>
+          ) : null}
+          <p className="text-[13px] font-extrabold text-navy mt-1 mb-1">Headline — pick one, tap to edit</p>
           <div className="grid gap-2">
-            {result.data.headlines.map((h, i) => (
-              <button key={i} onClick={() => setPicked(i)}
-                className={`text-left rounded-xl p-3 border-[1.5px] min-h-[44px] transition ${
+            {headlines.map((h, i) => (
+              <div key={i} onClick={() => setPicked(i)}
+                className={`rounded-xl p-3 border-[1.5px] min-h-[44px] transition cursor-pointer ${
                   picked === i ? "border-linkedin bg-blue-50" : "border-line bg-white"
                 }`}>
                 <span className={`text-[10px] font-bold uppercase tracking-wide ${picked === i ? "text-linkedin" : "text-muted"}`}>
                   {i === 0 ? "Recommended" : `Option ${i + 1}`}
                 </span>
-                <p className="text-[13px] mt-1 leading-relaxed text-slate-800">{h}</p>
-              </button>
+                {picked === i ? (
+                  <textarea value={h} rows={2}
+                    onChange={(e) => setHeadlines(headlines.map((x, j) => (j === i ? e.target.value : x)))}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full bg-transparent text-[13px] mt-1 leading-relaxed text-slate-800 focus:outline-none resize-y" />
+                ) : (
+                  <p className="text-[13px] mt-1 leading-relaxed text-slate-800">{h}</p>
+                )}
+              </div>
             ))}
           </div>
 
-          <p className="text-[13px] font-extrabold text-navy mt-5 mb-1">About section</p>
-          <button onClick={() => copy(result.data.about, "about")}
-            className="w-full text-left bg-white border border-line rounded-xl p-3 min-h-[44px]">
-            <p className="text-[13px] text-slate-700 whitespace-pre-wrap leading-relaxed">{result.data.about}</p>
-            <p className="text-xs text-linkedin font-bold mt-2">{copied === "about" ? "✓ Copied" : "Tap to copy →"}</p>
-          </button>
+          <p className="text-[13px] font-extrabold text-navy mt-5 mb-1">About section — edit freely</p>
+          <div className="bg-white border border-line rounded-xl p-3">
+            <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={8}
+              className="w-full bg-transparent text-[13px] text-slate-700 leading-relaxed focus:outline-none resize-y" />
+            <button onClick={() => copy(about, "about")}
+              className="text-xs text-linkedin font-bold mt-1 min-h-[36px]">{copied === "about" ? "✓ Copied" : "Tap to copy →"}</button>
+          </div>
 
-          {result.data.polishedBullets.length > 0 && (
+          {bullets.length > 0 && (
             <>
-              <p className="text-[13px] font-extrabold text-navy mt-5 mb-1">Experience polish</p>
+              <p className="text-[13px] font-extrabold text-navy mt-5 mb-1">Experience polish — edit freely</p>
               <div className="grid gap-2">
-                {result.data.polishedBullets.slice(0, 4).map((b, i) => (
+                {bullets.slice(0, 4).map((b, i) => (
                   <Card key={i} className="!p-3.5">
                     <p className="text-xs text-muted line-through decoration-red-400 mb-1">{b.original}</p>
-                    <p className="text-[13px] text-ink font-medium">{b.polished}</p>
+                    <textarea value={b.polished} rows={2}
+                      onChange={(e) => setBullets(bullets.map((x, j) => (j === i ? { ...x, polished: e.target.value } : x)))}
+                      className="w-full bg-transparent text-[13px] text-ink font-medium focus:outline-none resize-y" />
                   </Card>
                 ))}
               </div>
@@ -257,6 +319,17 @@ export function LinkedIn() {
           <Button variant="emerald" onClick={copyAll} className="w-full mt-4 !min-h-[52px]">
             {copied === "all" ? "✓ Copied" : "Copy all to LinkedIn"}
           </Button>
+          <Card className="mt-3">
+            <Field label="Not quite right? Say what to change" hint='e.g. "make it punchier", "shorter", "warmer", "more formal"'>
+              <div className="flex gap-2">
+                <input value={feedback} onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="What should change…" className={inputCls} />
+                <Button onClick={() => { setFeedback(""); generate(feedback); }} disabled={loading || !feedback.trim()} variant="secondary" className="shrink-0">
+                  {loading ? "…" : "↻ Regenerate"}
+                </Button>
+              </div>
+            </Field>
+          </Card>
           <div className="flex items-center justify-between mt-2">
             <SourceNote source={result.source} />
             <button onClick={() => setResult(null)} className="text-xs text-muted underline min-h-[44px] px-2 shrink-0">Regenerate</button>
