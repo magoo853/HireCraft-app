@@ -17,7 +17,9 @@ async function parsePdf(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
   // Try the locally-served worker first; fall back to CDN if the build
   // didn't include it (e.g. install-time copy skipped).
-  const workers = ["/pdf.worker.min.mjs", PDFJS_CDN_WORKER];
+  // CDN first (the locally-served copy isn't reliably included in the
+  // Vercel build); local file as fallback for offline use.
+  const workers = [PDFJS_CDN_WORKER, "/pdf.worker.min.mjs"];
   let lastErr: unknown = null;
   for (const src of workers) {
     try {
