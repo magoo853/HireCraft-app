@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
   // Next.js API routes (AI, job fetch, verification) working without a
   // static-export refactor. Set the URL after the first Vercel deploy.
   server: {
-    url: "https://hirecraft-app.vercel.app",
+    url: "https://hirecraft-app-steel.vercel.app",
     cleartext: false,
   },
   ios: {

@@ -1,78 +1,77 @@
-# HireCraft — Mac Build Runbook (James, ~30–45 min at the keyboard)
+# HireCraft — Your Side: App Store, Start to Finish
 
-Run these in order in Terminal on your Mac, once your Apple Developer
-enrollment is approved. Everything else (code, icons, listing copy) is
-already prepared — this is just the native packaging only a Mac can do.
+Everything on Jarvis's side is done (code, consent gate, listing copy, iOS
+project, icons). This is your complete sequence. Parts A and B are the
+critical path; Part C is finishing.
 
-## 0. Prerequisites
+## Part A — App Store Connect (web, ~15 min, after enrollment approval)
 
-- Xcode installed from the Mac App Store (open it once and accept the license).
-- Node 18+ (`node -v`; if missing: https://nodejs.org).
-- In App Store Connect: Paid Applications agreement accepted, banking + tax done.
+1. Sign in at https://appstoreconnect.apple.com
+2. **Business** (or Agreements, Tax, and Banking on the home page):
+   accept the **Paid Applications Agreement**, add bank account + tax forms.
+   Subscriptions cannot be created or sold until this shows "Active."
+3. That's all until the build exists — the app record is created in Part B.
 
-## 1. Get the code
+## Part B — Mac session (~30 min)
+
+Prereqs: Xcode from the Mac App Store (open it once, accept the license),
+Node 18+ (`node -v` in Terminal; if missing, https://nodejs.org).
 
 ```bash
-cd ~/Documents   # or wherever you keep projects
+cd ~/Documents
 git clone https://github.com/magoo853/HireCraft-app.git
 cd HireCraft-app
 npm install
-```
-
-## 2. Add the native iOS project + IAP plugin
-
-```bash
 npm install @capacitor-community/in-app-purchases
-npx cap add ios
 npx cap sync ios
-```
-
-## 3. App icon
-
-```bash
-python3 ios-assets/generate-icons.py
-```
-
-Then drag the generated PNGs into Xcode:
-`ios/App/App/Assets.xcassets/AppIcon.appiconset/` (open the project first, step 4,
-and use the asset catalog editor — match each size slot).
-
-## 4. Sign and build
-
-```bash
+bash ios-assets/install-assets.sh
 open ios/App/App.xcworkspace
 ```
 
+Notes:
+- `cap sync` printing a warning about a "www directory" is expected — the
+  app loads its live web build; a placeholder page is bundled.
+- If `cap sync` says CocoaPods is missing: `sudo gem install cocoapods`,
+  then run `npx cap sync ios` again.
+- `install-assets.sh` places the real app icon + splash screens (they
+  travel through git encoded; the script decodes them — no installs).
+
 In Xcode:
-1. Select the **App** target → *Signing & Capabilities* → check
-   **Automatically manage signing** → Team = your Apple ID.
-2. Add the **In-App Purchase** capability (the + Capability button).
-3. Bundle ID must read `com.hirecraft.app`.
-4. Top bar: choose **Any iOS Device (arm64)** as the run destination.
-5. Menu **Product → Archive**. When it finishes, the Organizer opens →
-   **Distribute App → App Store Connect → Upload**.
+1. Click the **App** project (top of the left panel) → **App** target →
+   **Signing & Capabilities** → check **Automatically manage signing** →
+   Team: your name / Apple ID. Bundle ID must read `com.hirecraft.app`.
+2. Same screen: **+ Capability** → add **In-App Purchase**.
+3. Top center: set the run destination to **Any iOS Device (arm64)**.
+4. Menu **Product → Archive**. When the Organizer opens:
+   **Distribute App → App Store Connect → Upload** (defaults are fine).
+5. The encryption question is already answered in the project — if asked
+   anyway: "None of the algorithms mentioned" / standard HTTPS only.
 
-## 5. TestFlight
+## Part C — After the upload (~20 min, web)
 
-- In App Store Connect → HireCraft → TestFlight, the build appears after
-  processing (~5–15 min). Add yourself as an internal tester, install via
-  the TestFlight app, and run through: consent gate, resume upload (.doc
-  too), one AI rewrite, job alerts check.
-- Fill in the export-compliance prompt: the app uses only standard HTTPS
-  encryption → answer accordingly (the Info.plist flag
-  `ITSAppUsesNonExemptEncryption = false` can be set to skip the prompt).
+1. App Store Connect → **My Apps** — HireCraft appears once the build
+   processes (~5–15 min). If there's no app record: **+ → New App** →
+   iOS, name **HireCraft**, primary language English, bundle ID
+   `com.hirecraft.app`, SKU `hirecraft-001`.
+2. **Monetization → Subscriptions**: create group **HireCraft Pro**, then
+   product `hirecraft_pro_yearly`, $25.00/year, and add the introductory
+   offer: **2 weeks free**. (Field-by-field text: `APP_STORE_LISTING.md`.)
+3. **App Store tab**: paste name/subtitle/description/keywords from
+   `APP_STORE_LISTING.md`; set the privacy policy URL and the App Privacy
+   answers from the same file; select the uploaded build.
+4. **TestFlight tab**: add yourself as an internal tester, install the
+   TestFlight app on your phone, and run the build: consent gate → resume
+   upload (try your .doc) → AI rewrite → job-alert check → one design
+   export.
+5. Tell Jarvis the build is in TestFlight — screenshots and the final
+   review submission are a joint pass from there.
 
-## 6. Hand back to Jarvis
+## Not on the critical path (later, at your pace)
 
-Tell Jarvis the build is uploaded. Remaining submission steps (subscription
-product creation in App Store Connect, listing fields, screenshots, privacy
-labels, review notes) are pre-drafted in `APP_STORE_LISTING.md` — we walk
-through them together or you paste per that doc.
-
-## Notes
-
-- `ios/` is generated, not hand-edited. If anything looks wrong, delete
-  `ios/` and redo step 2 — don't hand-fix generated files.
-- The web app keeps working exactly as before; the shell loads the hosted
-  production build, so web fixes reach the app without a new archive. Only
-  native changes (plugins, icons, capabilities) need a re-archive.
+- **SheerID / ID.me** developer signups — needed only for the 6-month
+  military trial; ships as an update. Steps: `military-verification-signup-steps.md`.
+- **USAJobs API key** (free, developer.usajobs.gov) — lights up federal
+  jobs in job alerts. Send Jarvis the key + the email you registered with;
+  it goes in as a server setting, never in the app.
+- **privacy@hirecraft.app mailbox** — the privacy policy lists it as the
+  contact; make sure the mailbox exists before submission.
