@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { MilitaryInfo, Mode, StructuredResume, emptyMilitary, emptyResume } from "./types";
+import type { JobAlert } from "./jobs";
 
 interface AppState {
   mode: Mode;
@@ -21,6 +22,12 @@ interface AppState {
   setLinkedinText: (t: string) => void;
   military: MilitaryInfo;
   setMilitary: (m: MilitaryInfo) => void;
+  alerts: JobAlert[];
+  setAlerts: (a: JobAlert[]) => void;
+  seenJobIds: string[];
+  setSeenJobIds: (ids: string[]) => void;
+  newJobCount: number;
+  setNewJobCount: (n: number) => void;
   hasResume: boolean;
   resetAll: () => void;
 }
@@ -47,6 +54,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [jobUrl, setJobUrl] = useState("");
   const [linkedinText, setLinkedinText] = useState("");
   const [military, setMilitary] = useState<MilitaryInfo>(emptyMilitary());
+  const [alerts, setAlerts] = useState<JobAlert[]>([]);
+  const [seenJobIds, setSeenJobIds] = useState<string[]>([]);
+  const [newJobCount, setNewJobCount] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -60,6 +70,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (s.jobUrl) setJobUrl(s.jobUrl as string);
       if (s.linkedinText) setLinkedinText(s.linkedinText as string);
       if (s.military) setMilitary({ ...emptyMilitary(), ...(s.military as MilitaryInfo) });
+      if (Array.isArray(s.alerts)) setAlerts(s.alerts as JobAlert[]);
+      if (Array.isArray(s.seenJobIds)) setSeenJobIds(s.seenJobIds as string[]);
+      if (typeof s.newJobCount === "number") setNewJobCount(s.newJobCount);
     }
     setHydrated(true);
   }, []);
@@ -67,9 +80,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -83,6 +96,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setJobUrl("");
     setLinkedinText("");
     setMilitary(emptyMilitary());
+    setAlerts([]);
+    setSeenJobIds([]);
+    setNewJobCount(0);
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
   };
 
@@ -93,6 +109,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       mode, setMode, targetTitle, setTargetTitle, company, setCompany,
       resume, setResume, updateResume, jobText, setJobText, jobUrl, setJobUrl, linkedinText, setLinkedinText,
       military, setMilitary,
+      alerts, setAlerts, seenJobIds, setSeenJobIds, newJobCount, setNewJobCount,
       hasResume, resetAll,
     }}>
       {children}
