@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #F8FAFC;
+  --ink: #0B1220;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #10B981;
+  color: #fff;
+}
+
+/* Thin, unobtrusive scrollbars */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: #D8D3C4; border-radius: 8px; }
+
+[contenteditable]:focus {
+  outline: 2px solid rgba(11, 110, 79, 0.45);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Print: only the resume sheet prints */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #resume-print, #resume-print * {
+    visibility: visible;
+  }
+  #resume-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  @page {
+    margin: 0.6in 0.65in;
+  }
+}
