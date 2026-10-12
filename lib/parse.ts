@@ -9,6 +9,9 @@ export async function parseFile(file: File): Promise<string> {
   const ext = file.name.split(".").pop()?.toLowerCase();
   if (ext === "pdf") return parsePdf(file);
   if (ext === "docx") return parseDocx(file);
+  if (ext === "doc") {
+    throw new Error("That's an older Word .doc file, which browsers can't read reliably. In Word: File → Save As → PDF (or .docx), then upload that instead.");
+  }
   return file.text();
 }
 
@@ -74,10 +77,26 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
 ];
 
 /** Heuristic: split flat resume text into a StructuredResume. */
+/** Lines that are PDF/browser furniture, not content (print headers, footers, page numbers). */
+export function isPdfJunkLine(line: string): boolean {
+  const l = line.trim();
+  return (
+    /^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(l) || // "10/12/26, 12:08 PM (1) James Hicks | LinkedIn"
+    /\|\s*LinkedIn\s*$/i.test(l) ||
+    /^page \d+(\s+of\s+\d+)?$/i.test(l) ||
+    /^https?:\/\/\S+\s*\d+\/\d+\s*$/.test(l) || // "https://www.linkedin.com/in/…  3/11"
+    /^https?:\/\/\S+$/.test(l) || // a bare URL on its own line
+    /^\d+\/\d+$/.test(l) || // bare "3/11" page marker
+    /^…?\s*more\s*…?$/i.test(l)
+  );
+}
+
 export function textToStructured(text: string): StructuredResume {
+  // LinkedIn profile PDFs (official export or browser print) need their own parser.
+  if (looksLikeLinkedInProfile(text)) return parseLinkedInProfile(text);
   const r = emptyResume();
   r.rawText = text;
-  const lines = text.split("\n").map((l) => l.trim());
+  const lines = text.split("\n").map((l) => l.trim()).filter((l) => !isPdfJunkLine(l));
 
   // Contact block: first ~6 lines
   const head = lines.slice(0, 8).join("\n");
@@ -198,4 +217,173 @@ export function structuredToText(r: StructuredResume): string {
   }
   if (r.skills.length) out.push("SKILLS", r.skills.join(", "));
   return out.join("\n");
+}
+
+/* ------------------------------------------------------------------ */
+/* LinkedIn profile parsing                                            */
+/* ------------------------------------------------------------------ */
+
+const LI_MONTHS = "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec";
+
+/** Heuristic: is this text a LinkedIn profile (vs. a resume document)? */
+export function looksLikeLinkedInProfile(text: string): boolean {
+  const head = text.slice(0, 600);
+  if (/\|\s*LinkedIn/.test(head)) return true;
+  return /linkedin\.com\/in\//i.test(text) && /\bTop skills\b/i.test(text) && /\bExperience\b/.test(text);
+}
+const LI_DATE_RE = new RegExp(`^(?:${LI_MONTHS})\\s\\d{4}\\s*[-–—]\\s*(?:Present|(?:${LI_MONTHS})\\s\\d{4})`);
+const LI_COMPANY_CTX_RE = /^(Full-time|Part-time|Contract|Internship|Freelance|Self-employed)\s*·\s*(\d+\s*yrs?|\d+\s*mos)/;
+const LI_TOTAL_DUR_RE = /^\d+\s*yrs?\s*\d*\s*mos$/;
+const LI_SKILLS_TAIL_RE = /\s+and\s+\+\d+\s+skills?\.?$/i;
+const LI_HEADINGS = new Set([
+  "about", "experience", "education", "licenses & certifications", "licenses", "skills",
+  "top skills", "featured", "activity", "projects", "honors & awards", "courses",
+  "volunteer experience", "recommendations", "interests", "languages", "publications",
+]);
+
+function liClean(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter((l) => l.length > 0 && !isPdfJunkLine(l));
+}
+
+function liSection(lines: string[], heading: string, endHeadings: string[]): string[] {
+  const start = lines.findIndex((l) => l.toLowerCase() === heading);
+  if (start === -1) return [];
+  const out: string[] = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    if (endHeadings.includes(lines[i].toLowerCase())) break;
+    out.push(lines[i]);
+  }
+  return out;
+}
+
+function liDescriptionToBullets(descLines: string[]): string[] {
+  const joined = descLines
+    .join(" ")
+    .replace(/…\s*more\s*…?/gi, "")
+    .replace(/\s*…\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!joined) return [];
+  const sentences = joined.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter((s) => s.length >= 25);
+  if (sentences.length) return sentences.slice(0, 6);
+  return joined.length >= 25 ? [joined] : [];
+}
+
+/**
+ * Parse a LinkedIn profile (official PDF export or browser print) into a
+ * structured resume. The generic section parser mangles LinkedIn's layout,
+ * so this anchors on the date-range line that starts every role block.
+ */
+export function parseLinkedInProfile(text: string): StructuredResume {
+  const r = emptyResume();
+  r.rawText = text;
+  const lines = liClean(text);
+
+  // Name: first short line before the About/Experience headings.
+  const firstHeading = lines.findIndex((l) => LI_HEADINGS.has(l.toLowerCase()));
+  const head = lines.slice(0, firstHeading === -1 ? 6 : firstHeading);
+  r.name = head.find((l) => l.length > 2 && l.length < 50 && !/[@|·\d]/.test(l) && !/followers|connections/i.test(l)) ?? "";
+  r.email = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] ?? "";
+  r.linkedin = text.match(/(linkedin\.com\/[^\s)]+)/i)?.[0] ?? "";
+  const locMatch = text.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?,\s*[A-Z][a-z]+(?:,\s*United States)?)\b/);
+  r.location = locMatch ? locMatch[0] : "";
+
+  // About -> summary
+  const about = liSection(lines, "about", ["top skills", "featured", "activity", "experience", "education"]);
+  r.summary = about.join(" ").replace(/…\s*more\s*…?/gi, "").trim().slice(0, 1200);
+
+  // Top skills (bulleted with • in exports, · in prints). Join the block's
+  // lines first — skill names wrap across lines ("Executive Protection &" /
+  // "Investigations" is one skill).
+  const skills = new Set<string>();
+  const topIdx = lines.findIndex((l) => l.toLowerCase() === "top skills");
+  if (topIdx !== -1) {
+    const block: string[] = [];
+    for (let i = topIdx + 1; i < Math.min(lines.length, topIdx + 4); i++) {
+      if (LI_HEADINGS.has(lines[i].toLowerCase())) break;
+      block.push(lines[i]);
+    }
+    for (const part of block.join(" ").split(/[•·]/)) {
+      const s = part.trim();
+      if (s && s.length < 60) skills.add(s);
+    }
+  }
+
+  // Experience — date-anchored blocks
+  const expLines = liSection(lines, "experience", ["education", "licenses & certifications", "skills", "projects", "honors & awards", "volunteer experience", "courses"]);
+  let currentCompany = "";
+  let i = 0;
+  while (i < expLines.length) {
+    const line = expLines[i];
+    // Company context header: "USAA" followed by "Full-time · 5 yrs 1 mo"
+    if (i + 1 < expLines.length && (LI_COMPANY_CTX_RE.test(expLines[i + 1]) || LI_TOTAL_DUR_RE.test(expLines[i + 1]))) {
+      currentCompany = line;
+      i += 2;
+      continue;
+    }
+    if (LI_DATE_RE.test(line)) {
+      // Title/company sit above the date line.
+      let title = "";
+      let company = currentCompany;
+      const above1 = expLines[i - 1] ?? "";
+      const above2 = expLines[i - 2] ?? "";
+      if (above1.includes("·") && !LI_DATE_RE.test(above1)) {
+        company = above1.split("·")[0].trim();
+        title = above2;
+        // Wrapped title continuation ("…Investigative Services" / "(CSIS)")
+        const above3 = expLines[i - 3] ?? "";
+        if (title.startsWith("(") && above3 && !LI_DATE_RE.test(above3) && !LI_HEADINGS.has(above3.toLowerCase())) {
+          title = `${above3} ${title}`;
+        }
+      } else {
+        title = above1;
+      }
+      // Collect description lines until the next block starts.
+      const desc: string[] = [];
+      let j = i + 1;
+      while (j < expLines.length) {
+        const l = expLines[j];
+        if (LI_DATE_RE.test(l)) break;
+        if (j + 1 < expLines.length && (LI_COMPANY_CTX_RE.test(expLines[j + 1]) || LI_TOTAL_DUR_RE.test(expLines[j + 1]))) break;
+        // Next role's title (its company line or date line follows)
+        if (j + 1 < expLines.length && LI_DATE_RE.test(expLines[j + 1])) break;
+        if (j + 2 < expLines.length && LI_DATE_RE.test(expLines[j + 2]) && expLines[j + 1].includes("·")) break;
+        if (LI_SKILLS_TAIL_RE.test(l) || /\+\d+\s+skills?\.?$/i.test(l)) {
+          for (const part of l.replace(LI_SKILLS_TAIL_RE, "").split(/,|\s+and\s+/)) {
+            const s = part.trim();
+            if (s && s.length < 60) skills.add(s);
+          }
+          j++;
+          continue;
+        }
+        // Location line right after the dates
+        if (desc.length === 0 && (/·\s*(On-site|Remote|Hybrid)/.test(l) || l === "United States" || l === "Remote" || /^[A-Z][\w .]+,\s*[A-Z]{2}/.test(l) || /,\s*United States$/.test(l))) {
+          j++;
+          continue;
+        }
+        desc.push(l);
+        j++;
+      }
+      if (title && !LI_HEADINGS.has(title.toLowerCase())) {
+        r.experience.push({ title, company, dates: line, bullets: liDescriptionToBullets(desc) });
+      }
+      i = j;
+      continue;
+    }
+    i++;
+  }
+
+  // Education — first school/degree pair
+  const eduLines = liSection(lines, "education", ["licenses & certifications", "skills", "experience", "courses", "honors & awards"]);
+  if (eduLines.length >= 2) {
+    r.education.push({ school: eduLines[0], degree: eduLines[1], dates: eduLines.slice(2).join(" ").match(/((19|20)\d{2})/g)?.join(" – ") ?? "", details: "" });
+  } else if (eduLines.length === 1) {
+    r.education.push({ school: eduLines[0], degree: "", dates: "", details: "" });
+  }
+
+  r.skills = Array.from(skills).slice(0, 24);
+  return r;
 }

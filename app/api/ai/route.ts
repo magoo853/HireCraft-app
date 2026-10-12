@@ -141,7 +141,12 @@ export async function POST(req: NextRequest) {
 
 function runFallback(b: AiRequest) {
   const { task, mode, resume, jobText = "", targetTitle = "", company = "", tone, goals, answers } = b;
-  if (task === "rewrite") return rewriteBullets(resume.rawText, mode);
+  if (task === "rewrite") {
+    // Prefer the resume's real experience bullets over raw lines — raw text
+    // includes summary fragments that aren't bullets at all.
+    const structured = resume.experience.flatMap((e) => e.bullets).filter((x) => x.trim().length > 10);
+    return rewriteBullets(structured.length ? structured.join("\n") : resume.rawText, mode);
+  }
   if (task === "cover-letter") return generateCoverLetter(resume, jobText, targetTitle, company, (tone ?? "professional") as "professional" | "confident" | "warm");
   if (task === "roadmap") {
     const current = resume.experience[0]?.title || "";
@@ -199,8 +204,15 @@ async function runAi(b: AiRequest) {
       `You are a senior resume coach. Rewrite each resume bullet to be punchier and impact-first. ${HONESTY}${modeContext}\n\nReturn JSON: {"rewrites":[{"original":string,"rewritten":string,"why":string,"gaps":[string],"translationNote":string|null}]}`,
       `${resumeContext}${militaryContext(b)}${jobContext}\n\nRewrite every bullet point found in the resume.`
     );
-    const parsed = extractJson(text) as { rewrites: unknown[] };
-    return parsed.rewrites;
+    const parsed = extractJson(text) as { rewrites: Record<string, unknown>[] };
+    if (!Array.isArray(parsed.rewrites)) throw new Error("Malformed AI rewrite response");
+    return parsed.rewrites.map((r) => ({
+      original: String(r.original ?? ""),
+      rewritten: String(r.rewritten ?? r.original ?? ""),
+      why: String(r.why ?? ""),
+      gaps: Array.isArray(r.gaps) ? r.gaps.map(String) : [],
+      translationNote: r.translationNote ? String(r.translationNote) : undefined,
+    }));
   }
 
   if (task === "cover-letter") {
@@ -215,7 +227,16 @@ async function runAi(b: AiRequest) {
     `You are a LinkedIn profile coach. ${HONESTY}${modeContext}\n\nReturn JSON: {"headlines":[string,string,string],"about":string,"polishedBullets":[{"original":string,"polished":string}],"skillsGap":[string],"tip":string}`,
     `${resumeContext}${militaryContext(b)}${b.linkedinText ? `\n\nCURRENT LINKEDIN PROFILE:\n${b.linkedinText.slice(0, 4000)}` : ""}${jobContext}${b.feedback ? `\n\nUSER FEEDBACK ON PRIOR DRAFT — apply it: ${b.feedback.slice(0, 500)}` : ""}\n\nTarget title: ${targetTitle || "(not specified)"}\n\nProduce 3 headline options, a first-person About section (~120 words), polished experience bullets, skills missing vs the posting, and one actionable tip.`
   );
-  return extractJson(text);
+  const li = extractJson(text) as Record<string, unknown>;
+  return {
+    headlines: Array.isArray(li.headlines) && li.headlines.length ? li.headlines.map(String) : [""],
+    about: String(li.about ?? ""),
+    polishedBullets: Array.isArray(li.polishedBullets)
+      ? (li.polishedBullets as Record<string, unknown>[]).map((p) => ({ original: String(p.original ?? ""), polished: String(p.polished ?? p.original ?? "") }))
+      : [],
+    skillsGap: Array.isArray(li.skillsGap) ? li.skillsGap.map(String) : [],
+    tip: String(li.tip ?? ""),
+  };
 }
 
 async function runAiRoadmap(b: AiRequest) {
@@ -226,7 +247,30 @@ async function runAiRoadmap(b: AiRequest) {
     `You are a career strategist. Build a career roadmap for the user's custom checkpoints. ${HONESTY}\n\nSalary bands must be realistic US estimates — label every band as an estimate. For each recommended title, compare its band against the user's salary target and set salaryFlag: "hit" (target <= low end), "can-hit" (target within band), or "below" (target above band), with a one-line salaryNote. For each checkpoint list skillsToHave: every skill the recommended titles expect, each with have: true/false based on the resume. For each title include dayInLife: a one-sentence illustrative preview of what the job is like day to day.\n\nReturn JSON: {"nodes":[{"horizon":string,"years":number,"goalText":string,"titles":[{"title":string,"salaryLow":number,"salaryHigh":number,"salaryFlag":string,"salaryNote":string,"dayInLife":string}],"steppingStones":[string],"gaps":[string],"skillsToHave":[{"skill":string,"have":boolean}]}]}`,
     `RESUME:\n${resume.rawText.slice(0, 8000)}${militaryContext(b)}\n\nCurrent title: ${resume.experience[0]?.title || "(unknown)"}\n\nCHECKPOINTS:\n${goalLines}\n\nReturn one node per checkpoint plus a "Now" node (years: 0) first.`
   );
-  return (extractJson(text) as { nodes: unknown }).nodes;
+  const rawNodes = (extractJson(text) as { nodes: Record<string, unknown>[] }).nodes;
+  if (!Array.isArray(rawNodes)) throw new Error("Malformed AI roadmap response");
+  // Coerce every node into the full RoadmapNode shape the page renders —
+  // a missing array from the model must never crash the screen.
+  return rawNodes.map((n) => ({
+    horizon: String(n.horizon ?? ""),
+    years: Number(n.years) || 0,
+    goalText: String(n.goalText ?? ""),
+    titles: Array.isArray(n.titles)
+      ? (n.titles as Record<string, unknown>[]).map((t) => ({
+          title: String(t.title ?? ""),
+          salaryLow: Number(t.salaryLow) || 0,
+          salaryHigh: Number(t.salaryHigh) || 0,
+          salaryFlag: (["hit", "can-hit", "below"].includes(String(t.salaryFlag)) ? String(t.salaryFlag) : "can-hit") as "hit" | "can-hit" | "below",
+          salaryNote: String(t.salaryNote ?? ""),
+          dayInLife: t.dayInLife ? String(t.dayInLife) : undefined,
+        }))
+      : [],
+    steppingStones: Array.isArray(n.steppingStones) ? n.steppingStones.map(String) : [],
+    gaps: Array.isArray(n.gaps) ? n.gaps.map(String) : [],
+    skillsToHave: Array.isArray(n.skillsToHave)
+      ? (n.skillsToHave as Record<string, unknown>[]).map((s) => ({ skill: String(s.skill ?? ""), have: !!s.have }))
+      : [],
+  }));
 }
 
 async function runAiDiscover(b: AiRequest) {

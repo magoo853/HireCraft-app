@@ -425,6 +425,34 @@ export function dayInLife(role: Role): string {
   return `Day to day, expect your time to revolve around ${head}${tail}.`;
 }
 
+/** Best-guess ladder role for a resume whose title matches nothing in ROLES. */
+export function inferRoleFromResume(currentTitle: string, resumeText: string, resumeSkills: string[]): Role | undefined {
+  // Probe with titles + skills only — body text is too noisy (it name-drops
+  // other fields). Require at least a title-word or skill-word connection.
+  const probe = `${currentTitle} ${resumeSkills.join(" ")}`;
+  const candidate = rolesForGoal(probe, 1)[0];
+  if (!candidate) return undefined;
+  const probeWords = new Set(probe.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean));
+  const connected = candidate.title.toLowerCase().split(/\s+/).some((w) => probeWords.has(w))
+    || candidate.skills.some((s) => s.toLowerCase().split(/\s+/).some((w) => probeWords.has(w)));
+  return connected ? candidate : undefined;
+}
+
+/** Next rungs when a goal names no recognizable role: climb from where you are. */
+function progressionFrom(prevTitle: string, resumeText: string, resumeSkills: string[], limit: number): Role[] {
+  const cur = (prevTitle ? findRoleWithMilitary(prevTitle) : undefined) ?? inferRoleFromResume(prevTitle, resumeText, resumeSkills);
+  if (!cur) {
+    const ops = findRole("Operations Manager");
+    return ops ? [ops] : [];
+  }
+  const nexts = cur.next.map((t) => findRole(t)).filter((r): r is Role => !!r);
+  if (nexts.length) return nexts.slice(0, limit);
+  const sibs = ROLES
+    .filter((r) => r.cluster[0] === cur.cluster[0] && r.salaryHigh > cur.salaryHigh)
+    .sort((a, b) => a.salaryHigh - b.salaryHigh);
+  return (sibs.length ? sibs : [cur]).slice(0, limit);
+}
+
 export function buildRoadmap(
   currentTitle: string,
   resumeText: string,
@@ -436,7 +464,8 @@ export function buildRoadmap(
     .filter((g) => g.years > 0)
     .sort((a, b) => a.years - b.years);
 
-  const currentRole = currentTitle ? findRoleWithMilitary(currentTitle) : undefined;
+  const matchedRole = currentTitle ? findRoleWithMilitary(currentTitle) : undefined;
+  const currentRole = matchedRole ?? inferRoleFromResume(currentTitle, resumeText, resumeSkills);
   const nowSkills = currentRole
     ? currentRole.skills.map((s) => ({ skill: s, have: have.has(s.toLowerCase()) }))
     : [];
@@ -446,7 +475,7 @@ export function buildRoadmap(
       horizon: "Now",
       years: 0,
       titles: currentTitle
-        ? [{ title: currentRole?.title ?? currentTitle, salaryLow: 0, salaryHigh: 0, salaryFlag: "can-hit", salaryNote: "Your current lane", dayInLife: currentRole ? dayInLife(currentRole) : "" }]
+        ? [{ title: matchedRole?.title ?? currentTitle, salaryLow: 0, salaryHigh: 0, salaryFlag: "can-hit", salaryNote: "Your current lane", dayInLife: currentRole ? dayInLife(currentRole) : "" }]
         : [],
       steppingStones: [],
       gaps: [],
@@ -461,7 +490,8 @@ export function buildRoadmap(
   if (startRole) prevTitle = startRole.title;
   for (const goal of horizons) {
     const key = `${goal.years} year${goal.years === 1 ? "" : "s"}`;
-    const roles = rolesForGoal(goal.text, 2);
+    let roles = rolesForGoal(goal.text, 2);
+    if (!roles.length) roles = progressionFrom(prevTitle, resumeText, resumeSkills, 2);
     const titles = roles.map((r) => ({ ...salaryFlag(r.salaryLow, r.salaryHigh, goal.salary), title: r.title, dayInLife: dayInLife(r) }));
 
     // Stepping stones: path from previous title to the top target

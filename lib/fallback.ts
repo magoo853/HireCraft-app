@@ -7,18 +7,7 @@ import {
   ScoreResult,
   StructuredResume,
 } from "./types";
-import { textToStructured } from "./parse";
-
-/** Lines that are PDF/browser furniture, not content (print headers, footers). */
-function isJunkLine(line: string): boolean {
-  const l = line.trim();
-  return (
-    /^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(l) || // "10/12/26, 12:08 PM (1) James Hicks | LinkedIn"
-    /\|\s*LinkedIn\s*$/i.test(l) ||
-    /^page \d+(\s+of\s+\d+)?$/i.test(l) ||
-    /^https?:\/\/\S+$/.test(l)
-  );
-}
+import { textToStructured, parseLinkedInProfile, isPdfJunkLine as isJunkLine } from "./parse";
 
 /* ------------------------------------------------------------------ */
 /* Shared language data                                                */
@@ -506,6 +495,12 @@ function resultFirst(bullet: string): { text: string; changed: boolean } {
   return { text: bullet, changed: false };
 }
 
+/** True when two strings differ only in whitespace/punctuation spacing. */
+function sameish(a: string, b: string): boolean {
+  const norm = (s: string) => s.replace(/\s*([-—–,;:])\s*/g, "$1").replace(/\s+/g, " ").trim().toLowerCase();
+  return norm(a) === norm(b);
+}
+
 export function rewriteBullet(original: string, mode: Mode): RewriteResult {
   const gaps: string[] = [];
   const whys: string[] = [];
@@ -534,6 +529,18 @@ export function rewriteBullet(original: string, mode: Mode): RewriteResult {
     whys.push("Already quantified — tightened the phrasing so the number hits harder.");
   }
 
+  // Fragment pass — runs BEFORE tightening: summary-style fragments
+  // ("Proficient with…", "5 years experience — oversees…") get restructured
+  // into achievement shape while their structure is still intact.
+  if (sameish(text, original)) {
+    const frag = rewriteFragment(text);
+    if (frag) {
+      text = frag.text;
+      whys.push("Restructured a summary fragment into achievement form — same facts, recruiter shape.");
+      if (frag.gap) gaps.push(frag.gap);
+    }
+  }
+
   // Trim filler
   const before = text;
   text = text
@@ -552,7 +559,7 @@ export function rewriteBullet(original: string, mode: Mode): RewriteResult {
   }
 
   // Last resort: upgrade the opening verb so the rewrite never echoes the original.
-  if (text === original.trim()) {
+  if (sameish(text, original)) {
     const upgraded = upgradeVerb(text);
     if (upgraded.changed) {
       text = upgraded.text;
@@ -561,6 +568,9 @@ export function rewriteBullet(original: string, mode: Mode): RewriteResult {
   }
 
   if (!whys.length) whys.push("Solid bullet — polished for flow while keeping every fact you provided.");
+
+  // Final polish: a pass may have removed a sentence-initial word — re-case.
+  if (/^[a-z]/.test(text)) text = text.charAt(0).toUpperCase() + text.slice(1);
 
   return { original, rewritten: text, why: whys[0], gaps, translationNote };
 }
@@ -578,6 +588,7 @@ const TIGHTEN: [RegExp, string | ((...args: string[]) => string)][] = [
   [/\bon a (daily|weekly|monthly) basis\b/gi, "$1"],
   [/\bresulting in a (\d[\d,.]*%?) increase\b/gi, "lifting $1"],
   [/\bresulting in\b/gi, "delivering"],
+  [/\bthat provided\b/gi, "delivering"],
   [/\bleading to a\b/gi, "delivering a"],
   [/\bresponsible for managing\b/gi, "managed"],
   [/\btasked with\b/gi, ""],
@@ -638,6 +649,37 @@ function upgradeVerb(bullet: string): { text: string; changed: boolean } {
 
 export function rewriteBullets(text: string, mode: Mode): RewriteResult[] {
   return extractBullets(text).map((b) => rewriteBullet(b, mode));
+}
+
+/**
+ * Restructure summary-style fragments into achievement shape. Returns null
+ * when the line is a real sentence already. Never invents facts — it only
+ * reorders and re-cases what is there.
+ */
+function rewriteFragment(bullet: string): { text: string; gap?: string } | null {
+  const b = bullet.trim();
+  // "5 years contract management experience — oversees base-level & enterprise…"
+  const dash = b.match(/^(\d+\s+years?[^—–-]{3,60}?)\s*[—–-]\s*([a-z][\s\S]+)$/);
+  if (dash) {
+    const [, lead, rest] = dash;
+    const tail = rest.trim();
+    return { text: `${tail.charAt(0).toUpperCase() + tail.slice(1)} (${lead.trim()})` };
+  }
+  // Skills-style lines
+  const skillsGap = "This is a skills line, not an achievement — it lands harder in the Skills section, or paired with a result it produced.";
+  let m = b.match(/^proficient with\s+(.+)$/i);
+  if (m) return { text: `Proficient in ${m[1]}`, gap: skillsGap };
+  m = b.match(/^experience with\s+(.+)$/i);
+  if (m) return { text: `Hands-on experience with ${m[1]}`, gap: skillsGap };
+  m = b.match(/^efficient with\s+(.+)$/i);
+  if (m) return { text: `Fluent in ${m[1]}`, gap: skillsGap };
+  m = b.match(/^knowledge of\s+(.+)$/i);
+  if (m) return { text: `Working knowledge of ${m[1]}`, gap: skillsGap };
+  m = b.match(/^provided\s*&\s*executed\s+(.+)$/i);
+  if (m) return { text: `Executed ${m[1]}` };
+  m = b.match(/^provided\s+(.+)$/i);
+  if (m) return { text: `Delivered ${m[1]}` };
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -767,15 +809,21 @@ export function generateLinkedIn(
   const matched = keywords.filter((k) => k.matched).map((k) => k.term);
   const missing = keywords.filter((k) => !k.matched).map((k) => k.term);
   // If the structured resume is thin (e.g. built from a LinkedIn PDF), parse
-  // the source text structurally so titles/skills/bullets are real.
-  const parsedSource = resume.experience.length ? resume : textToStructured(sourceText);
+  // the source text structurally so titles/skills/bullets are real. A real
+  // LinkedIn profile gets the dedicated LinkedIn parser.
+  const parsedLinkedIn = linkedinText.trim() ? parseLinkedInProfile(linkedinText) : null;
+  const parsedSource = parsedLinkedIn && parsedLinkedIn.experience.length
+    ? parsedLinkedIn
+    : resume.experience.length
+      ? resume
+      : textToStructured(sourceText);
   const title = targetTitle || parsedSource.experience[0]?.title || "Professional";
   const topSkills = (parsedSource.skills.length ? parsedSource.skills : resume.skills.length ? resume.skills : matched).slice(0, 3);
   const fb = feedback.toLowerCase();
   const applied: string[] = [];
 
   let headlines = [
-    `${title} | ${topSkills.slice(0, 2).join(" · ")}${topSkills[2] ? ` · ${topSkills[2]}` : ""}`,
+    topSkills.length ? `${title} | ${topSkills.join(" · ")}` : `${title} | Open to new opportunities`,
     `${title} helping teams ${matched[0] ? `with ${matched[0]}` : "deliver results"} | Open to new opportunities`,
     `${title} | ${parsedSource.experience[0]?.company ? `Previously ${parsedSource.experience[0].company} · ` : ""}${topSkills[0] ?? "Results-driven"}`,
   ];
