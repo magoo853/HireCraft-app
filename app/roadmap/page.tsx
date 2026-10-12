@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
-import { GOAL_EXAMPLES, RoadmapGoal, RoadmapNode, fmtSalary } from "@/lib/careers";
+import { GOAL_EXAMPLES, RoadmapGoal, RoadmapNode, fmtSalary, jobSearchLinks } from "@/lib/careers";
 import { AiResponse } from "@/lib/types";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, Pill, inputCls } from "@/components/ui";
 
 const LS_KEY = "hirecraft-roadmap-goals-v2";
 const LS_OLD = "hirecraft-roadmap-goals";
+const LS_LOC = "hc_location";
 
 const defaultGoals = (): RoadmapGoal[] => [
   { years: 2, text: "", salary: 0 },
@@ -33,6 +34,7 @@ export default function RoadmapPage() {
   const [nodes, setNodes] = useState<AiResponse<RoadmapNode[]> | null>(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<number | null>(1);
+  const [location, setLocation] = useState("");
 
   useEffect(() => {
     try {
@@ -52,6 +54,10 @@ export default function RoadmapPage() {
         ].filter((g) => g.text || g.salary);
         if (migrated.length) setGoals(migrated);
       }
+      try {
+        const loc = localStorage.getItem(LS_LOC);
+        if (loc) setLocation(loc);
+      } catch { /* noop */ }
     } catch { /* noop */ }
   }, []);
 
@@ -60,6 +66,12 @@ export default function RoadmapPage() {
       localStorage.setItem(LS_KEY, JSON.stringify(goals));
     } catch { /* noop */ }
   }, [goals]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_LOC, location);
+    } catch { /* noop */ }
+  }, [location]);
 
   if (!hasResume) {
     return (
@@ -193,6 +205,10 @@ export default function RoadmapPage() {
             {loading ? "Mapping your future…" : "🗺 Build my roadmap"}
           </Button>
           {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
+          <Field label="Location (optional — sharpens the job-board links)">
+            <input value={location} onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g. Tampa, FL" className={inputCls} />
+          </Field>
           <p className="text-xs text-muted mt-3 text-center">Salary bands are estimates — directionally right, not gospel.</p>
         </>
       )}
@@ -250,6 +266,14 @@ export default function RoadmapPage() {
                               {t.salaryFlag === "hit" && <Pill tone="ok">{t.salaryNote}</Pill>}
                               {t.salaryFlag === "can-hit" && <Pill tone="warn">{t.salaryNote}</Pill>}
                               {t.salaryFlag === "below" && <Pill tone="bad">{t.salaryNote}</Pill>}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {jobSearchLinks(t.title, location, mode === "veteran").map((l) => (
+                                <a key={l.name} href={l.url} target="_blank" rel="noopener noreferrer"
+                                  className="text-[11px] font-bold text-brand underline underline-offset-2 min-h-[32px] inline-flex items-center px-1">
+                                  {l.name} ↗
+                                </a>
+                              ))}
                             </div>
                           </div>
                         ))}

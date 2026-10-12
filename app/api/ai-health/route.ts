@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const key = process.env.AI_API_KEY;
   const base = (process.env.AI_API_BASE || "https://generativelanguage.googleapis.com/v1beta/openai").replace(/\/$/, "");
-  const model = process.env.AI_MODEL || "gemini-2.0-flash";
+  const model = process.env.AI_MODEL || "gemini-3.8-flash";
 
   if (!key) {
     return NextResponse.json({ keyPresent: false, working: false, detail: "No AI_API_KEY set — running on the built-in engine." });

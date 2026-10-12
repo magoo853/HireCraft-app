@@ -2,6 +2,9 @@ import { StructuredResume, emptyResume } from "./types";
 
 /* Client-side resume parsing: PDF / DOCX / TXT -> text -> structured resume */
 
+// Keep the major version in sync with the pdfjs-dist dependency in package.json.
+const PDFJS_CDN_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs";
+
 export async function parseFile(file: File): Promise<string> {
   const ext = file.name.split(".").pop()?.toLowerCase();
   if (ext === "pdf") return parsePdf(file);
@@ -11,9 +14,24 @@ export async function parseFile(file: File): Promise<string> {
 
 async function parsePdf(file: File): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   const buf = await file.arrayBuffer();
-  const pdf = await pdfjs.getDocument({ data: buf }).promise;
+  // Try the locally-served worker first; fall back to CDN if the build
+  // didn't include it (e.g. install-time copy skipped).
+  const workers = ["/pdf.worker.min.mjs", PDFJS_CDN_WORKER];
+  let lastErr: unknown = null;
+  for (const src of workers) {
+    try {
+      pdfjs.GlobalWorkerOptions.workerSrc = src;
+      const pdf = await pdfjs.getDocument({ data: buf.slice(0) }).promise;
+      return await extractPdfText(pdf);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Couldn't read that PDF.");
+}
+
+async function extractPdfText(pdf: { numPages: number; getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: unknown[] }> }> }): Promise<string> {
   const pages: string[] = [];
   for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
     const page = await pdf.getPage(i);
