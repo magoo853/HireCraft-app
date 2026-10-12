@@ -28,8 +28,10 @@ interface AiRequest {
 }
 
 const API_KEY = process.env.AI_API_KEY;
-const API_BASE = (process.env.AI_API_BASE || "https://api.openai.com/v1").replace(/\/$/, "");
-const MODEL = process.env.AI_API_BASE ? (process.env.AI_MODEL || "gpt-4o-mini") : (process.env.AI_MODEL || "gpt-4o-mini");
+// Default: Google Gemini (free tier, OpenAI-compatible endpoint). Override with
+// AI_API_BASE / AI_MODEL env vars for any other OpenAI-compatible provider.
+const API_BASE = (process.env.AI_API_BASE || "https://generativelanguage.googleapis.com/v1beta/openai").replace(/\/$/, "");
+const MODEL = process.env.AI_MODEL || "gemini-2.0-flash";
 
 const HONESTY = `Critical rules: NEVER invent facts, numbers, job titles, companies, dates, or skills the user did not provide. Only rephrase what exists. Where a bullet lacks a metric, say so in the "gaps" field instead of inventing one.`;
 

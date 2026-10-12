@@ -59,9 +59,10 @@ The paywall UI (`app/paywall/page.tsx`) is built; everything is unlocked in this
 
 ## AI layer
 
-`POST /api/ai` handles `rewrite`, `cover-letter`, `linkedin` tasks.
+`POST /api/ai` handles `rewrite`, `cover-letter`, `linkedin`, `roadmap`, `discover` tasks.
 
-- With `AI_API_KEY` set → calls your OpenAI-compatible endpoint (`AI_API_BASE`, default `https://api.openai.com/v1`; `AI_MODEL`, default `gpt-4o-mini`).
+- **Default: Google Gemini (free tier).** Set `AI_API_KEY` to a free key from [Google AI Studio](https://aistudio.google.com) — ~1,500 requests/day free, no card required. The default endpoint is Gemini's OpenAI-compatible API (`https://generativelanguage.googleapis.com/v1beta/openai`, model `gemini-2.0-flash`).
+- Override with `AI_API_BASE` / `AI_MODEL` env vars for any other OpenAI-compatible provider.
 - Without a key → high-quality rules/template engine in `lib/fallback.ts` (deterministic scoring, keyword extraction, template rewrites, cover-letter scaffolds, LinkedIn content). **No button is ever dead.**
 
 The key must be a server env var — never ship it client-side.
