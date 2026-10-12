@@ -8,19 +8,8 @@ import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
 const MODES: Mode[] = ["veteran", "general", "new"];
 
 export default function SettingsPage() {
-  const { mode, setMode, resetAll } = useApp();
-  const [aiKey, setAiKey] = useState("");
-  const [aiMsg, setAiMsg] = useState("");
+  const { mode, setMode, resetAll, aiConsent, setAiConsent } = useApp();
   const [confirmReset, setConfirmReset] = useState(false);
-
-  function saveKey() {
-    // The key must live server-side (env var) for production. This stores it
-    // locally only as a convenience note — the /api/ai route reads process.env.
-    setAiMsg(
-      "For this build, the AI key must be set as the AI_API_KEY environment variable where the server runs (see README). " +
-      "A future App Store build will add an in-app key entry like the Code Red hub's Integrations screen."
-    );
-  }
 
   return (
     <div>
@@ -41,23 +30,34 @@ export default function SettingsPage() {
       </Card>
 
       <Card className="mb-4">
-        <Field label="AI API key" hint="Without a key, HireCraft runs its built-in coach engine — every feature still works. With a key, rewrites and letters use full AI.">
-          <div className="flex gap-2">
-            <input value={aiKey} onChange={(e) => setAiKey(e.target.value)} type="password"
-              placeholder="sk-…" className={inputCls} autoComplete="off" />
-            <Button variant="secondary" onClick={saveKey} className="shrink-0">Save</Button>
-          </div>
-        </Field>
-        {aiMsg && <p className="text-xs text-muted leading-relaxed">{aiMsg}</p>}
-        <p className="text-xs text-muted mt-2">
-          Env vars: <code className="bg-stone-100 px-1 rounded">AI_API_KEY</code>, <code className="bg-stone-100 px-1 rounded">AI_API_BASE</code> (default OpenAI), <code className="bg-stone-100 px-1 rounded">AI_MODEL</code> (default gpt-4o-mini). Any OpenAI-compatible endpoint works.
+        <p className="font-bold text-ink text-sm mb-1">AI data sharing</p>
+        <p className="text-xs text-muted leading-relaxed mb-3">
+          AI features (rewrites, cover letters, LinkedIn polish, roadmaps, matching) send your resume
+          text to our AI provider, Google (Gemini), to generate results — with your consent. In Veteran
+          mode, job codes and performance-review text are included. The content is processed only to
+          answer your request: never sold, never used for advertising. Scoring, templates, and job
+          alerts run on-device without AI.
         </p>
+        {aiConsent ? (
+          <>
+            <p className="text-xs font-bold text-emerald-900 mb-2">✓ Consent given — AI features are on.</p>
+            <Button variant="secondary" onClick={() => setAiConsent(false)} className="w-full">Withdraw consent</Button>
+            <p className="text-[11px] text-muted mt-2">Withdrawing stops all AI sending; the app will ask again before anything is sent.</p>
+          </>
+        ) : (
+          <>
+            <p className="text-xs font-bold text-amber-900 mb-2">Consent not given — AI features are paused.</p>
+            <Button variant="emerald" onClick={() => setAiConsent(true)} className="w-full">Give consent &amp; turn AI on</Button>
+          </>
+        )}
       </Card>
 
       <Card className="mb-4">
         <p className="font-bold text-ink text-sm mb-1">Privacy</p>
         <p className="text-xs text-muted leading-relaxed mb-3">
-          Your resume never leaves your device unless you add an AI key — and even then, it's sent only to your configured AI provider to generate your results. Nothing is used for training. Deleting below wipes everything stored locally.
+          Your resume is stored only on this device. The only time any of it leaves the device is when
+          you use an AI feature (see above) or run a job-alert check, which sends just your search
+          terms — never your resume — to the job boards. Deleting below wipes everything stored locally.
         </p>
         {!confirmReset ? (
           <Button variant="danger" onClick={() => setConfirmReset(true)} className="w-full">Delete all my data</Button>

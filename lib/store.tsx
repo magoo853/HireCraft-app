@@ -28,6 +28,8 @@ interface AppState {
   setSeenJobIds: (ids: string[]) => void;
   newJobCount: number;
   setNewJobCount: (n: number) => void;
+  aiConsent: boolean;
+  setAiConsent: (v: boolean) => void;
   hasResume: boolean;
   resetAll: () => void;
 }
@@ -57,6 +59,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<JobAlert[]>([]);
   const [seenJobIds, setSeenJobIds] = useState<string[]>([]);
   const [newJobCount, setNewJobCount] = useState(0);
+  const [aiConsent, setAiConsent] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -73,6 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(s.alerts)) setAlerts(s.alerts as JobAlert[]);
       if (Array.isArray(s.seenJobIds)) setSeenJobIds(s.seenJobIds as string[]);
       if (typeof s.newJobCount === "number") setNewJobCount(s.newJobCount);
+      if (typeof s.aiConsent === "boolean") setAiConsent(s.aiConsent);
     }
     setHydrated(true);
   }, []);
@@ -80,9 +84,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -99,6 +103,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAlerts([]);
     setSeenJobIds([]);
     setNewJobCount(0);
+    setAiConsent(false);
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
   };
 
@@ -110,6 +115,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       resume, setResume, updateResume, jobText, setJobText, jobUrl, setJobUrl, linkedinText, setLinkedinText,
       military, setMilitary,
       alerts, setAlerts, seenJobIds, setSeenJobIds, newJobCount, setNewJobCount,
+      aiConsent, setAiConsent,
       hasResume, resetAll,
     }}>
       {children}

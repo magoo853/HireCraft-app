@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppProvider } from "@/lib/store";
 import { BottomNav, TopBar } from "@/components/ui";
+import { AiConsentGate } from "@/components/consent";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
           <main className="max-w-lg mx-auto px-4 pt-5 pb-28">{children}</main>
           <BottomNav />
+          <AiConsentGate />
         </AppProvider>
       </body>
     </html>
