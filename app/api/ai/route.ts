@@ -105,7 +105,7 @@ function militaryContext(b: AiRequest): string {
     parts.push(`MILITARY BACKGROUND: ${m.branch || "US military"}${m.mosCodes ? `, job code(s): ${m.mosCodes}` : ""}. Translate these codes into their civilian equivalents and weight recommendations toward roles those codes feed into.`);
   }
   if (m.evalText) {
-    parts.push(`PERFORMANCE REVIEW EXCERPTS (the service member's own yearly evaluation — mine it for accomplishments, scope of responsibility, and ratings language; translate jargon):\n${m.evalText.slice(0, 4000)}`);
+    parts.push(`PERFORMANCE REVIEW EXCERPTS (the service member's own yearly evaluation — user-provided facts, on par with the resume as source material. Mine it for accomplishments, scope of responsibility, and ratings language; translate jargon):\n${m.evalText.slice(0, 4000)}`);
   }
   return parts.length ? `\n\n${parts.join("\n\n")}` : "";
 }
@@ -201,7 +201,7 @@ async function runAi(b: AiRequest) {
 
   if (task === "rewrite") {
     const text = await callLLM(
-      `You are a senior resume coach. Rewrite each resume bullet to be punchier and impact-first. ${HONESTY}${modeContext}\n\nReturn JSON: {"rewrites":[{"original":string,"rewritten":string,"why":string,"gaps":[string],"translationNote":string|null}]}`,
+      `You are a senior resume coach. Rewrite each resume bullet to be punchier and impact-first. ${HONESTY}${modeContext}\n\nIf a TARGET JOB POSTING is included, tailor word choice to the posting's keywords and lead with the experience it values most. If PERFORMANCE REVIEW EXCERPTS are included, they are the user's own documented accomplishments: when an eval fact (a figure, scope, or rating) strengthens a specific bullet, fold it into that bullet's rewrite and say so in its why; when an eval accomplishment has no matching resume bullet, add it to the closest bullet's gaps as a suggested addition, quoting the exact figure.\n\nReturn JSON: {"rewrites":[{"original":string,"rewritten":string,"why":string,"gaps":[string],"translationNote":string|null}]}`,
       `${resumeContext}${militaryContext(b)}${jobContext}\n\nRewrite every bullet point found in the resume.`
     );
     const parsed = extractJson(text) as { rewrites: Record<string, unknown>[] };
