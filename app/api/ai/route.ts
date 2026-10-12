@@ -201,18 +201,35 @@ async function runAi(b: AiRequest) {
 
   if (task === "rewrite") {
     const text = await callLLM(
-      `You are a senior resume coach. Rewrite each resume bullet to be punchier and impact-first. ${HONESTY}${modeContext}\n\nIf a TARGET JOB POSTING is included, tailor word choice to the posting's keywords and lead with the experience it values most. If PERFORMANCE REVIEW EXCERPTS are included, they are the user's own documented accomplishments: when an eval fact (a figure, scope, or rating) strengthens a specific bullet, fold it into that bullet's rewrite and say so in its why; when an eval accomplishment has no matching resume bullet, add it to the closest bullet's gaps as a suggested addition, quoting the exact figure.\n\nReturn JSON: {"rewrites":[{"original":string,"rewritten":string,"why":string,"gaps":[string],"translationNote":string|null}]}`,
+      `You are a senior resume coach. Rewrite each resume bullet to be punchier and impact-first. ${HONESTY}${modeContext}\n\nIf a TARGET JOB POSTING is included, tailor word choice to the posting's keywords and lead with the experience it values most. If PERFORMANCE REVIEW EXCERPTS are included, they are the user's own documented accomplishments: when an eval fact (a figure, scope, or rating) strengthens a specific bullet, fold it into that bullet's rewrite and say so in its why; when an eval accomplishment has no matching resume bullet, add it to the closest bullet's gaps as a suggested addition, quoting the exact figure. ALSO return evalAdditions: up to 4 accomplishments that appear ONLY in the performance review (not in the resume), each with the eval's wording as original and a polished, resume-ready bullet as rewritten. evalAdditions must be an empty array when no performance review is provided.\n\nReturn JSON: {"rewrites":[{"original":string,"rewritten":string,"why":string,"gaps":[string],"translationNote":string|null}],"evalAdditions":[{"original":string,"rewritten":string,"why":string}]}`,
       `${resumeContext}${militaryContext(b)}${jobContext}\n\nRewrite every bullet point found in the resume.`
     );
-    const parsed = extractJson(text) as { rewrites: Record<string, unknown>[] };
+    const parsed = extractJson(text) as { rewrites: Record<string, unknown>[]; evalAdditions?: Record<string, unknown>[] };
     if (!Array.isArray(parsed.rewrites)) throw new Error("Malformed AI rewrite response");
-    return parsed.rewrites.map((r) => ({
+    const rewrites = parsed.rewrites.map((r) => ({
       original: String(r.original ?? ""),
       rewritten: String(r.rewritten ?? r.original ?? ""),
       why: String(r.why ?? ""),
       gaps: Array.isArray(r.gaps) ? r.gaps.map(String) : [],
       translationNote: r.translationNote ? String(r.translationNote) : undefined,
     }));
+    // Eval-only accomplishments ride along as extra pairs — original is the
+    // eval's own wording, rewritten is the resume-ready bullet.
+    if (Array.isArray(parsed.evalAdditions)) {
+      for (const a of parsed.evalAdditions.slice(0, 4)) {
+        const original = String(a.original ?? "").trim();
+        const rewritten = String(a.rewritten ?? "").trim();
+        if (!original || !rewritten) continue;
+        rewrites.push({
+          original,
+          rewritten,
+          why: `New — mined from your performance review. ${String(a.why ?? "")}`.trim(),
+          gaps: [],
+          translationNote: undefined,
+        });
+      }
+    }
+    return rewrites;
   }
 
   if (task === "cover-letter") {
