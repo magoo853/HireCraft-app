@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import {
   LIKERT_LABELS,
@@ -14,6 +15,7 @@ import {
   jobSearchLinks,
 } from "@/lib/careers";
 import { AiResponse } from "@/lib/types";
+import { JobPosting, ScoredPosting, scorePosting } from "@/lib/jobs";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
 
 interface DiscoverResult {
@@ -247,6 +249,8 @@ export default function DiscoverPage() {
           )}
         </>
       )}
+
+      <JobAlertsSection />
     </div>
   );
 }
@@ -310,6 +314,203 @@ function MatchList({ matches, selected, onSelect, offset, location, veteran }: {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Job alerts — saved role/company watches with resume match scores    */
+/* ------------------------------------------------------------------ */
+
+function JobAlertsSection() {
+  const { resume, alerts, setAlerts, seenJobIds, setSeenJobIds, setNewJobCount, setJobText, setTargetTitle, setCompany } = useApp();
+  const router = useRouter();
+  const [role, setRole] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [loc, setLoc] = useState("");
+  const [minMatch, setMinMatch] = useState(0);
+  const [checking, setChecking] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [feed, setFeed] = useState<ScoredPosting[]>([]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const checkedOnce = useRef(false);
+
+  async function check(manual: boolean) {
+    if (!alerts.length || checking) return;
+    setChecking(true);
+    if (manual) setMsg("");
+    try {
+      const all: ScoredPosting[] = [];
+      const freshIds: string[] = [];
+      for (const a of alerts) {
+        const params = new URLSearchParams({ role: a.role });
+        if (a.company) params.set("company", a.company);
+        if (a.location) params.set("location", a.location);
+        const res = await fetch(`/api/jobs?${params}`);
+        if (!res.ok) continue;
+        const j = (await res.json()) as { postings?: JobPosting[] };
+        for (const p of j.postings ?? []) {
+          const score = scorePosting(resume, p);
+          if (score.match < a.minMatch) continue;
+          const isNew = !seenJobIds.includes(p.id);
+          if (isNew) freshIds.push(p.id);
+          all.push({ ...p, score, isNew, alertRole: a.role });
+        }
+      }
+      all.sort((x, y) => y.score.match - x.score.match);
+      setFeed(all.slice(0, 30));
+      if (freshIds.length) {
+        setSeenJobIds([...seenJobIds, ...freshIds].slice(-600));
+        setNewJobCount(freshIds.length);
+        setMsg(`${freshIds.length} new posting${freshIds.length === 1 ? "" : "s"} since your last check.`);
+      } else if (manual) {
+        setMsg("No new postings since your last check — showing the latest matches.");
+      }
+    } catch {
+      if (manual) setMsg("Couldn't reach the job sources — try again in a bit.");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  useEffect(() => {
+    if (checkedOnce.current || !alerts.length) return;
+    checkedOnce.current = true;
+    void check(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alerts.length]);
+
+  function addAlert() {
+    const r = role.trim();
+    if (!r) { setMsg("Give the alert a job title first — e.g. Software Developer."); return; }
+    setAlerts([
+      ...alerts,
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: r, company: companyName.trim(), location: loc.trim(), minMatch, createdAt: Date.now() },
+    ]);
+    setRole(""); setCompanyName(""); setLoc(""); setMinMatch(0);
+    setMsg("Alert saved — tap “Check for new jobs” to scan now.");
+  }
+
+  function tailor(p: ScoredPosting) {
+    setTargetTitle(p.title);
+    setCompany(p.company);
+    setJobText(`${p.title} at ${p.company}${p.location ? ` (${p.location})` : ""}\n\n${p.description}`);
+    router.push("/score");
+  }
+
+  return (
+    <div className="mt-10">
+      <SectionTitle sub="Watch a role — optionally at one company — and get new postings scored against your resume.">
+        🔔 Job alerts
+      </SectionTitle>
+      <Card>
+        <div className="grid gap-3">
+          <Field label="Job title to watch">
+            <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Software Developer" className={inputCls} />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Company (optional)">
+              <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Any company" className={inputCls} />
+            </Field>
+            <Field label="Location (optional)">
+              <input value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="City, ST or Remote" className={inputCls} />
+            </Field>
+          </div>
+          <Field label="Only show matches at or above">
+            <select value={minMatch} onChange={(e) => setMinMatch(Number(e.target.value))} className={inputCls}>
+              <option value={0}>Any match</option>
+              <option value={50}>50% — decent fit</option>
+              <option value={70}>70% — strong fit</option>
+              <option value={85}>85% — near-perfect fit</option>
+            </select>
+          </Field>
+          <Button variant="emerald" onClick={addAlert} className="w-full">＋ Create alert</Button>
+          {msg && <p className="text-sm text-emerald-900 font-medium">{msg}</p>}
+        </div>
+
+        {alerts.length > 0 && (
+          <div className="mt-4">
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {alerts.map((a) => (
+                <span key={a.id} className="inline-flex items-center gap-1.5 text-xs font-bold bg-mint text-emerald-950 rounded-full pl-3 pr-1.5 py-1.5">
+                  {a.role}{a.company ? ` @ ${a.company}` : ""}{a.location ? ` · ${a.location}` : ""}{a.minMatch ? ` · ≥${a.minMatch}%` : ""}
+                  <button
+                    aria-label={`Delete alert for ${a.role}`}
+                    onClick={() => setAlerts(alerts.filter((x) => x.id !== a.id))}
+                    className="w-6 h-6 rounded-full bg-white/70 text-emerald-900 font-extrabold leading-none"
+                  >×</button>
+                </span>
+              ))}
+            </div>
+            <Button onClick={() => void check(true)} disabled={checking} className="w-full">
+              {checking ? "Scanning job boards…" : "Check for new jobs"}
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {feed.length > 0 && (
+        <div className="grid gap-2 mt-4">
+          {feed.map((p) => {
+            const open = openId === p.id;
+            return (
+              <div key={p.id} className="bg-white border border-line rounded-2xl overflow-hidden">
+                <button onClick={() => setOpenId(open ? null : p.id)} className="w-full text-left p-4 min-h-[44px]">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="font-bold text-ink text-[15px] leading-snug">{p.title}</p>
+                    <span className="text-sm font-extrabold text-pine shrink-0">{p.score.match}% match</span>
+                  </div>
+                  <p className="text-xs text-muted mb-2">
+                    {p.company}{p.location ? ` · ${p.location}` : ""} · via {p.source}
+                    {p.isNew && <span className="ml-2 font-extrabold text-white bg-brand rounded-full px-2 py-0.5 text-[10px] align-middle">NEW</span>}
+                  </p>
+                  <div className="h-2 rounded-full bg-line overflow-hidden">
+                    <div className="h-full bg-brand rounded-full" style={{ width: `${p.score.match}%` }} />
+                  </div>
+                </button>
+                {open && (
+                  <div className="px-4 pb-4 border-t border-line pt-3">
+                    {p.score.matched.length > 0 && (
+                      <div className="mb-2.5">
+                        <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Why you match</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.score.matched.map((s) => (
+                            <span key={s} className="text-xs font-bold bg-mint text-emerald-900 rounded-full px-2.5 py-1.5">✓ {s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {p.score.missing.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">What the posting wants that your resume doesn't show</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.score.missing.map((s) => (
+                            <span key={s} className="text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 rounded-full px-2.5 py-1.5">{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <a href={p.url} target="_blank" rel="noopener noreferrer"
+                        className="flex-1 text-center text-sm font-bold bg-navy text-white rounded-xl px-3 py-3 min-h-[48px] inline-flex items-center justify-center">
+                        View posting ↗
+                      </a>
+                      <button onClick={() => tailor(p)}
+                        className="flex-1 text-sm font-bold bg-brand text-white rounded-xl px-3 py-3 min-h-[48px]">
+                        Tailor my resume →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="text-[11px] text-muted mt-3 leading-relaxed">
+        Alerts are checked when you open this tab or tap Check — matches are scored against the resume on this device.
+        Postings come from Arbeitnow, Remotive{", and USAJobs for federal roles"}; listings change fast, so a posting may close before you apply.
+      </p>
     </div>
   );
 }

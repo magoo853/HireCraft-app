@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MODE_LABELS, Mode } from "../lib/types";
@@ -166,6 +166,10 @@ const NAV = [
 
 export function BottomNav() {
   const path = usePathname();
+  const { newJobCount, setNewJobCount } = useApp();
+  useEffect(() => {
+    if (path === "/discover" && newJobCount > 0) setNewJobCount(0);
+  }, [path, newJobCount, setNewJobCount]);
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-line print:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div className="grid grid-cols-7 max-w-lg mx-auto">
@@ -173,10 +177,15 @@ export function BottomNav() {
           const active = path === n.href || (n.href !== "/score" && path.startsWith(n.href));
           return (
             <Link key={n.href} href={n.href}
-              className={`flex flex-col items-center justify-center py-2 min-h-[64px] text-[9px] font-semibold gap-1 ${active ? "text-pine" : "text-muted"}`}>
+              className={`relative flex flex-col items-center justify-center py-2 min-h-[64px] text-[9px] font-semibold gap-1 ${active ? "text-pine" : "text-muted"}`}>
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth={active ? 2.4 : 2} strokeLinecap="round" strokeLinejoin="round">{n.icon}</svg>
               {n.label}
+              {n.href === "/discover" && newJobCount > 0 && (
+                <span className="absolute top-1 right-[18%] bg-red-500 text-white text-[9px] font-extrabold rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center">
+                  {newJobCount > 9 ? "9+" : newJobCount}
+                </span>
+              )}
             </Link>
           );
         })}
