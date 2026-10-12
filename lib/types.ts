@@ -113,6 +113,7 @@ export interface LinkedInResult {
   polishedBullets: { original: string; polished: string }[];
   skillsGap: string[];
   tip: string;
+  appliedFeedback?: string[];
 }
 
 export interface AiResponse<T> {

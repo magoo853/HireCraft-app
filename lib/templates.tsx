@@ -11,7 +11,7 @@ export interface TemplateDef {
 }
 
 function ContactLine({ r, ed, sep = "  ·  ", className = "" }: { r: StructuredResume; ed: EdFn; sep?: string; className?: string }) {
-  const parts: ReactNode[] = [];
+const parts: ReactNode[] = [];
   if (r.location) parts.push(ed(r.location, (v) => {}, ""));
   return <>{parts}</>;
 }
@@ -307,8 +307,302 @@ export const TEMPLATES: TemplateDef[] = [
       </div>
     ),
   },
+  {
+    id: "slate",
+    name: "Slate",
+    blurb: "Dark sidebar, light content — modern and memorable, still ATS-clean.",
+    render: (r, ed) => (
+      <div className="text-[13px] leading-relaxed text-[#1e293b]" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
+        <div className="flex rounded-lg overflow-hidden">
+          <div className="w-[34%] bg-[#1e293b] text-white p-5 shrink-0">
+            {ed(r.name || "Your Name", () => {}, "block text-[20px] font-extrabold leading-tight")}
+            <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">{contact(r) || "City, ST · phone · email"}</p>
+            {r.skills.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-300 mb-2">Skills</h3>
+                <ul className="space-y-1">{r.skills.map((s, i) => <li key={i} className="text-[12px]">{ed(s, () => {}, "inline")}</li>)}</ul>
+              </div>
+            )}
+            {r.education.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-300 mb-2">Education</h3>
+                {r.education.map((e, i) => (
+                  <p key={i} className="mb-2 text-[12px]"><b>{ed(e.degree, () => {}, "inline")}</b><br /><span className="text-slate-300">{ed(e.school, () => {}, "inline")}</span></p>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex-1 p-5">
+            {r.summary && (
+              <section className="mb-4">
+                <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#1e293b] mb-1.5 border-b border-slate-200 pb-1">Summary</h3>
+                {ed(r.summary, () => {}, "block")}
+              </section>
+            )}
+            {r.experience.length > 0 && (
+              <section className="mb-4">
+                <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#1e293b] mb-1.5 border-b border-slate-200 pb-1">Experience</h3>
+                {r.experience.map((e, i) => (
+                  <div key={i} className="mb-3">
+                    <div className="flex justify-between items-baseline gap-2">
+                      <p className="font-bold text-[14px]">{ed(e.title, () => {}, "inline")}</p>
+                      {e.dates && <p className="text-[12px] text-[#64748b] whitespace-nowrap">{ed(e.dates, () => {}, "inline")}</p>}
+                    </div>
+                    {e.company && <p className="text-[12px] text-[#64748b] font-medium">{ed(e.company, () => {}, "inline")}</p>}
+                    <ul className="mt-1 space-y-1">{e.bullets.map((b, j) => <li key={j} className="flex gap-2"><span className="text-[#1e293b] font-bold">▸</span><span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
+                  </div>
+                ))}
+              </section>
+            )}
+            {r.projects.length > 0 && (
+              <section>
+                <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#1e293b] mb-1.5 border-b border-slate-200 pb-1">Projects</h3>
+                {r.projects.map((p, i) => (
+                  <div key={i} className="mb-2">
+                    <p className="font-bold text-[14px]">{ed(p.name, () => {}, "inline")}{p.tech && <span className="font-normal text-[12px] text-[#64748b]"> — {ed(p.tech, () => {}, "inline")}</span>}</p>
+                    <ul className="mt-1 space-y-1">{p.bullets.map((b, j) => <li key={j} className="flex gap-2"><span className="text-[#1e293b] font-bold">▸</span><span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
+                  </div>
+                ))}
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "ocean",
+    name: "Ocean",
+    blurb: "Centered header, ocean-blue accents — polished and personable.",
+    render: (r, ed) => (
+      <div className="text-[#14324a] text-[13px] leading-relaxed" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
+        <div className="text-center mb-4">
+          {ed(r.name || "Your Name", () => {}, "block text-[24px] font-extrabold tracking-tight text-[#0A66C2]")}
+          <p className="text-[12px] text-[#5B7a99] mt-1">{contact(r) || "City, ST · phone · email · linkedin"}</p>
+        </div>
+        {r.summary && (
+          <section className="mb-4">
+            <h3 className="text-center text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-1.5">Summary</h3>
+            {ed(r.summary, () => {}, "block text-center")}
+          </section>
+        )}
+        {r.experience.length > 0 && (
+          <section className="mb-4">
+            <h3 className="text-center text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-2">Experience</h3>
+            {r.experience.map((e, i) => (
+              <div key={i} className="mb-3">
+                <div className="flex justify-between items-baseline gap-2">
+                  <p className="font-bold text-[14px]">{ed(e.title, () => {}, "inline")}</p>
+                  {e.dates && <p className="text-[12px] text-[#5B7a99] whitespace-nowrap">{ed(e.dates, () => {}, "inline")}</p>}
+                </div>
+                {e.company && <p className="text-[12px] text-[#0A66C2] font-semibold">{ed(e.company, () => {}, "inline")}</p>}
+                <ul className="mt-1 space-y-1">{e.bullets.map((b, j) => <li key={j} className="flex gap-2"><span className="text-[#0A66C2] font-bold">▸</span><span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
+              </div>
+            ))}
+          </section>
+        )}
+        {r.projects.length > 0 && (
+          <section className="mb-4">
+            <h3 className="text-center text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-2">Projects</h3>
+            {r.projects.map((p, i) => (
+              <div key={i} className="mb-2">
+                <p className="font-bold text-[14px]">{ed(p.name, () => {}, "inline")}{p.tech && <span className="font-normal text-[12px] text-[#5B7a99]"> — {ed(p.tech, () => {}, "inline")}</span>}</p>
+                <ul className="mt-1 space-y-1">{p.bullets.map((b, j) => <li key={j} className="flex gap-2"><span className="text-[#0A66C2] font-bold">▸</span><span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
+              </div>
+            ))}
+          </section>
+        )}
+        <div className="grid grid-cols-2 gap-4">
+          {r.education.length > 0 && (
+            <section>
+              <h3 className="text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-1.5">Education</h3>
+              {r.education.map((e, i) => (
+                <p key={i} className="mb-1 text-[12px]"><b>{ed(e.degree, () => {}, "inline")}</b><br />{ed(e.school, () => {}, "inline")}{e.dates && ` · ${e.dates}`}</p>
+              ))}
+            </section>
+          )}
+          {r.skills.length > 0 && (
+            <section>
+              <h3 className="text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-1.5">Skills</h3>
+              <p className="text-[12px]">{r.skills.map((s, i) => <span key={i}>{ed(s, () => {}, "inline")}{i < r.skills.length - 1 ? "  ·  " : ""}</span>)}</p>
+            </section>
+          )}
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "mono",
+    name: "Mono",
+    blurb: "Typewriter type, zero decoration — for engineers and purists.",
+    render: (r, ed) => (
+      <div className="text-[#1a1a1a] text-[12.5px] leading-relaxed" style={{ fontFamily: "'SF Mono', Menlo, Consolas, monospace" }}>
+        <div className="mb-4">
+          {ed(r.name || "Your Name", () => {}, "block text-[22px] font-bold")}
+          <p className="text-[12px] text-[#555] mt-1">{contact(r) || "City, ST | phone | email | linkedin"}</p>
+          <p className="text-[#999] mt-2">{"=".repeat(52)}</p>
+        </div>
+        {r.summary && (
+          <section className="mb-4">
+            <h3 className="text-[12px] font-bold mb-1.5">## SUMMARY</h3>
+            {ed(r.summary, () => {}, "block")}
+          </section>
+        )}
+        {r.experience.length > 0 && (
+          <section className="mb-4">
+            <h3 className="text-[12px] font-bold mb-1.5">## EXPERIENCE</h3>
+            {r.experience.map((e, i) => (
+              <div key={i} className="mb-3">
+                <p className="font-bold">{ed(e.title, () => {}, "inline")}{e.dates && `  [${e.dates}]`}</p>
+                {e.company && <p className="text-[#555]">{ed(e.company, () => {}, "inline")}</p>}
+                <ul className="mt-1 space-y-1">{e.bullets.map((b, j) => <li key={j}>- {ed(b, () => {}, "inline")}</li>)}</ul>
+              </div>
+            ))}
+          </section>
+        )}
+        {r.projects.length > 0 && (
+          <section className="mb-4">
+            <h3 className="text-[12px] font-bold mb-1.5">## PROJECTS</h3>
+            {r.projects.map((p, i) => (
+              <div key={i} className="mb-2">
+                <p className="font-bold">{ed(p.name, () => {}, "inline")}{p.tech && ` (${p.tech})`}</p>
+                <ul className="mt-1 space-y-1">{p.bullets.map((b, j) => <li key={j}>- {ed(b, () => {}, "inline")}</li>)}</ul>
+              </div>
+            ))}
+          </section>
+        )}
+        {r.education.length > 0 && (
+          <section className="mb-4">
+            <h3 className="text-[12px] font-bold mb-1.5">## EDUCATION</h3>
+            {r.education.map((e, i) => (
+              <p key={i} className="mb-1"><b>{ed(e.degree, () => {}, "inline")}</b> — {ed(e.school, () => {}, "inline")}{e.dates && ` [${e.dates}]`}</p>
+            ))}
+          </section>
+        )}
+        {r.skills.length > 0 && (
+          <section>
+            <h3 className="text-[12px] font-bold mb-1.5">## SKILLS</h3>
+            <p>{r.skills.join(" | ")}</p>
+          </section>
+        )}
+      </div>
+    ),
+  },
+  {
+    id: "custom",
+    name: "Custom Studio",
+    blurb: "Your colors, your fonts — our locked-in formatting. Make it yours.",
+    render: (r, ed) => renderCustom(r, ed, DEFAULT_DESIGN_OPTIONS),
+  },
 ];
 
 export function getTemplate(id: string): TemplateDef {
   return TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];
+}
+
+/* ------------------------------------------------------------------ */
+/* Custom design studio                                                */
+/* ------------------------------------------------------------------ */
+
+export interface DesignOptions {
+  accent: string;
+  font: "sans" | "serif" | "mono" | "rounded";
+  headerStyle: "rule" | "block" | "plain";
+  nameAlign: "left" | "center";
+}
+
+export const DESIGN_ACCENTS = [
+  "#0B6E4F", "#0A66C2", "#6D28D9", "#B3261E",
+  "#0E7490", "#BE5A0E", "#1e293b", "#4D7C0F",
+];
+
+export const DESIGN_FONTS: { id: DesignOptions["font"]; name: string; stack: string }[] = [
+  { id: "sans", name: "Clean", stack: "-apple-system, 'Segoe UI', Roboto, sans-serif" },
+  { id: "serif", name: "Classic", stack: "Georgia, 'Times New Roman', serif" },
+  { id: "mono", name: "Typewriter", stack: "'SF Mono', Menlo, Consolas, monospace" },
+  { id: "rounded", name: "Friendly", stack: "ui-rounded, 'SF Pro Rounded', 'Segoe UI', sans-serif" },
+];
+
+export const DESIGN_HEADERS: { id: DesignOptions["headerStyle"]; name: string }[] = [
+  { id: "rule", name: "Underline" },
+  { id: "block", name: "Badge" },
+  { id: "plain", name: "Minimal" },
+];
+
+export const DEFAULT_DESIGN_OPTIONS: DesignOptions = {
+  accent: "#0B6E4F",
+  font: "sans",
+  headerStyle: "rule",
+  nameAlign: "left",
+};
+
+/** User-customized template: their colors/fonts, our locked-in formatting. */
+export function renderCustom(r: StructuredResume, ed: EdFn, opts: DesignOptions): ReactNode {
+  const fontFamily = DESIGN_FONTS.find((f) => f.id === opts.font)?.stack ?? DESIGN_FONTS[0].stack;
+  const accent = opts.accent;
+  const align = opts.nameAlign === "center" ? "text-center" : "text-left";
+  const SecHead = ({ children }: { children: string }) =>
+    opts.headerStyle === "block" ? (
+      <h3 className="inline-block text-white text-[11px] font-extrabold uppercase tracking-[0.18em] px-3 py-1.5 rounded mb-2" style={{ background: accent }}>{children}</h3>
+    ) : opts.headerStyle === "plain" ? (
+      <h3 className="text-[12px] font-bold uppercase tracking-widest text-[#64748b] mb-1.5">{children}</h3>
+    ) : (
+      <h3 className="text-[12px] font-extrabold uppercase tracking-widest mb-1.5 border-b pb-1" style={{ color: accent, borderColor: `${accent}55` }}>{children}</h3>
+    );
+  const bulletMark = <span className="font-bold" style={{ color: accent }}>▸</span>;
+  return (
+    <div className="text-[#1a1a1a] text-[13px] leading-relaxed" style={{ fontFamily }}>
+      <div className={`mb-4 ${align}`}>
+        <span style={{ color: accent }}>
+          {ed(r.name || "Your Name", () => {}, `block text-[24px] font-extrabold tracking-tight`)}
+        </span>
+        <p className="text-[12px] text-[#5B6470] mt-1">{contact(r) || "City, ST · phone · email · linkedin"}</p>
+      </div>
+      {r.summary && (
+        <section className="mb-4"><SecHead>Summary</SecHead>{ed(r.summary, () => {}, "block")}</section>
+      )}
+      {r.experience.length > 0 && (
+        <section className="mb-4"><SecHead>Experience</SecHead>
+          {r.experience.map((e, i) => (
+            <div key={i} className="mb-3">
+              <div className="flex justify-between items-baseline gap-2">
+                <p className="font-bold text-[14px]">{ed(e.title, () => {}, "inline")}</p>
+                {e.dates && <p className="text-[12px] text-[#5B6470] whitespace-nowrap">{ed(e.dates, () => {}, "inline")}</p>}
+              </div>
+              {e.company && <p className="text-[12px] text-[#5B6470] font-medium">{ed(e.company, () => {}, "inline")}</p>}
+              <ul className="mt-1 space-y-1">{e.bullets.map((b, j) => <li key={j} className="flex gap-2">{bulletMark}<span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
+            </div>
+          ))}
+        </section>
+      )}
+      {r.projects.length > 0 && (
+        <section className="mb-4"><SecHead>Projects</SecHead>
+          {r.projects.map((p, i) => (
+            <div key={i} className="mb-2">
+              <p className="font-bold text-[14px]">{ed(p.name, () => {}, "inline")}{p.tech && <span className="font-normal text-[12px] text-[#5B6470]"> — {ed(p.tech, () => {}, "inline")}</span>}</p>
+              <ul className="mt-1 space-y-1">{p.bullets.map((b, j) => <li key={j} className="flex gap-2">{bulletMark}<span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
+            </div>
+          ))}
+        </section>
+      )}
+      <div className="grid grid-cols-2 gap-4">
+        {r.education.length > 0 && (
+          <section><SecHead>Education</SecHead>
+            {r.education.map((e, i) => (
+              <p key={i} className="mb-1 text-[12px]"><b>{ed(e.degree, () => {}, "inline")}</b><br />{ed(e.school, () => {}, "inline")}{e.dates && ` · ${e.dates}`}</p>
+            ))}
+          </section>
+        )}
+        {r.skills.length > 0 && (
+          <section><SecHead>Skills</SecHead>
+            <div className="flex flex-wrap gap-1.5">
+              {r.skills.map((s, i) => (
+                <span key={i} className="text-[12px] font-medium rounded-full px-2.5 py-1" style={{ background: `${accent}1a`, color: accent }}>{s}</span>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  );
 }

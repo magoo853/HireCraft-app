@@ -17,6 +17,8 @@ interface AppState {
   setJobText: (t: string) => void;
   jobUrl: string;
   setJobUrl: (u: string) => void;
+  linkedinText: string;
+  setLinkedinText: (t: string) => void;
   hasResume: boolean;
   resetAll: () => void;
 }
@@ -41,6 +43,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [resume, setResume] = useState<StructuredResume>(emptyResume());
   const [jobText, setJobText] = useState("");
   const [jobUrl, setJobUrl] = useState("");
+  const [linkedinText, setLinkedinText] = useState("");
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (s.resume) setResume(s.resume as StructuredResume);
       if (s.jobText) setJobText(s.jobText as string);
       if (s.jobUrl) setJobUrl(s.jobUrl as string);
+      if (s.linkedinText) setLinkedinText(s.linkedinText as string);
     }
     setHydrated(true);
   }, []);
@@ -59,9 +63,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -73,6 +77,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setResume(emptyResume());
     setJobText("");
     setJobUrl("");
+    setLinkedinText("");
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
   };
 
@@ -81,7 +86,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={{
       mode, setMode, targetTitle, setTargetTitle, company, setCompany,
-      resume, setResume, updateResume, jobText, setJobText, jobUrl, setJobUrl,
+      resume, setResume, updateResume, jobText, setJobText, jobUrl, setJobUrl, linkedinText, setLinkedinText,
       hasResume, resetAll,
     }}>
       {children}
