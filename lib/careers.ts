@@ -293,6 +293,11 @@ export const MOS_CROSSWALK: Record<string, { label: string; roles: string[] }> =
   "4N0X1": { label: "Aerospace Medical Service", roles: ["Medical Assistant", "EMT / Paramedic"] },
   "3F5X1": { label: "Administration", roles: ["Executive Assistant", "HR Generalist", "Operations Manager"] },
   "2S0X1": { label: "Materiel Management", roles: ["Supply Chain Analyst", "Logistics Coordinator", "Warehouse Supervisor"] },
+  "6C0X1": { label: "Contracting", roles: ["Supply Chain Analyst", "Project Manager", "Business Analyst", "Operations Manager"] },
+  "6F0X1": { label: "Financial Management & Comptroller", roles: ["Financial Analyst", "Accountant", "Business Analyst"] },
+  "2T2X1": { label: "Air Transportation", roles: ["Logistics Coordinator", "Warehouse Supervisor", "Supply Chain Analyst"] },
+  "3F0X1": { label: "Personnel", roles: ["HR Generalist", "HR Manager", "Executive Assistant"] },
+  "3E6X1": { label: "Operations Management", roles: ["Operations Manager", "Project Manager"] },
   // Marines
   "0311": { label: "Rifleman", roles: ["Operations Manager", "Logistics Coordinator", "Warehouse Supervisor"] },
   "0651": { label: "Cyber Network Operator", roles: ["IT Support Specialist", "Network Administrator", "Systems Administrator"] },

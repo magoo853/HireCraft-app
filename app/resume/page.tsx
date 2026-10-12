@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { parseFile, structuredToText, textToStructured } from "@/lib/parse";
+import { mosTranslations } from "@/lib/careers";
 import { ExperienceItem, ProjectItem, StructuredResume, emptyResume } from "@/lib/types";
 import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
 
@@ -171,6 +172,29 @@ export default function ResumePage() {
               <input value={military.mosCodes} onChange={(e) => setMilitary({ ...military, mosCodes: e.target.value })}
                 placeholder="e.g. 25B, 42A" className={inputCls} />
             </Field>
+            {military.mosCodes.trim() && (() => {
+              const translations = mosTranslations(military.mosCodes);
+              if (!translations.length) {
+                return (
+                  <p className="text-xs text-muted -mt-2 mb-3">
+                    That code isn't in the built-in crosswalk yet — your codes and eval still go to the AI verbatim on every tab below.
+                  </p>
+                );
+              }
+              return (
+                <div className="-mt-2 mb-3 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5">
+                  {translations.map((t) => (
+                    <p key={t.code} className="text-xs text-emerald-950 leading-relaxed">
+                      <span className="font-bold">{t.code} — {t.label}</span> translates to:{" "}
+                      <span className="font-semibold">{t.roles.join(" · ")}</span>
+                    </p>
+                  ))}
+                  <p className="text-[11px] text-emerald-900/70 mt-1.5">
+                    These matches lead your Discover results, and your codes + eval text are handed to the AI on Rewrite, Cover, LinkedIn, and Roadmap.
+                  </p>
+                </div>
+              );
+            })()}
             <Field label="Yearly performance review (NCOER / OER / EPR / FITREP / eval)">
               <input
                 type="file" accept=".pdf,.docx,.txt"
