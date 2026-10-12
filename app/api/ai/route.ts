@@ -81,7 +81,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ source: "ai", data });
   } catch (e) {
     console.error("AI call failed, using fallback:", e);
-    return NextResponse.json({ source: "fallback", data: runFallback(body) });
+    const msg = e instanceof Error ? e.message : "unknown error";
+    return NextResponse.json({
+      source: "fallback",
+      data: runFallback(body),
+      note: `AI key is set, but the live AI call failed (${msg}). Showing built-in results instead.`,
+    });
   }
 }
 

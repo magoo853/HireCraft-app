@@ -119,4 +119,6 @@ export interface LinkedInResult {
 export interface AiResponse<T> {
   source: "ai" | "fallback";
   data: T;
+  /** Present when the AI key is set but the live call failed — explains the fallback. */
+  note?: string;
 }

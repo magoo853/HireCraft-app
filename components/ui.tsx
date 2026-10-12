@@ -102,7 +102,10 @@ export function EmptyState({ title, body, cta, href }: { title: string; body: st
   );
 }
 
-export function SourceNote({ source }: { source: "ai" | "fallback" }) {
+export function SourceNote({ source, note }: { source: "ai" | "fallback"; note?: string }) {
+  if (note) {
+    return <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mt-3">⚠️ {note}</p>;
+  }
   return source === "fallback" ? (
     <p className="text-xs text-muted mt-3">
       Running on HireCraft's built-in coach engine. Add an <code className="bg-slate-100 px-1 rounded">AI_API_KEY</code> to enable full AI rewrites.

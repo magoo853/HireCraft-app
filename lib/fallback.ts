@@ -499,9 +499,96 @@ export function rewriteBullet(original: string, mode: Mode): RewriteResult {
     .trim();
   if (text !== before && !whys.length) whys.push("Cut filler words — every word on a resume has to earn its place.");
 
+  // Tighten pass — always runs, so even strong bullets come back visibly sharper.
+  const tightened = tighten(text);
+  if (tightened.changed) {
+    text = tightened.text;
+    whys.push("Tightened the phrasing — same facts, sharper delivery.");
+  }
+
+  // Last resort: upgrade the opening verb so the rewrite never echoes the original.
+  if (text === original.trim()) {
+    const upgraded = upgradeVerb(text);
+    if (upgraded.changed) {
+      text = upgraded.text;
+      whys.push("Swapped in a stronger action verb — the first word sets the tone.");
+    }
+  }
+
   if (!whys.length) whys.push("Solid bullet — polished for flow while keeping every fact you provided.");
 
   return { original, rewritten: text, why: whys[0], gaps, translationNote };
+}
+
+/** Deterministic tightening rules — same facts, fewer, sharper words. */
+const TIGHTEN: [RegExp, string | ((...args: string[]) => string)][] = [
+  [/\bsuccessfully\b/gi, ""],
+  [/\bvarious\b/gi, ""],
+  [/\bvery\b/gi, ""],
+  [/\bby implementing\b/gi, "with"],
+  [/\bby utilizing\b/gi, "with"],
+  [/\butilizing\b/gi, "using"],
+  [/\butilize\b/gi, "use"],
+  [/\bin a timely manner\b/gi, "on time"],
+  [/\bon a (daily|weekly|monthly) basis\b/gi, "$1"],
+  [/\bresulting in a (\d[\d,.]*%?) increase\b/gi, "lifting $1"],
+  [/\bresulting in\b/gi, "delivering"],
+  [/\bleading to a\b/gi, "delivering a"],
+  [/\bresponsible for managing\b/gi, "managed"],
+  [/\btasked with\b/gi, ""],
+  [/\bworked on\b/gi, "delivered"],
+  [/\bhelped to\b/gi, "helped"],
+  [/\bmade sure\b/gi, "ensured"],
+  [/\bincreased ([a-z][\w-]*(?: [\w-]+){0,3}) by (\d[\d,.]*%?)/gi,
+    (match: string, noun: string, num: string) => `${match[0] === match[0].toUpperCase() ? "Grew" : "grew"} ${noun} ${num}`],
+  [/\breducing\b/gi, "cutting"],
+  [/\bmaintaining a\b/gi, "holding a"],
+  [/\bworked closely with\b/gi, "partnered with"],
+  [/\bcollaborated with\b/gi, "partnered with"],
+  [/\bthe integration of\b/gi, ""],
+  [/\s{2,}/g, " "],
+];
+
+function tighten(bullet: string): { text: string; changed: boolean } {
+  let text = bullet;
+  for (const [re, rep] of TIGHTEN) text = text.replace(re, rep as string);
+  text = text.replace(/\s{2,}/g, " ").replace(/\s+([,.])/g, "$1").trim();
+  return { text, changed: text !== bullet };
+}
+
+/** Stronger synonyms for common openers — meaning preserved, impact raised. */
+const VERB_UPGRADES: [RegExp, string][] = [
+  [/^increased\b/i, "Grew"],
+  [/^built\b/i, "Forged"],
+  [/^led\b/i, "Directed"],
+  [/^managed\b/i, "Oversaw"],
+  [/^created\b/i, "Launched"],
+  [/^improved\b/i, "Elevated"],
+  [/^helped\b/i, "Drove"],
+  [/^worked\b/i, "Delivered"],
+  [/^handled\b/i, "Owned"],
+  [/^did\b/i, "Delivered"],
+  [/^made\b/i, "Built"],
+  [/^ran\b/i, "Directed"],
+  [/^oversaw\b/i, "Directed"],
+  [/^coordinated\b/i, "Orchestrated"],
+  [/^established\b/i, "Founded"],
+  [/^identified\b/i, "Pinpointed"],
+  [/^introduced\b/i, "Rolled out"],
+  [/^guided\b/i, "Mentored"],
+  [/^streamlined\b/i, "Overhauled"],
+  [/^elevated\b/i, "Transformed"],
+];
+
+function upgradeVerb(bullet: string): { text: string; changed: boolean } {
+  for (const [re, verb] of VERB_UPGRADES) {
+    if (re.test(bullet)) {
+      const text = bullet.replace(re, verb);
+      // lowercase the next word's first letter if it was capitalized mid-sentence style
+      return { text, changed: text !== bullet };
+    }
+  }
+  return { text: bullet, changed: false };
 }
 
 export function rewriteBullets(text: string, mode: Mode): RewriteResult[] {
@@ -592,8 +679,10 @@ export function generateCoverLetter(
       ? topSkills[0]
       : "the core requirements of this role";
 
-  const bullets = extractBullets(resume.rawText);
-  const quantified = bullets.find((b) => /\d/.test(b)) ?? bullets[0] ?? "";
+  // Achievement must come from real experience bullets — never from raw-text
+  // extraction, which can surface contact lines or headers.
+  const expBullets = resume.experience.flatMap((e) => e.bullets).filter((b) => b.trim().length > 12);
+  const quantified = expBullets.find((b) => /\d/.test(b)) ?? expBullets[0] ?? "";
   const achievement = quantified
     ? `For example: ${quantified.charAt(0).toLowerCase() + quantified.slice(1)}`
     : "";
