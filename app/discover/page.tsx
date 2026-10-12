@@ -509,7 +509,7 @@ function JobAlertsSection() {
       )}
       <p className="text-[11px] text-muted mt-3 leading-relaxed">
         Alerts are checked when you open this tab or tap Check — matches are scored against the resume on this device.
-        Postings come from Arbeitnow, Remotive{", and USAJobs for federal roles"}; listings change fast, so a posting may close before you apply.
+        Postings come from Remotive, Himalayas, Arbeitnow{", and USAJobs for federal roles"}; listings change fast, so a posting may close before you apply.
       </p>
     </div>
   );

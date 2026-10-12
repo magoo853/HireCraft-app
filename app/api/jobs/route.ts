@@ -67,6 +67,25 @@ async function fromRemotive(q: string): Promise<JobPosting[]> {
   }));
 }
 
+async function fromHimalayas(q: string): Promise<JobPosting[]> {
+  const j = (await fetchJson(`https://himalayas.app/jobs/api/search?q=${encodeURIComponent(q)}&limit=20`)) as {
+    jobs?: Record<string, unknown>[];
+  };
+  return (j.jobs ?? []).map((d) => {
+    const locs = Array.isArray(d.locationRestrictions) ? (d.locationRestrictions as unknown[]).map(String) : [];
+    return {
+      id: `himalayas-${String(d.guid ?? d.applicationLink ?? "")}`,
+      source: "Himalayas",
+      title: String(d.title ?? ""),
+      company: String(d.companyName ?? ""),
+      location: locs.length ? locs.slice(0, 2).join(", ") : "Remote",
+      url: String(d.applicationLink ?? ""),
+      postedAt: String(d.pubDate ?? ""),
+      description: stripHtml(String(d.description ?? d.excerpt ?? "")).slice(0, 1500),
+    };
+  });
+}
+
 async function fromUsaJobs(q: string, location: string): Promise<JobPosting[]> {
   const key = process.env.USAJOBS_API_KEY;
   const email = process.env.USAJOBS_EMAIL;
@@ -105,12 +124,24 @@ export async function GET(req: NextRequest) {
   }
   const q = [role, company].filter(Boolean).join(" ");
   const settled = await Promise.allSettled([
-    fromArbeitnow(q),
     fromRemotive(q),
+    fromHimalayas(q),
     fromUsaJobs(q, location),
+    fromArbeitnow(q),
   ]);
   let postings: JobPosting[] = [];
   for (const s of settled) if (s.status === "fulfilled") postings = postings.concat(s.value);
+
+  // Relevance gate: source search is loose (Arbeitnow ignores it entirely),
+  // so a posting's title must contain at least one significant role word.
+  if (role) {
+    const stop = new Set(["senior", "junior", "lead", "staff", "principal", "the", "and", "for", "with"]);
+    const words = role.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !stop.has(w));
+    if (words.length) {
+      const rel = postings.filter((p) => words.some((w) => p.title.toLowerCase().includes(w)));
+      if (rel.length) postings = rel;
+    }
+  }
 
   // Server-side company/location narrowing (source search is loose).
   if (company) {
