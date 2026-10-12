@@ -506,19 +506,27 @@ export function getTemplate(id: string): TemplateDef {
 
 export interface DesignOptions {
   accent: string;
-  font: "sans" | "serif" | "mono" | "rounded";
-  headerStyle: "rule" | "block" | "plain";
+  font: "sans" | "serif" | "mono" | "rounded" | "book" | "condensed";
+  headerStyle: "rule" | "block" | "plain" | "banner" | "side";
   nameAlign: "left" | "center";
+  nameSize: "standard" | "large";
+  skillsStyle: "pills" | "list" | "columns";
+  bulletStyle: "arrow" | "dot" | "dash" | "none";
+  contactStyle: "line" | "stacked";
+  spacing: "relaxed" | "standard" | "tight";
 }
 
 export const DESIGN_ACCENTS = [
   "#0B6E4F", "#0A66C2", "#6D28D9", "#B3261E",
   "#0E7490", "#BE5A0E", "#1e293b", "#4D7C0F",
+  "#9D2246", "#0F766E", "#A16207", "#3730A3",
 ];
 
 export const DESIGN_FONTS: { id: DesignOptions["font"]; name: string; stack: string }[] = [
   { id: "sans", name: "Clean", stack: "-apple-system, 'Segoe UI', Roboto, sans-serif" },
   { id: "serif", name: "Classic", stack: "Georgia, 'Times New Roman', serif" },
+  { id: "book", name: "Book", stack: "'Palatino Linotype', Palatino, Georgia, serif" },
+  { id: "condensed", name: "Condensed", stack: "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif" },
   { id: "mono", name: "Typewriter", stack: "'SF Mono', Menlo, Consolas, monospace" },
   { id: "rounded", name: "Friendly", stack: "ui-rounded, 'SF Pro Rounded', 'Segoe UI', sans-serif" },
 ];
@@ -526,6 +534,8 @@ export const DESIGN_FONTS: { id: DesignOptions["font"]; name: string; stack: str
 export const DESIGN_HEADERS: { id: DesignOptions["headerStyle"]; name: string }[] = [
   { id: "rule", name: "Underline" },
   { id: "block", name: "Badge" },
+  { id: "banner", name: "Banner" },
+  { id: "side", name: "Side bar" },
   { id: "plain", name: "Minimal" },
 ];
 
@@ -534,6 +544,11 @@ export const DEFAULT_DESIGN_OPTIONS: DesignOptions = {
   font: "sans",
   headerStyle: "rule",
   nameAlign: "left",
+  nameSize: "standard",
+  skillsStyle: "pills",
+  bulletStyle: "arrow",
+  contactStyle: "line",
+  spacing: "standard",
 };
 
 /** User-customized template: their colors/fonts, our locked-in formatting. */
@@ -541,46 +556,64 @@ export function renderCustom(r: StructuredResume, ed: EdFn, opts: DesignOptions)
   const fontFamily = DESIGN_FONTS.find((f) => f.id === opts.font)?.stack ?? DESIGN_FONTS[0].stack;
   const accent = opts.accent;
   const align = opts.nameAlign === "center" ? "text-center" : "text-left";
+  const secMb = opts.spacing === "relaxed" ? "mb-5" : opts.spacing === "tight" ? "mb-3" : "mb-4";
+  const entryMb = opts.spacing === "relaxed" ? "mb-4" : opts.spacing === "tight" ? "mb-2" : "mb-3";
+  const bulletGap = opts.spacing === "tight" ? "space-y-0.5" : "space-y-1";
   const SecHead = ({ children }: { children: string }) =>
     opts.headerStyle === "block" ? (
       <h3 className="inline-block text-white text-[11px] font-extrabold uppercase tracking-[0.18em] px-3 py-1.5 rounded mb-2" style={{ background: accent }}>{children}</h3>
+    ) : opts.headerStyle === "banner" ? (
+      <h3 className="block text-white text-[11px] font-extrabold uppercase tracking-[0.18em] px-3 py-1.5 rounded mb-2" style={{ background: accent }}>{children}</h3>
+    ) : opts.headerStyle === "side" ? (
+      <h3 className="text-[12px] font-extrabold uppercase tracking-widest mb-1.5 pl-2" style={{ color: accent, borderLeft: `4px solid ${accent}` }}>{children}</h3>
     ) : opts.headerStyle === "plain" ? (
       <h3 className="text-[12px] font-bold uppercase tracking-widest text-[#64748b] mb-1.5">{children}</h3>
     ) : (
       <h3 className="text-[12px] font-extrabold uppercase tracking-widest mb-1.5 border-b pb-1" style={{ color: accent, borderColor: `${accent}55` }}>{children}</h3>
     );
-  const bulletMark = <span className="font-bold" style={{ color: accent }}>▸</span>;
+  const mark = opts.bulletStyle === "dot" ? "•" : opts.bulletStyle === "dash" ? "–" : opts.bulletStyle === "none" ? "" : "▸";
+  const bulletMark = mark ? <span className="font-bold shrink-0" style={{ color: accent }}>{mark}</span> : null;
+  const contactLine = contact(r) || "City, ST · phone · email · linkedin";
+  const nameCls = opts.nameSize === "large" ? "text-[30px]" : "text-[24px]";
   return (
     <div className="text-[#1a1a1a] text-[13px] leading-relaxed" style={{ fontFamily }}>
       <div className={`mb-4 ${align}`}>
         <span style={{ color: accent }}>
-          {ed(r.name || "Your Name", () => {}, `block text-[24px] font-extrabold tracking-tight`)}
+          {ed(r.name || "Your Name", () => {}, `block ${nameCls} font-extrabold tracking-tight`)}
         </span>
-        <p className="text-[12px] text-[#5B6470] mt-1">{contact(r) || "City, ST · phone · email · linkedin"}</p>
+        {opts.contactStyle === "stacked" ? (
+          <div className="text-[12px] text-[#5B6470] mt-1">
+            {contactLine.split("·").map((part, i) => (
+              <span key={i} className="block">{part.trim()}</span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-[#5B6470] mt-1">{contactLine}</p>
+        )}
       </div>
       {r.summary && (
-        <section className="mb-4"><SecHead>Summary</SecHead>{ed(r.summary, () => {}, "block")}</section>
+        <section className={secMb}><SecHead>Summary</SecHead>{ed(r.summary, () => {}, "block")}</section>
       )}
       {r.experience.length > 0 && (
-        <section className="mb-4"><SecHead>Experience</SecHead>
+        <section className={secMb}><SecHead>Experience</SecHead>
           {r.experience.map((e, i) => (
-            <div key={i} className="mb-3">
+            <div key={i} className={entryMb}>
               <div className="flex justify-between items-baseline gap-2">
                 <p className="font-bold text-[14px]">{ed(e.title, () => {}, "inline")}</p>
                 {e.dates && <p className="text-[12px] text-[#5B6470] whitespace-nowrap">{ed(e.dates, () => {}, "inline")}</p>}
               </div>
               {e.company && <p className="text-[12px] text-[#5B6470] font-medium">{ed(e.company, () => {}, "inline")}</p>}
-              <ul className="mt-1 space-y-1">{e.bullets.map((b, j) => <li key={j} className="flex gap-2">{bulletMark}<span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
+              <ul className={`mt-1 ${bulletGap}`}>{e.bullets.map((b, j) => <li key={j} className="flex gap-2">{bulletMark}<span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
             </div>
           ))}
         </section>
       )}
       {r.projects.length > 0 && (
-        <section className="mb-4"><SecHead>Projects</SecHead>
+        <section className={secMb}><SecHead>Projects</SecHead>
           {r.projects.map((p, i) => (
             <div key={i} className="mb-2">
               <p className="font-bold text-[14px]">{ed(p.name, () => {}, "inline")}{p.tech && <span className="font-normal text-[12px] text-[#5B6470]"> — {ed(p.tech, () => {}, "inline")}</span>}</p>
-              <ul className="mt-1 space-y-1">{p.bullets.map((b, j) => <li key={j} className="flex gap-2">{bulletMark}<span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
+              <ul className={`mt-1 ${bulletGap}`}>{p.bullets.map((b, j) => <li key={j} className="flex gap-2">{bulletMark}<span>{ed(b, () => {}, "inline")}</span></li>)}</ul>
             </div>
           ))}
         </section>
@@ -595,11 +628,21 @@ export function renderCustom(r: StructuredResume, ed: EdFn, opts: DesignOptions)
         )}
         {r.skills.length > 0 && (
           <section><SecHead>Skills</SecHead>
-            <div className="flex flex-wrap gap-1.5">
-              {r.skills.map((s, i) => (
-                <span key={i} className="text-[12px] font-medium rounded-full px-2.5 py-1" style={{ background: `${accent}1a`, color: accent }}>{s}</span>
-              ))}
-            </div>
+            {opts.skillsStyle === "list" ? (
+              <p className="text-[12px]">{r.skills.join(" · ")}</p>
+            ) : opts.skillsStyle === "columns" ? (
+              <ul className="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
+                {r.skills.map((s, i) => (
+                  <li key={i} className="flex gap-1.5"><span style={{ color: accent }}>•</span>{s}</li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {r.skills.map((s, i) => (
+                  <span key={i} className="text-[12px] font-medium rounded-full px-2.5 py-1" style={{ background: `${accent}1a`, color: accent }}>{s}</span>
+                ))}
+              </div>
+            )}
           </section>
         )}
       </div>

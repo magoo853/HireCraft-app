@@ -7,6 +7,18 @@ import {
   ScoreResult,
   StructuredResume,
 } from "./types";
+import { textToStructured } from "./parse";
+
+/** Lines that are PDF/browser furniture, not content (print headers, footers). */
+function isJunkLine(line: string): boolean {
+  const l = line.trim();
+  return (
+    /^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(l) || // "10/12/26, 12:08 PM (1) James Hicks | LinkedIn"
+    /\|\s*LinkedIn\s*$/i.test(l) ||
+    /^page \d+(\s+of\s+\d+)?$/i.test(l) ||
+    /^https?:\/\/\S+$/.test(l)
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Shared language data                                                */
@@ -230,6 +242,21 @@ export function findMilitaryJargon(text: string): string[] {
   return Array.from(new Set(found));
 }
 
+/** Jargon terms with their civilian translations, for drill-down display. */
+export function findMilitaryJargonDetailed(text: string): { term: string; civilian: string }[] {
+  const out: { term: string; civilian: string }[] = [];
+  const seen = new Set<string>();
+  for (const [re, civilian] of MILITARY_GLOSSARY) {
+    const m = text.match(re);
+    re.lastIndex = 0;
+    if (m && !seen.has(m[0].toLowerCase())) {
+      seen.add(m[0].toLowerCase());
+      out.push({ term: m[0], civilian });
+    }
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /* Text utilities                                                      */
 /* ------------------------------------------------------------------ */
@@ -394,6 +421,13 @@ export function scoreResume(
   ));
   const grade = total >= 90 ? "A" : total >= 75 ? "B" : total >= 60 ? "C" : total >= 40 ? "D" : "F";
 
+  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 3);
+  const wordArr = text.split(/\s+/).filter(Boolean);
+  const bulletWordCounts = bullets.map((b) => b.split(/\s+/).filter(Boolean).length);
+  const longestBullets = [...bullets]
+    .sort((a, b) => b.split(/\s+/).length - a.split(/\s+/).length)
+    .slice(0, 3);
+
   return {
     total,
     grade,
@@ -402,6 +436,13 @@ export function scoreResume(
     keywordMatchPct: keywords.length ? Math.round((matched / keywords.length) * 100) : 0,
     flags,
     readability: readability(text),
+    readabilityDetail: {
+      avgWordsPerSentence: sentences.length ? Math.round(wordArr.length / sentences.length) : 0,
+      avgWordsPerBullet: bullets.length ? Math.round(bulletWordCounts.reduce((a, b) => a + b, 0) / bullets.length) : 0,
+      longestBullets,
+    },
+    keywordBasis: jobText && jobText.trim() ? "job" : "generic",
+    genericTitle: resume.experience[0]?.title || "professional",
     bulletCount: bullets.length,
     quantifiedCount: quantified,
   };
@@ -423,8 +464,12 @@ function strengthenOpener(bullet: string): { text: string; changed: boolean } {
     if (re.test(bullet)) {
       const rest = bullet.replace(re, "").trim();
       if (replacement) {
-        const cap = rest.charAt(0).toUpperCase() + rest.slice(1);
-        return { text: (replacement + cap).trim(), changed: true };
+        // "Helped increase…" -> "Assisted increase…" (don't capitalize the
+        // next word — unless it looks like a proper noun / acronym).
+        const firstWord = rest.split(" ")[0] ?? "";
+        const keepCaps = firstWord.length <= 1 || /[A-Z]/.test(firstWord.slice(1));
+        const adj = keepCaps ? rest : rest.charAt(0).toLowerCase() + rest.slice(1);
+        return { text: (replacement + adj).trim(), changed: true };
       }
       // Empty replacement: pick a verb by signal, normalizing a leading gerund
       // ("responsible for managing a team" -> "Managed a team")
@@ -721,23 +766,27 @@ export function generateLinkedIn(
   const keywords = extractKeywords(jobText, sourceText, 12);
   const matched = keywords.filter((k) => k.matched).map((k) => k.term);
   const missing = keywords.filter((k) => !k.matched).map((k) => k.term);
-  const title = targetTitle || resume.experience[0]?.title || "Professional";
-  const topSkills = (resume.skills.length ? resume.skills : matched).slice(0, 3);
+  // If the structured resume is thin (e.g. built from a LinkedIn PDF), parse
+  // the source text structurally so titles/skills/bullets are real.
+  const parsedSource = resume.experience.length ? resume : textToStructured(sourceText);
+  const title = targetTitle || parsedSource.experience[0]?.title || "Professional";
+  const topSkills = (parsedSource.skills.length ? parsedSource.skills : resume.skills.length ? resume.skills : matched).slice(0, 3);
   const fb = feedback.toLowerCase();
   const applied: string[] = [];
 
   let headlines = [
     `${title} | ${topSkills.slice(0, 2).join(" · ")}${topSkills[2] ? ` · ${topSkills[2]}` : ""}`,
     `${title} helping teams ${matched[0] ? `with ${matched[0]}` : "deliver results"} | Open to new opportunities`,
-    `${title} | ${resume.experience[0]?.company ? `Previously ${resume.experience[0].company} · ` : ""}${topSkills[0] ?? "Results-driven"}`,
+    `${title} | ${parsedSource.experience[0]?.company ? `Previously ${parsedSource.experience[0].company} · ` : ""}${topSkills[0] ?? "Results-driven"}`,
   ];
 
-  const summaryBits = resume.summary
-    ? resume.summary
-    : `I'm a ${title.toLowerCase()} focused on delivering measurable results.`;
+  const summaryBits = (resume.summary || parsedSource.summary) || `I'm a ${title.toLowerCase()} focused on delivering measurable results.`;
+  const bringLine = topSkills.length || matched.length
+    ? `\n\nWhat I bring: ${[...topSkills, ...matched.slice(0, 3)].filter((v, i, a) => a.indexOf(v) === i).join(", ")}.`
+    : "";
   let about =
-    `${summaryBits}\n\n` +
-    `What I bring: ${topSkills.join(", ")}${matched.length ? `, with proven experience in ${matched.slice(0, 3).join(", ")}` : ""}.\n\n` +
+    `${summaryBits}` +
+    `${bringLine}\n\n` +
     `Currently ${targetTitle ? `pursuing ${targetTitle} opportunities` : "open to new opportunities"} — let's connect.`;
 
   // Feedback heuristics — deterministic adjustments so regeneration visibly responds.
@@ -761,7 +810,12 @@ export function generateLinkedIn(
     applied.push("More formal: polished corporate phrasing.");
   }
 
-  const bullets = extractBullets(sourceText).slice(0, 6);
+  // Real experience bullets only — never PDF headers or headline fragments.
+  const fromStructured = parsedSource.experience.flatMap((e) => e.bullets);
+  const candidates = fromStructured.length
+    ? fromStructured
+    : extractBullets(sourceText).filter((b) => !isJunkLine(b) && b.trim().length >= 25);
+  const bullets = candidates.filter((b) => !isJunkLine(b)).slice(0, 6);
   const polishedBullets = bullets.map((b) => ({ original: b, polished: rewriteBullet(b, "general").rewritten }));
 
   return {
