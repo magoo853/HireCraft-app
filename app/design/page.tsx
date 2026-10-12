@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { TEMPLATES, EdFn } from "@/lib/templates";
 import { structuredToText } from "@/lib/parse";
@@ -31,6 +31,23 @@ export default function DesignPage() {
   const { resume, setResume, hasResume } = useApp();
   const [templateId, setTemplateId] = useState("modern");
   const [editing, setEditing] = useState(false);
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
+  const [pages, setPages] = useState(1);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // 2-page guard: estimate printed pages from rendered height vs. US Letter ratio.
+  useEffect(() => {
+    const el = previewRef.current;
+    if (!el) return;
+    const measure = () => {
+      const pageH = el.clientWidth * 11 / 8.5;
+      if (pageH > 0) setPages(Math.max(1, Math.ceil(el.scrollHeight / pageH)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [templateId, resume, density]);
 
   if (!hasResume) {
     return (
@@ -130,7 +147,27 @@ export default function DesignPage() {
       )}
 
       <div id="resume-print" className="bg-white rounded-2xl border border-line shadow-sm p-6 overflow-hidden">
-        {template.render(resume, ed)}
+        <div className="flex items-center justify-between mb-3 print:hidden">
+          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${pages <= 2 ? "bg-mint text-emerald-900" : "bg-red-100 text-red-800"}`}>
+            {pages <= 2 ? `✓ ${pages} page${pages > 1 ? "s" : ""} — fits the 2-page rule` : `⚠ ~${pages} pages — over the 2-page rule`}
+          </span>
+          <div className="flex bg-slate-100 rounded-lg p-0.5 text-[11px] font-bold">
+            {(["comfortable", "compact"] as const).map((d) => (
+              <button key={d} onClick={() => setDensity(d)}
+                className={`px-2.5 py-1.5 rounded-md min-h-[36px] ${density === d ? "bg-white shadow-sm text-ink" : "text-muted"}`}>
+                {d === "comfortable" ? "Comfortable" : "Compact"}
+              </button>
+            ))}
+          </div>
+        </div>
+        {pages > 2 && (
+          <p className="text-xs text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3 print:hidden">
+            Recruiters skim — trim older roles or switch to <b>Compact</b> density to fit 2 pages.
+          </p>
+        )}
+        <div ref={previewRef} style={density === "compact" ? { zoom: 0.88 } : undefined}>
+          {template.render(resume, ed)}
+        </div>
       </div>
 
       <Button variant="emerald" onClick={() => window.print()} className="w-full mt-4 !min-h-[52px] print:hidden">

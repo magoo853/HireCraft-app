@@ -113,13 +113,13 @@ export function SourceNote({ source }: { source: "ai" | "fallback" }) {
 }
 
 const NAV = [
-  { href: "/score", label: "Score" },
-  { href: "/rewrite", label: "Rewrite" },
-  { href: "/design", label: "Design" },
-  { href: "/cover", label: "Cover" },
-  { href: "/linkedin", label: "LinkedIn" },
-  { href: "/roadmap", label: "Roadmap" },
-  { href: "/discover", label: "Discover" },
+  { href: "/score", label: "Score", icon: <><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></> },
+  { href: "/rewrite", label: "Rewrite", icon: <><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></> },
+  { href: "/design", label: "Design", icon: <><rect width="18" height="7" x="3" y="3" rx="1" /><rect width="9" height="7" x="3" y="14" rx="1" /><rect width="5" height="7" x="16" y="14" rx="1" /></> },
+  { href: "/cover", label: "Cover", icon: <><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></> },
+  { href: "/linkedin", label: "LinkedIn", icon: <><rect width="20" height="14" x="2" y="7" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></> },
+  { href: "/roadmap", label: "Roadmap", icon: <><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /><path d="M15 5.764v15" /><path d="M9 3.236v15" /></> },
+  { href: "/discover", label: "Discover", icon: <><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></> },
 ];
 
 export function BottomNav() {
@@ -132,7 +132,8 @@ export function BottomNav() {
           return (
             <Link key={n.href} href={n.href}
               className={`flex flex-col items-center justify-center py-2 min-h-[64px] text-[9px] font-semibold gap-1 ${active ? "text-pine" : "text-muted"}`}>
-              <span className="w-[20px] h-[20px] rounded-[6px]" style={{ background: active ? "#10B981" : "currentColor", opacity: active ? 1 : 0.25 }} />
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth={active ? 2.4 : 2} strokeLinecap="round" strokeLinejoin="round">{n.icon}</svg>
               {n.label}
             </Link>
           );

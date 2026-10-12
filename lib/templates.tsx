@@ -27,7 +27,7 @@ export const TEMPLATES: TemplateDef[] = [
     render: (r, ed) => (
       <div className="font-serif text-[#1a1a1a] text-[13px] leading-relaxed">
         <div className="text-center border-b-2 border-[#1a1a1a] pb-3 mb-4">
-          {ed(r.name || "Your Name", () => {}, "block text-[26px] font-bold tracking-wide")}
+          {ed(r.name || "Your Name", () => {}, "block text-[24px] font-bold tracking-wide")}
           <p className="text-[12px] mt-1 text-[#444]">{contact(r) || "City, ST · phone · email · linkedin"}</p>
         </div>
         {r.summary && (
@@ -83,7 +83,7 @@ export const TEMPLATES: TemplateDef[] = [
     render: (r, ed) => (
       <div className="text-[#17202a] text-[13px] leading-relaxed" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
         <div className="mb-4">
-          {ed(r.name || "Your Name", () => {}, "block text-[30px] font-extrabold tracking-tight text-[#0B6E4F]")}
+          {ed(r.name || "Your Name", () => {}, "block text-[24px] font-extrabold tracking-tight text-[#0B6E4F]")}
           <p className="text-[12px] text-[#5B6470] mt-1">{contact(r) || "City, ST · phone · email · linkedin"}</p>
         </div>
         {r.summary && (
@@ -148,7 +148,7 @@ export const TEMPLATES: TemplateDef[] = [
     render: (r, ed) => (
       <div className="text-[#222] text-[13px] leading-loose" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
         <div className="mb-6">
-          {ed(r.name || "Your Name", () => {}, "block text-[28px] font-light tracking-wide")}
+          {ed(r.name || "Your Name", () => {}, "block text-[24px] font-light tracking-wide")}
           <p className="text-[12px] text-[#888] mt-1 tracking-wide">{contact(r) || "City, ST · phone · email · linkedin"}</p>
         </div>
         {r.summary && <p className="mb-6 text-[#444] italic">{ed(r.summary, () => {}, "block")}</p>}
@@ -199,7 +199,7 @@ export const TEMPLATES: TemplateDef[] = [
     render: (r, ed) => (
       <div className="text-[#1c1c1c] text-[13px] leading-relaxed" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
         <div className="bg-[#1c1c1c] text-white px-6 py-6 -mx-6 -mt-6 mb-5">
-          {ed(r.name || "Your Name", () => {}, "block text-[28px] font-bold tracking-wide text-white")}
+          {ed(r.name || "Your Name", () => {}, "block text-[24px] font-bold tracking-wide text-white")}
           <p className="text-[12px] mt-1.5 text-white/70">{contact(r) || "City, ST · phone · email · linkedin"}</p>
         </div>
         {r.summary && (
@@ -261,7 +261,7 @@ export const TEMPLATES: TemplateDef[] = [
           <div className="w-2 shrink-0 bg-[#B3261E] rounded-full" />
           <div className="flex-1 min-w-0">
             <div className="mb-4">
-              {ed(r.name || "Your Name", () => {}, "block text-[32px] font-black tracking-tight uppercase")}
+              {ed(r.name || "Your Name", () => {}, "block text-[24px] font-black tracking-tight uppercase")}
               <p className="text-[12px] font-semibold text-[#B3261E] mt-1">{contact(r) || "City, ST · phone · email · linkedin"}</p>
             </div>
             {r.summary && <p className="mb-4 font-medium text-[14px]">{ed(r.summary, () => {}, "block")}</p>}

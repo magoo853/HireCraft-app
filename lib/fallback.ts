@@ -235,12 +235,25 @@ export function findMilitaryJargon(text: string): string[] {
 /* ------------------------------------------------------------------ */
 
 export function extractBullets(text: string): string[] {
-  return text
-    .split("\n")
-    .map((l) => l.trim())
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const marked = lines
     .filter((l) => /^[•\-\*▪◦‣·]/.test(l) || /^\d+[.)]\s/.test(l))
     .map((l) => l.replace(/^[•\-\*▪◦‣·]\s*/, "").replace(/^\d+[.)]\s*/, "").trim())
     .filter((l) => l.length > 8);
+  if (marked.length >= 3) return marked;
+  // Fallback: pasted/PDF-parsed resumes often lose bullet markers entirely.
+  // Treat substantive body lines as bullets so the feature never returns empty.
+  const body = lines.filter((l) => {
+    if (l.length < 40 || l.length > 400) return false;
+    if (/^[^a-z]*$/.test(l)) return false; // ALL-CAPS headers
+    if (/:$/.test(l)) return false; // section headers
+    if (/^[\w.+-]+@[\w-]+\.[\w.]+$/.test(l)) return false;
+    if (/^\(?\+?\d[\d\s().-]{7,}\d$/.test(l)) return false;
+    if (/^(https?:\/\/|www\.|linkedin\.com)/i.test(l)) return false;
+    if (/^(experience|education|skills|summary|objective|contact|work history|employment|certifications)/i.test(l)) return false;
+    return true;
+  });
+  return body.slice(0, 12);
 }
 
 function tokenize(text: string): string[] {

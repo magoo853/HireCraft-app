@@ -10,13 +10,32 @@ type Tone = "professional" | "confident" | "warm";
 /* ---------------- Cover letter ---------------- */
 
 export function CoverLetter() {
-  const { resume, jobText, targetTitle, company } = useApp();
+  const { resume, jobText, setJobText, jobUrl, setJobUrl, targetTitle, company } = useApp();
   const [tone, setTone] = useState<Tone>("confident");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<CoverLetterResult> | null>(null);
   const [error, setError] = useState("");
   const [edited, setEdited] = useState("");
   const [copied, setCopied] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [fetchMsg, setFetchMsg] = useState("");
+
+  async function fetchJob() {
+    if (!jobUrl.trim()) { setFetchMsg("Paste a job posting URL first."); return; }
+    setFetching(true);
+    setFetchMsg("");
+    try {
+      const res = await fetch(`/api/fetch-job?url=${encodeURIComponent(jobUrl.trim())}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Fetch failed");
+      setJobText(json.text);
+      setFetchMsg(`Pulled ${json.text.split(/\s+/).length} words from the posting.`);
+    } catch (e) {
+      setFetchMsg(e instanceof Error ? e.message : "Fetch failed — paste the text below instead.");
+    } finally {
+      setFetching(false);
+    }
+  }
 
   async function generate() {
     setLoading(true);
@@ -57,13 +76,27 @@ export function CoverLetter() {
       <Card className="mb-3">
         <Field label="Job posting link">
           <div className="flex gap-2">
-            <input value={jobText ? "🔗 Posting loaded ✓" : ""} readOnly placeholder="🔗  paste the link on the Resume tab…"
-              className={`${inputCls} !text-muted`} />
-            <Button onClick={generate} disabled={loading} className="shrink-0">
-              {loading ? "…" : "Tailor"}
+            <input value={jobUrl} onChange={(e) => setJobUrl(e.target.value)}
+              placeholder="🔗  paste the job posting link…" inputMode="url" className={inputCls} />
+            <Button onClick={fetchJob} disabled={fetching} variant="secondary" className="shrink-0">
+              {fetching ? "…" : "Fetch"}
             </Button>
           </div>
         </Field>
+        {fetchMsg && <p className="text-sm text-emerald-900 font-medium -mt-2 mb-2">{fetchMsg}</p>}
+        {jobText.trim().length > 100 ? (
+          <p className="text-sm text-emerald-900 font-medium">✓ Posting loaded (~{jobText.split(/\s+/).length} words).</p>
+        ) : (
+          <Field label="…or paste the job description" hint="Tailoring works identically from pasted text.">
+            <textarea value={jobText} onChange={(e) => setJobText(e.target.value)} rows={4}
+              placeholder="Paste the full job posting here…" className={inputCls} />
+          </Field>
+        )}
+        <div className="flex gap-2 mt-3">
+          <Button onClick={generate} disabled={loading} className="flex-1">
+            {loading ? "…" : "Tailor"}
+          </Button>
+        </div>
         {error && <p className="text-sm text-red-700 mb-2">{error}</p>}
       </Card>
 
