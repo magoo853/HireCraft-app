@@ -48,6 +48,17 @@ function ImproveInner() {
 
   const shown = (r: RewriteResult, i: number) => edits[i] ?? r.rewritten;
 
+  // Only show bullets that actually changed — an unchanged "rewrite" is
+  // noise. Eval-mined additions always differ from their source line, so
+  // they always show. Hidden ones are counted, not vanished.
+  const normCmp = (s: string) =>
+    s.toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, "-")
+      .replace(/\s+/g, " ").replace(/\.+$/, "").trim();
+  const visible = result
+    ? result.data.map((r, i) => ({ r, i })).filter(({ r }) => normCmp(r.original) !== normCmp(r.rewritten))
+    : [];
+  const hiddenCount = result ? result.data.length - visible.length : 0;
+
   function acceptRewrite(i: number, original: string) {
     const text = result ? shown(result.data[i], i) : "";
     updateResume({ rawText: resume.rawText.split(original).join(text) });
@@ -62,7 +73,7 @@ function ImproveInner() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[15px] font-extrabold text-navy">Rewrites{result ? ` · ${result.data.length} bullets` : ""}</h2>
+        <h2 className="text-[15px] font-extrabold text-navy">Rewrites{result ? ` · ${visible.length} improved` : ""}</h2>
         <ModeBadge mode={mode} />
       </div>
 
@@ -96,11 +107,17 @@ function ImproveInner() {
           {result && (
             <>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-muted">Tap Accept to apply a rewrite to your resume.</p>
+                <p className="text-xs text-muted">Tap Accept to apply a rewrite to your resume.{hiddenCount > 0 ? ` ${hiddenCount} bullet${hiddenCount > 1 ? "s were" : " was"} already strong — not shown.` : ""}</p>
                 <button onClick={() => setResult(null)} className="text-xs text-muted underline min-h-[44px] px-2">run again</button>
               </div>
+              {visible.length === 0 ? (
+                <Card className="text-center py-8">
+                  <p className="font-extrabold text-navy mb-2">Nothing to change 🎉</p>
+                  <p className="text-sm text-muted max-w-xs mx-auto">Every bullet came back already strong — the rewrite had no improvements to make.</p>
+                </Card>
+              ) : (
               <div className="grid gap-2.5">
-                {result.data.map((r, i) => (
+                {visible.map(({ r, i }) => (
                   <div key={i} className="bg-white border border-line rounded-[14px] p-3">
                     <p className="text-[10.5px] font-bold text-muted uppercase tracking-wider">Original</p>
                     <p className="text-[13px] text-muted mt-1.5 leading-relaxed line-through decoration-red-400">{r.original}</p>
@@ -142,6 +159,7 @@ function ImproveInner() {
                   </div>
                 ))}
               </div>
+              )}
               <SourceNote source={result.source} note={result.note} />
               <Link href="/design"><Button className="w-full mt-4 !min-h-[52px]">See it in a designed template →</Button></Link>
             </>

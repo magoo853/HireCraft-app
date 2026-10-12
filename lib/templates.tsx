@@ -73,6 +73,18 @@ export const TEMPLATES: TemplateDef[] = [
             <p>{r.skills.join("  ·  ")}</p>
           </section>
         )}
+        {(r.certifications ?? []).length > 0 && (
+          <section className="mt-4">
+            <h3 className="text-[13px] font-bold tracking-[0.2em] uppercase border-b border-[#999] pb-1 mb-2">Certifications & Training</h3>
+            <ul className="list-disc ml-5">{(r.certifications ?? []).map((c, i) => <li key={i}>{ed(c, () => {}, "inline")}</li>)}</ul>
+          </section>
+        )}
+        {(r.awards ?? []).length > 0 && (
+          <section className="mt-4">
+            <h3 className="text-[13px] font-bold tracking-[0.2em] uppercase border-b border-[#999] pb-1 mb-2">Awards & Honors</h3>
+            <ul className="list-disc ml-5">{(r.awards ?? []).map((a, i) => <li key={i}>{ed(a, () => {}, "inline")}</li>)}</ul>
+          </section>
+        )}
       </div>
     ),
   },
@@ -138,6 +150,18 @@ export const TEMPLATES: TemplateDef[] = [
             </section>
           )}
         </div>
+        {(r.certifications ?? []).length > 0 && (
+          <section className="mt-4">
+            <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#0B6E4F] mb-1.5">Certifications & Training</h3>
+            <ul className="space-y-1">{(r.certifications ?? []).map((c, i) => <li key={i} className="flex gap-2"><span className="text-[#0B6E4F] font-bold">▸</span><span>{ed(c, () => {}, "inline")}</span></li>)}</ul>
+          </section>
+        )}
+        {(r.awards ?? []).length > 0 && (
+          <section className="mt-4">
+            <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#0B6E4F] mb-1.5">Awards & Honors</h3>
+            <ul className="space-y-1">{(r.awards ?? []).map((a, i) => <li key={i} className="flex gap-2"><span className="text-[#0B6E4F] font-bold">▸</span><span>{ed(a, () => {}, "inline")}</span></li>)}</ul>
+          </section>
+        )}
       </div>
     ),
   },
@@ -186,6 +210,18 @@ export const TEMPLATES: TemplateDef[] = [
             <div>
               <p className="text-[11px] uppercase tracking-[0.25em] text-[#999] mb-1">Skills</p>
               <p className="text-[13px] text-[#444]">{r.skills.join("   ·   ")}</p>
+            </div>
+          )}
+          {(r.certifications ?? []).length > 0 && (
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.25em] text-[#999] mb-1">Certifications & Training</p>
+              {(r.certifications ?? []).map((c, i) => <p key={i} className="text-[13px] text-[#333]">— {ed(c, () => {}, "inline")}</p>)}
+            </div>
+          )}
+          {(r.awards ?? []).length > 0 && (
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.25em] text-[#999] mb-1">Awards & Honors</p>
+              {(r.awards ?? []).map((a, i) => <p key={i} className="text-[13px] text-[#333]">— {ed(a, () => {}, "inline")}</p>)}
             </div>
           )}
         </div>
@@ -248,6 +284,18 @@ export const TEMPLATES: TemplateDef[] = [
             </section>
           )}
         </div>
+        {(r.certifications ?? []).length > 0 && (
+          <section className="mt-4">
+            <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#8a6d2f] mb-1.5">Certifications & Training</h3>
+            <ul className="list-disc ml-5 space-y-1">{(r.certifications ?? []).map((c, i) => <li key={i}>{ed(c, () => {}, "inline")}</li>)}</ul>
+          </section>
+        )}
+        {(r.awards ?? []).length > 0 && (
+          <section className="mt-4">
+            <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#8a6d2f] mb-1.5">Awards & Honors</h3>
+            <ul className="list-disc ml-5 space-y-1">{(r.awards ?? []).map((a, i) => <li key={i}>{ed(a, () => {}, "inline")}</li>)}</ul>
+          </section>
+        )}
       </div>
     ),
   },
@@ -302,6 +350,18 @@ export const TEMPLATES: TemplateDef[] = [
                 </div>
               )}
             </div>
+            {(r.certifications ?? []).length > 0 && (
+              <section className="mt-4">
+                <h3 className="inline-block bg-[#141414] text-white text-[11px] font-extrabold uppercase tracking-[0.2em] px-3 py-1.5 rounded mb-2">Certifications & Training</h3>
+                <ul className="space-y-1">{(r.certifications ?? []).map((c, i) => <li key={i} className="flex gap-2"><span className="text-[#B3261E]">▸</span><span>{ed(c, () => {}, "inline")}</span></li>)}</ul>
+              </section>
+            )}
+            {(r.awards ?? []).length > 0 && (
+              <section className="mt-4">
+                <h3 className="inline-block bg-[#141414] text-white text-[11px] font-extrabold uppercase tracking-[0.2em] px-3 py-1.5 rounded mb-2">Awards & Honors</h3>
+                <ul className="space-y-1">{(r.awards ?? []).map((a, i) => <li key={i} className="flex gap-2"><span className="text-[#B3261E]">▸</span><span>{ed(a, () => {}, "inline")}</span></li>)}</ul>
+              </section>
+            )}
           </div>
         </div>
       </div>
@@ -329,6 +389,18 @@ export const TEMPLATES: TemplateDef[] = [
                 {r.education.map((e, i) => (
                   <p key={i} className="mb-2 text-[12px]"><b>{ed(e.degree, () => {}, "inline")}</b><br /><span className="text-slate-300">{ed(e.school, () => {}, "inline")}</span></p>
                 ))}
+              </div>
+            )}
+            {(r.certifications ?? []).length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-300 mb-2">Certifications</h3>
+                <ul className="space-y-1">{(r.certifications ?? []).map((c, i) => <li key={i} className="text-[12px]">{ed(c, () => {}, "inline")}</li>)}</ul>
+              </div>
+            )}
+            {(r.awards ?? []).length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-300 mb-2">Awards</h3>
+                <ul className="space-y-1">{(r.awards ?? []).map((a, i) => <li key={i} className="text-[12px]">{ed(a, () => {}, "inline")}</li>)}</ul>
               </div>
             )}
           </div>
@@ -428,6 +500,18 @@ export const TEMPLATES: TemplateDef[] = [
             </section>
           )}
         </div>
+        {(r.certifications ?? []).length > 0 && (
+          <section className="mt-4">
+            <h3 className="text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-1.5">Certifications & Training</h3>
+            <ul className="space-y-1">{(r.certifications ?? []).map((c, i) => <li key={i} className="flex gap-2"><span className="text-[#0A66C2] font-bold">▸</span><span>{ed(c, () => {}, "inline")}</span></li>)}</ul>
+          </section>
+        )}
+        {(r.awards ?? []).length > 0 && (
+          <section className="mt-4">
+            <h3 className="text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-1.5">Awards & Honors</h3>
+            <ul className="space-y-1">{(r.awards ?? []).map((a, i) => <li key={i} className="flex gap-2"><span className="text-[#0A66C2] font-bold">▸</span><span>{ed(a, () => {}, "inline")}</span></li>)}</ul>
+          </section>
+        )}
       </div>
     ),
   },
@@ -480,9 +564,21 @@ export const TEMPLATES: TemplateDef[] = [
           </section>
         )}
         {r.skills.length > 0 && (
-          <section>
+          <section className="mb-4">
             <h3 className="text-[12px] font-bold mb-1.5">## SKILLS</h3>
             <p>{r.skills.join(" | ")}</p>
+          </section>
+        )}
+        {(r.certifications ?? []).length > 0 && (
+          <section className="mb-4">
+            <h3 className="text-[12px] font-bold mb-1.5">## CERTIFICATIONS & TRAINING</h3>
+            <ul className="space-y-1">{(r.certifications ?? []).map((c, i) => <li key={i}>- {ed(c, () => {}, "inline")}</li>)}</ul>
+          </section>
+        )}
+        {(r.awards ?? []).length > 0 && (
+          <section>
+            <h3 className="text-[12px] font-bold mb-1.5">## AWARDS & HONORS</h3>
+            <ul className="space-y-1">{(r.awards ?? []).map((a, i) => <li key={i}>- {ed(a, () => {}, "inline")}</li>)}</ul>
           </section>
         )}
       </div>
@@ -646,6 +742,16 @@ export function renderCustom(r: StructuredResume, ed: EdFn, opts: DesignOptions)
           </section>
         )}
       </div>
+      {(r.certifications ?? []).length > 0 && (
+        <section className={secMb}><SecHead>Certifications & Training</SecHead>
+          <ul className={bulletGap}>{(r.certifications ?? []).map((c, i) => <li key={i} className="flex gap-2">{bulletMark}<span>{ed(c, () => {}, "inline")}</span></li>)}</ul>
+        </section>
+      )}
+      {(r.awards ?? []).length > 0 && (
+        <section><SecHead>Awards & Honors</SecHead>
+          <ul className={bulletGap}>{(r.awards ?? []).map((a, i) => <li key={i} className="flex gap-2">{bulletMark}<span>{ed(a, () => {}, "inline")}</span></li>)}</ul>
+        </section>
+      )}
     </div>
   );
 }

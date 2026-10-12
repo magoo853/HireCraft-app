@@ -73,7 +73,7 @@ async function parseDocx(file: File): Promise<string> {
   return result.value;
 }
 
-const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experience" | "education" | "skills"> | "projects" | "summaryExperience" | "other"][] = [
+const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experience" | "education" | "skills"> | "projects" | "summaryExperience" | "certifications" | "awards" | "other"][] = [
   // Combined headers ("PROFESSIONAL EXPERIENCE & ABILITY SUMMARY") start as a
   // summary and flip to experience at the first dated job line.
   [/experience.*summary|summary.*experience/i, "summaryExperience"],
@@ -90,13 +90,17 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
   [/^(technical\s+)?skills$/i, "skills"],
   [/^core\s+competencies$/i, "skills"],
   [/^projects?$/i, "projects"],
-  // Sections the structured resume has no home for — kept in rawText for the
-  // AI, but they must not bleed into education/experience.
-  [/^professional\s+military\s+education$/i, "other"],
-  [/^(professional\s+)?certifications/i, "other"],
-  [/^awards/i, "other"],
-  [/^affiliations$/i, "other"],
-  [/^security\s+clearance/i, "other"],
+  // Certifications / training / awards have real homes now — they render in
+  // every design template and the text export.
+  [/^professional\s+military\s+education$/i, "certifications"],
+  [/^(professional\s+)?certifications/i, "certifications"],
+  [/^licenses?\s*(&|and)?\s*certifications/i, "certifications"],
+  [/^training\s*(&|and)\s*certifications/i, "certifications"],
+  [/^awards/i, "awards"],
+  [/^honors?\s*(&|and)\s*awards/i, "awards"],
+  [/^decorations/i, "awards"],
+  [/^affiliations$/i, "certifications"],
+  [/^security\s+clearance/i, "certifications"],
 ];
 
 const MONTHS = "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|Sept|October|November|December";
@@ -271,6 +275,13 @@ export function textToStructured(text: string): StructuredResume {
     }
   }
 
+  const listSection = (key: string) =>
+    (sections.get(key) ?? [])
+      .map((l) => l.replace(/^[•\-\*▪◦‣·]\s*/, "").trim())
+      .filter((l) => l.length > 3);
+  r.certifications = Array.from(new Set(listSection("certifications"))).slice(0, 20);
+  r.awards = Array.from(new Set(listSection("awards"))).slice(0, 20);
+
   return r;
 }
 
@@ -304,7 +315,9 @@ export function structuredToText(r: StructuredResume): string {
     for (const e of r.education) out.push(`${e.degree} — ${e.school}${e.dates ? `, ${e.dates}` : ""}${e.details ? `\n${e.details}` : ""}`);
     out.push("");
   }
-  if (r.skills.length) out.push("SKILLS", r.skills.join(", "));
+  if (r.skills.length) out.push("SKILLS", r.skills.join(", "), "");
+  if (r.certifications?.length) out.push("CERTIFICATIONS & TRAINING", ...r.certifications.map((c) => `• ${c}`), "");
+  if (r.awards?.length) out.push("AWARDS & HONORS", ...r.awards.map((a) => `• ${a}`), "");
   return out.join("\n");
 }
 
@@ -472,6 +485,11 @@ export function parseLinkedInProfile(text: string): StructuredResume {
   } else if (eduLines.length === 1) {
     r.education.push({ school: eduLines[0], degree: "", dates: "", details: "" });
   }
+
+  r.certifications = liSection(lines, "licenses & certifications", ["skills", "experience", "education", "courses", "honors & awards", "volunteer experience", "projects"])
+    .filter((l) => l.length > 3).slice(0, 12);
+  r.awards = liSection(lines, "honors & awards", ["skills", "experience", "education", "courses", "licenses & certifications", "volunteer experience", "projects"])
+    .filter((l) => l.length > 3).slice(0, 12);
 
   r.skills = Array.from(skills).slice(0, 24);
   return r;

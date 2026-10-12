@@ -68,7 +68,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (s.mode) setMode(s.mode as Mode);
       if (s.targetTitle) setTargetTitle(s.targetTitle as string);
       if (s.company) setCompany(s.company as string);
-      if (s.resume) setResume(s.resume as StructuredResume);
+      if (s.resume) setResume({ ...emptyResume(), ...(s.resume as StructuredResume) });
       if (s.jobText) setJobText(s.jobText as string);
       if (s.jobUrl) setJobUrl(s.jobUrl as string);
       if (s.linkedinText) setLinkedinText(s.linkedinText as string);

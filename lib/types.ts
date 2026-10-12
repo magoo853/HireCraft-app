@@ -44,6 +44,8 @@ export interface StructuredResume {
   education: EducationItem[];
   projects: ProjectItem[];
   skills: string[];
+  certifications: string[];
+  awards: string[];
   rawText: string;
 }
 
@@ -58,6 +60,8 @@ export const emptyResume = (): StructuredResume => ({
   education: [],
   projects: [],
   skills: [],
+  certifications: [],
+  awards: [],
   rawText: "",
 });
 
