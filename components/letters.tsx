@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { useApp } from "@/lib/store";
 import { AiResponse, CoverLetterResult, LinkedInResult } from "@/lib/types";
-import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, inputCls } from "./ui";
+import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, TargetJobBanner, inputCls } from "./ui";
 
 type Tone = "professional" | "confident" | "warm";
 
 /* ---------------- Cover letter ---------------- */
 
 export function CoverLetter() {
-  const { resume, jobText, setJobText, jobUrl, setJobUrl, targetTitle, company } = useApp();
+  const { resume, jobText, setJobText, jobUrl, setJobUrl, targetTitle, company, mode, military } = useApp();
   const [tone, setTone] = useState<Tone>("confident");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<CoverLetterResult> | null>(null);
@@ -44,7 +44,7 @@ export function CoverLetter() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "cover-letter", mode: "general", resume, jobText, targetTitle, company, tone }),
+        body: JSON.stringify({ task: "cover-letter", mode, resume, jobText, targetTitle, company, tone, military }),
       });
       const json = (await res.json()) as AiResponse<CoverLetterResult>;
       setResult(json);
@@ -73,6 +73,7 @@ export function CoverLetter() {
 
   return (
     <>
+      <TargetJobBanner />
       <Card className="mb-3">
         <Field label="Job posting link">
           <div className="flex gap-2">
@@ -151,7 +152,7 @@ export function CoverLetter() {
 /* ---------------- LinkedIn ---------------- */
 
 export function LinkedIn() {
-  const { resume, jobText, targetTitle, linkedinText, setLinkedinText } = useApp();
+  const { resume, jobText, targetTitle, linkedinText, setLinkedinText, mode, military } = useApp();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<LinkedInResult> | null>(null);
   const [error, setError] = useState("");
@@ -172,7 +173,7 @@ export function LinkedIn() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "linkedin", mode: "general", resume, jobText, targetTitle, linkedinText, feedback: fb }),
+        body: JSON.stringify({ task: "linkedin", mode, resume, jobText, targetTitle, linkedinText, feedback: fb, military }),
       });
       const json = (await res.json()) as AiResponse<LinkedInResult>;
       setResult(json);

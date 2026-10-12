@@ -6,11 +6,11 @@ import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { extractKeywords } from "@/lib/fallback";
 import { AiResponse, RewriteResult } from "@/lib/types";
-import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, inputCls } from "@/components/ui";
+import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJobBanner, inputCls } from "@/components/ui";
 
 function ImproveInner() {
   const params = useSearchParams();
-  const { resume, jobText, mode, hasResume, updateResume } = useApp();
+  const { resume, jobText, mode, hasResume, updateResume, military } = useApp();
   const [tab, setTab] = useState<"rewrite" | "tailor">(params.get("tab") === "tailor" ? "tailor" : "rewrite");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<RewriteResult[]> | null>(null);
@@ -32,7 +32,7 @@ function ImproveInner() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "rewrite", mode, resume, jobText }),
+        body: JSON.stringify({ task: "rewrite", mode, resume, jobText, military }),
       });
       const json = (await res.json()) as AiResponse<RewriteResult[]>;
       if (!Array.isArray(json.data)) throw new Error("Unexpected response");
@@ -65,6 +65,8 @@ function ImproveInner() {
         <h2 className="text-[15px] font-extrabold text-navy">Rewrites{result ? ` · ${result.data.length} bullets` : ""}</h2>
         <ModeBadge mode={mode} />
       </div>
+
+      <TargetJobBanner />
 
       <div className="grid grid-cols-2 gap-1 bg-slate-200/60 rounded-xl p-1 mb-4">
         {(["rewrite", "tailor"] as const).map((t) => (

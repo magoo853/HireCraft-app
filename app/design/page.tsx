@@ -7,31 +7,26 @@ import {
   DESIGN_ACCENTS, DESIGN_FONTS, DESIGN_HEADERS, renderCustom,
 } from "@/lib/templates";
 import { structuredToText } from "@/lib/parse";
+import { StructuredResume } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle } from "@/components/ui";
-
-const THUMB_ACCENT: Record<string, string> = {
-  classic: "#0B3B2E",
-  modern: "#0A66C2",
-  minimal: "#111111",
-  executive: "#7C2D12",
-  bold: "#6D28D9",
-  slate: "#1e293b",
-  ocean: "#0A66C2",
-  mono: "#555555",
-  custom: "#0B6E4F",
-};
 
 const LS_DESIGN_OPTS = "hirecraft-design-opts";
 
-function Thumb({ id }: { id: string }) {
-  const accent = THUMB_ACCENT[id] ?? "#0B3B2E";
+const thumbEd: EdFn = (value, _onChange, className = "") => <span className={className}>{value}</span>;
+
+/** Mini live render of the user's actual resume in this template. */
+function LiveThumb({ id, resume, designOpts }: { id: string; resume: StructuredResume; designOpts: DesignOptions }) {
+  const t = TEMPLATES.find((x) => x.id === id);
+  if (!t) return null;
   return (
-    <div className="bg-[#F8FAFC] rounded-md h-[110px] p-2 border border-slate-100">
-      <div className="h-2 rounded-full mb-1.5" style={{ background: accent, width: id === "bold" ? "40%" : "60%" }} />
-      <div className="h-[5px] rounded-full mb-1.5" style={{ background: accent, width: "40%", opacity: 0.7 }} />
-      <div className="h-[5px] rounded-full bg-slate-300 mb-1" style={{ width: "90%" }} />
-      <div className="h-[5px] rounded-full bg-slate-300 mb-1" style={{ width: "75%" }} />
-      <div className="h-[5px] rounded-full bg-slate-300" style={{ width: "85%" }} />
+    <div className="relative h-[110px] overflow-hidden rounded-md border border-slate-100 bg-white text-left">
+      <div
+        className="pointer-events-none absolute top-0 left-0 origin-top-left p-4"
+        style={{ transform: "scale(0.16)", width: "625%" }}
+      >
+        {id === "custom" ? renderCustom(resume, thumbEd, designOpts) : t.render(resume, thumbEd)}
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent" />
     </div>
   );
 }
@@ -76,7 +71,7 @@ export default function DesignPage() {
     return (
       <EmptyState
         title="No resume yet"
-        body="Add or build your resume first — then pick from five recruiter-grade designs and export a clean PDF."
+        body="Add or build your resume first — then pick from nine recruiter-grade designs and export a clean PDF."
         cta="Add my resume" href="/resume"
       />
     );
@@ -138,7 +133,7 @@ export default function DesignPage() {
         {TEMPLATES.map((t) => (
           <button key={t.id} onClick={() => setTemplateId(t.id)}
             className={`bg-white rounded-xl border-2 p-2 text-center transition active:scale-[0.98] ${templateId === t.id ? "border-brand" : "border-line"}`}>
-            <Thumb id={t.id} />
+            <LiveThumb id={t.id} resume={resume} designOpts={designOpts} />
             <span className="block text-[11px] font-bold text-ink mt-1.5 leading-tight">{t.name}{templateId === t.id ? " ✓" : ""}</span>
           </button>
         ))}
@@ -177,11 +172,56 @@ export default function DesignPage() {
             ))}
           </div>
           <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Name alignment</p>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 mb-3">
             {(["left", "center"] as const).map((a) => (
               <button key={a} onClick={() => setDesignOpts({ ...designOpts, nameAlign: a })}
                 className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] capitalize ${designOpts.nameAlign === a ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
                 {a}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Name size</p>
+          <div className="flex gap-1.5 mb-3">
+            {([["standard", "Standard"], ["large", "Large"]] as const).map(([id, name]) => (
+              <button key={id} onClick={() => setDesignOpts({ ...designOpts, nameSize: id })}
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.nameSize === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                {name}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Section spacing</p>
+          <div className="flex gap-1.5 mb-3">
+            {([["relaxed", "Relaxed"], ["standard", "Standard"], ["tight", "Tight"]] as const).map(([id, name]) => (
+              <button key={id} onClick={() => setDesignOpts({ ...designOpts, spacing: id })}
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.spacing === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                {name}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Skills style</p>
+          <div className="flex gap-1.5 mb-3">
+            {([["pills", "Pills"], ["list", "Inline list"], ["columns", "Columns"]] as const).map(([id, name]) => (
+              <button key={id} onClick={() => setDesignOpts({ ...designOpts, skillsStyle: id })}
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.skillsStyle === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                {name}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Bullet markers</p>
+          <div className="flex gap-1.5 mb-3">
+            {([["arrow", "▸ Arrow"], ["dot", "• Dot"], ["dash", "– Dash"], ["none", "None"]] as const).map(([id, name]) => (
+              <button key={id} onClick={() => setDesignOpts({ ...designOpts, bulletStyle: id })}
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.bulletStyle === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                {name}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Contact line</p>
+          <div className="flex gap-1.5">
+            {([["line", "Single line"], ["stacked", "Stacked"]] as const).map(([id, name]) => (
+              <button key={id} onClick={() => setDesignOpts({ ...designOpts, contactStyle: id })}
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.contactStyle === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                {name}
               </button>
             ))}
           </div>

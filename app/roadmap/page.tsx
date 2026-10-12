@@ -28,7 +28,7 @@ function parseYears(s: string): number {
 }
 
 export default function RoadmapPage() {
-  const { resume, mode, hasResume } = useApp();
+  const { resume, mode, hasResume, military } = useApp();
   const [goals, setGoals] = useState<RoadmapGoal[]>(defaultGoals());
   const [loading, setLoading] = useState(false);
   const [nodes, setNodes] = useState<AiResponse<RoadmapNode[]> | null>(null);
@@ -105,7 +105,7 @@ export default function RoadmapPage() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "roadmap", mode, resume, goals }),
+        body: JSON.stringify({ task: "roadmap", mode, resume, goals, military }),
       });
       const json = (await res.json()) as AiResponse<RoadmapNode[]>;
       if (!Array.isArray(json.data)) throw new Error("Unexpected response");
@@ -127,9 +127,6 @@ export default function RoadmapPage() {
         <SectionTitle sub="Tell us where you want to be. We'll map how to get there — roles, the skills each checkpoint demands, and the gaps to close.">
           Career roadmap
         </SectionTitle>
-        <span className="text-[10px] font-extrabold uppercase tracking-wide bg-navy text-white rounded-full px-2.5 py-1 shrink-0 ml-2">
-          Paid
-        </span>
       </div>
 
       {!nodes && (

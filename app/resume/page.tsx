@@ -26,13 +26,33 @@ function AiStatusPill() {
 }
 
 export default function ResumePage() {
-  const { mode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl } = useApp();
+  const { mode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary } = useApp();
   const [tab, setTab] = useState<Tab>(mode === "new" ? "builder" : "upload");
   const [paste, setPaste] = useState("");
   const [parsing, setParsing] = useState(false);
   const [parseMsg, setParseMsg] = useState("");
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
+  const [evalParsing, setEvalParsing] = useState(false);
+  const [evalMsg, setEvalMsg] = useState("");
+  const [evalPaste, setEvalPaste] = useState("");
+  const [showEvalPaste, setShowEvalPaste] = useState(false);
+
+  async function handleEvalFile(f: File | undefined) {
+    if (!f) return;
+    setEvalParsing(true);
+    setEvalMsg("");
+    try {
+      const text = await parseFile(f);
+      if (text.trim().length < 50) throw new Error("Couldn't read much text from that file. Try pasting the text instead.");
+      setMilitary({ ...military, evalText: text });
+      setEvalMsg(`Performance review loaded (${text.split(/\s+/).length} words). It now feeds Discover, Roadmap, and Rewrites.`);
+    } catch (e) {
+      setEvalMsg(e instanceof Error ? e.message : "Couldn't parse that file.");
+    } finally {
+      setEvalParsing(false);
+    }
+  }
 
   async function handleFile(f: File | undefined) {
     if (!f) return;
@@ -130,6 +150,66 @@ export default function ResumePage() {
         </Card>
       ) : (
         <p className="text-sm text-muted mt-4 text-center">Add your resume above to unlock scoring, rewrites, and tailoring.</p>
+      )}
+
+      {mode === "veteran" && (
+        <div className="mt-8">
+          <SectionTitle sub="Your job codes + yearly evaluation power the civilian translation across Discover, Roadmap, and Rewrites.">
+            Your military record
+          </SectionTitle>
+          <Card>
+            <Field label="Branch">
+              <select value={military.branch} onChange={(e) => setMilitary({ ...military, branch: e.target.value })}
+                className={inputCls}>
+                <option value="">Select branch…</option>
+                {["Army", "Navy", "Air Force", "Marine Corps", "Coast Guard", "Space Force"].map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="MOS / job codes" hint="What you were rated as — e.g. Army MOS 11B, 68W · Navy rate HM, IT · Air Force AFSC 3P0X1 · Marine 0311. Separate multiples with commas.">
+              <input value={military.mosCodes} onChange={(e) => setMilitary({ ...military, mosCodes: e.target.value })}
+                placeholder="e.g. 25B, 42A" className={inputCls} />
+            </Field>
+            <Field label="Yearly performance review (NCOER / OER / EPR / FITREP / eval)">
+              <input
+                type="file" accept=".pdf,.docx,.txt"
+                onChange={(e) => handleEvalFile(e.target.files?.[0])}
+                className="block w-full text-sm text-muted file:mr-4 file:rounded-xl file:border-0 file:bg-ink file:text-white file:px-5 file:py-3 file:text-sm file:font-bold file:min-h-[44px]"
+              />
+            </Field>
+            {evalParsing && <p className="text-sm text-muted">Reading your evaluation…</p>}
+            {evalMsg && <p className="text-sm text-emerald-900 font-medium">{evalMsg}</p>}
+            {military.evalText ? (
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-muted">✓ Review on file (~{military.evalText.split(/\s+/).length} words) — mined for accomplishments and scope.</p>
+                <button onClick={() => setMilitary({ ...military, evalText: "" })} className="text-xs text-muted underline min-h-[44px] px-2 shrink-0">clear</button>
+              </div>
+            ) : (
+              <>
+                <button onClick={() => setShowEvalPaste(!showEvalPaste)} className="text-xs font-bold text-brand underline underline-offset-2 min-h-[40px]">
+                  {showEvalPaste ? "Hide paste box" : "…or paste the review text instead"}
+                </button>
+                {showEvalPaste && (
+                  <>
+                    <textarea value={evalPaste} onChange={(e) => setEvalPaste(e.target.value)} rows={6}
+                      placeholder="Paste your evaluation bullets / rater comments here…" className={inputCls} />
+                    <Button
+                      className="w-full mt-2"
+                      onClick={() => {
+                        if (evalPaste.trim().length < 50) { setEvalMsg("Paste a bit more — at least a few lines of your review."); return; }
+                        setMilitary({ ...military, evalText: evalPaste });
+                        setEvalMsg("Performance review saved. It now feeds Discover, Roadmap, and Rewrites.");
+                      }}
+                    >
+                      Use this review
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
+          </Card>
+        </div>
       )}
 
       <div className="mt-8">

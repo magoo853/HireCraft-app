@@ -27,7 +27,7 @@ type Stage = "intro" | "quiz" | "results";
 const LS_KEY = "hirecraft-quiz";
 
 export default function DiscoverPage() {
-  const { resume, hasResume, mode } = useApp();
+  const { resume, hasResume, mode, military } = useApp();
   const [stage, setStage] = useState<Stage>("intro");
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -90,7 +90,7 @@ export default function DiscoverPage() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "discover", mode: "general", resume, answers: finalAnswers }),
+        body: JSON.stringify({ task: "discover", mode, resume, answers: finalAnswers, military }),
       });
       const json = (await res.json()) as AiResponse<DiscoverResult>;
       setResult(json);
@@ -120,9 +120,6 @@ export default function DiscoverPage() {
         <SectionTitle sub="A work-style quiz meets your real resume. Find the lanes you're built for.">
           Discover
         </SectionTitle>
-        <span className="text-[10px] font-extrabold uppercase tracking-wide bg-navy text-white rounded-full px-2.5 py-1 shrink-0 ml-2">
-          Paid
-        </span>
       </div>
 
       {stage === "intro" && (
@@ -204,6 +201,12 @@ export default function DiscoverPage() {
                 <p className="text-sm font-extrabold text-navy">Top matches for you</p>
                 <button onClick={retake} className="text-xs text-muted underline min-h-[44px] px-2">retake quiz</button>
               </div>
+              {mode === "veteran" && military.mosCodes.trim() && (
+                <p className="text-xs font-bold text-emerald-900 bg-mint rounded-xl px-3 py-2.5 mb-3">
+                  🎖 Includes civilian translations of your {military.branch ? `${military.branch} ` : ""}code{military.mosCodes.includes(",") ? "s" : ""}: {military.mosCodes}
+                  {military.evalText ? " — plus what your performance review proves." : ""}
+                </p>
+              )}
               <Card className="mb-3 !p-3.5">
                 <Field label="Where should we look? (optional)" hint="Adds location to every job-board search.">
                   <input value={location} onChange={(e) => setLocation(e.target.value)}
