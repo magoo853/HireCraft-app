@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { parseFile, structuredToText, textToStructured } from "@/lib/parse";
@@ -8,6 +8,22 @@ import { ExperienceItem, ProjectItem, StructuredResume, emptyResume } from "@/li
 import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
 
 type Tab = "upload" | "paste" | "builder";
+
+function AiStatusPill() {
+  const [status, setStatus] = useState<{ working: boolean; detail: string } | null>(null);
+  useEffect(() => {
+    fetch("/api/ai-health")
+      .then((r) => r.json())
+      .then((j) => setStatus({ working: !!j.working, detail: String(j.detail || "") }))
+      .catch(() => setStatus({ working: false, detail: "Couldn't reach the AI status check." }));
+  }, []);
+  if (!status) return null;
+  return (
+    <p className={`text-xs font-bold rounded-xl px-3 py-2.5 mb-4 ${status.working ? "bg-mint text-emerald-900" : "bg-amber-50 text-amber-900 border border-amber-200"}`}>
+      {status.working ? "🤖 AI connected — full rewrites enabled." : `⚠️ ${status.detail}`}
+    </p>
+  );
+}
 
 export default function ResumePage() {
   const { mode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl } = useApp();
@@ -62,6 +78,8 @@ export default function ResumePage() {
       <SectionTitle sub="Upload, paste, or build from scratch. Everything stays on your device unless you add an AI key.">
         Your resume
       </SectionTitle>
+
+      <AiStatusPill />
 
       <div className="grid grid-cols-3 gap-1 bg-stone-200/60 rounded-xl p-1 mb-5">
         {(["upload", "paste", "builder"] as Tab[]).map((t) => (

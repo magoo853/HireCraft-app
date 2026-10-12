@@ -141,7 +141,7 @@ export function CoverLetter() {
               .txt
             </button>
           </div>
-          <SourceNote source={result.source} />
+          <SourceNote source={result.source} note={result.note} />
         </>
       )}
     </>
@@ -331,7 +331,7 @@ export function LinkedIn() {
             </Field>
           </Card>
           <div className="flex items-center justify-between mt-2">
-            <SourceNote source={result.source} />
+            <SourceNote source={result.source} note={result.note} />
             <button onClick={() => setResult(null)} className="text-xs text-muted underline min-h-[44px] px-2 shrink-0">Regenerate</button>
           </div>
         </>

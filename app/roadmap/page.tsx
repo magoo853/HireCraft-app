@@ -306,7 +306,7 @@ export default function RoadmapPage() {
               );
             })}
           </div>
-          <SourceNote source={nodes.source} />
+          <SourceNote source={nodes.source} note={nodes.note} />
           <p className="text-xs text-muted mt-2 leading-relaxed">
             Salary bands are rough US national estimates for illustration — verify against current BLS data or live postings before making decisions.
           </p>

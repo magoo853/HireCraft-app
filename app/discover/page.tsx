@@ -238,7 +238,7 @@ export default function DiscoverPage() {
                   />
                 </>
               )}
-              <SourceNote source={result.source} />
+              <SourceNote source={result.source} note={result.note} />
               <p className="text-xs text-muted mt-2">Salary bands are rough US estimates — verify against live postings.</p>
             </>
           )}

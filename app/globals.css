@@ -33,7 +33,7 @@ body {
   border-radius: 4px;
 }
 
-/* Print: only the resume sheet prints */
+/* Print: only the resume sheet prints, with zero browser chrome */
 @media print {
   body * {
     visibility: hidden;
@@ -49,8 +49,15 @@ body {
     margin: 0;
     box-shadow: none !important;
     border: none !important;
+    border-radius: 0 !important;
+    padding: 0.55in 0.6in !important;
+  }
+  /* Keep job entries from splitting across pages */
+  #resume-print section > div {
+    break-inside: avoid;
   }
   @page {
-    margin: 0.6in 0.65in;
+    size: letter;
+    margin: 0;
   }
 }

@@ -140,7 +140,7 @@ function ImproveInner() {
                   </div>
                 ))}
               </div>
-              <SourceNote source={result.source} />
+              <SourceNote source={result.source} note={result.note} />
               <Link href="/design"><Button className="w-full mt-4 !min-h-[52px]">See it in a designed template →</Button></Link>
             </>
           )}
