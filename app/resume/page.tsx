@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { parseFile, structuredToText, textToStructured } from "@/lib/parse";
 import { mosTranslations } from "@/lib/careers";
@@ -27,6 +28,7 @@ function AiStatusPill() {
 }
 
 export default function ResumePage() {
+  const router = useRouter();
   const { mode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary } = useApp();
   const [tab, setTab] = useState<Tab>(mode === "new" ? "builder" : "upload");
   const [paste, setPaste] = useState("");
@@ -177,20 +179,44 @@ export default function ResumePage() {
               if (!translations.length) {
                 return (
                   <p className="text-xs text-muted -mt-2 mb-3">
-                    That code isn't in the built-in crosswalk yet — your codes and eval still go to the AI verbatim on every tab below.
+                    That code isn't in the built-in crosswalk yet — the AI still translates it on Discover, Roadmap, and Rewrite.
                   </p>
                 );
               }
               return (
-                <div className="-mt-2 mb-3 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5">
-                  {translations.map((t) => (
-                    <p key={t.code} className="text-xs text-emerald-950 leading-relaxed">
-                      <span className="font-bold">{t.code} — {t.label}</span> translates to:{" "}
-                      <span className="font-semibold">{t.roles.join(" · ")}</span>
-                    </p>
+                <div className="-mt-2 mb-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/60 p-4">
+                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-900">
+                    🎖 Your civilian translation
+                  </p>
+                  {translations.map((t, i) => (
+                    <div key={t.code} className={i > 0 ? "border-t border-emerald-100 pt-3 mt-3" : "mt-3"}>
+                      <p className="text-[11px] font-bold text-muted">
+                        {t.code} · {t.label}{military.branch ? ` — ${military.branch}` : ""}
+                      </p>
+                      <p className="text-[18px] font-extrabold text-navy leading-snug mt-0.5">{t.equivalent}</p>
+                      <p className="text-[13px] text-slate-600 leading-relaxed mt-1">{t.about}</p>
+                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                        {t.roles.map((role) => (
+                          <span key={role} className="rounded-full bg-white border border-emerald-200 px-2.5 py-1 text-[11px] font-bold text-emerald-950">
+                            {role}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <Link href="/discover"
+                          className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-white border border-emerald-200 text-emerald-950 min-h-[44px] flex items-center justify-center">
+                          See matching jobs →
+                        </Link>
+                        <button
+                          onClick={() => { setTargetTitle(t.equivalent); router.push("/roadmap"); }}
+                          className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-brand text-white min-h-[44px]">
+                          Build my roadmap →
+                        </button>
+                      </div>
+                    </div>
                   ))}
-                  <p className="text-[11px] text-emerald-900/70 mt-1.5">
-                    These matches lead your Discover results, and your codes + eval text are handed to the AI on Rewrite, Cover, LinkedIn, and Roadmap.
+                  <p className="text-[11px] text-emerald-900/70 mt-3.5 leading-relaxed">
+                    This translation also drives your rewrites, cover letters, and LinkedIn — anywhere the app speaks civilian.
                   </p>
                 </div>
               );
