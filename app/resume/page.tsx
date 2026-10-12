@@ -115,7 +115,7 @@ export default function ResumePage() {
         <Card>
           <Field label="Resume file (PDF, DOCX, or TXT)">
             <input
-              type="file" accept=".pdf,.docx,.txt"
+              type="file" accept=".pdf,.docx,.doc,.txt"
               onChange={(e) => handleFile(e.target.files?.[0])}
               className="block w-full text-sm text-muted file:mr-4 file:rounded-xl file:border-0 file:bg-ink file:text-white file:px-5 file:py-3 file:text-sm file:font-bold file:min-h-[44px]"
             />
@@ -197,7 +197,7 @@ export default function ResumePage() {
             })()}
             <Field label="Yearly performance review (NCOER / OER / EPR / FITREP / eval)">
               <input
-                type="file" accept=".pdf,.docx,.txt"
+                type="file" accept=".pdf,.docx,.doc,.txt"
                 onChange={(e) => handleEvalFile(e.target.files?.[0])}
                 className="block w-full text-sm text-muted file:mr-4 file:rounded-xl file:border-0 file:bg-ink file:text-white file:px-5 file:py-3 file:text-sm file:font-bold file:min-h-[44px]"
               />

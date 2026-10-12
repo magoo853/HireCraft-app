@@ -225,7 +225,7 @@ export function LinkedIn() {
             <Field label="Your LinkedIn profile" hint="Export your profile as a PDF from LinkedIn (Me → View Profile → More → Save to PDF), or paste the text — generation uses it as the source of truth.">
               <label className={`${inputCls} flex items-center justify-center gap-2 cursor-pointer text-center !text-pine font-bold`}>
                 {uploading ? "Reading file…" : linkedinText ? "↻ Replace profile file" : "⬆ Upload LinkedIn PDF / DOCX / TXT"}
-                <input type="file" accept=".pdf,.docx,.txt" className="hidden"
+                <input type="file" accept=".pdf,.docx,.doc,.txt" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadProfile(f); e.target.value = ""; }} />
               </label>
             </Field>

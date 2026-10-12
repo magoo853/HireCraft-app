@@ -10,7 +10,18 @@ export async function parseFile(file: File): Promise<string> {
   if (ext === "pdf") return parsePdf(file);
   if (ext === "docx") return parseDocx(file);
   if (ext === "doc") {
-    throw new Error("That's an older Word .doc file, which browsers can't read reliably. In Word: File → Save As → PDF (or .docx), then upload that instead.");
+    // Legacy Word format: browsers can't read it, so the server extracts it.
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/extract", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("extract failed");
+      const j = (await res.json()) as { text?: string };
+      if (j.text && j.text.trim().length > 30) return j.text;
+      throw new Error("empty extraction");
+    } catch {
+      throw new Error("That's an older Word .doc file and it couldn't be read. In Word: File → Save As → PDF (or .docx), then upload that instead.");
+    }
   }
   return file.text();
 }
@@ -62,10 +73,15 @@ async function parseDocx(file: File): Promise<string> {
   return result.value;
 }
 
-const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experience" | "education" | "skills"> | "projects"][] = [
+const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experience" | "education" | "skills"> | "projects" | "summaryExperience" | "other"][] = [
+  // Combined headers ("PROFESSIONAL EXPERIENCE & ABILITY SUMMARY") start as a
+  // summary and flip to experience at the first dated job line.
+  [/experience.*summary|summary.*experience/i, "summaryExperience"],
   [/^(professional\s+)?summary$/i, "summary"],
   [/^objective$/i, "summary"],
   [/^profile$/i, "summary"],
+  [/^ability\s+summary$/i, "summary"],
+  [/^summary\s+of\s+(qualifications|experience)$/i, "summary"],
   [/^(work\s+)?experience$/i, "experience"],
   [/^employment(\s+history)?$/i, "experience"],
   [/^professional\s+experience$/i, "experience"],
@@ -74,7 +90,33 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
   [/^(technical\s+)?skills$/i, "skills"],
   [/^core\s+competencies$/i, "skills"],
   [/^projects?$/i, "projects"],
+  // Sections the structured resume has no home for — kept in rawText for the
+  // AI, but they must not bleed into education/experience.
+  [/^professional\s+military\s+education$/i, "other"],
+  [/^(professional\s+)?certifications/i, "other"],
+  [/^awards/i, "other"],
+  [/^affiliations$/i, "other"],
+  [/^security\s+clearance/i, "other"],
 ];
+
+const MONTHS = "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|Sept|October|November|December";
+/** A full date range anywhere in a line: "Feb 2015 – Present", "Mar 2013 – Mar 2015", "2019 - 2025". */
+const DATE_RANGE_RE = new RegExp(`((?:${MONTHS})\\.?\\s+\\d{4}|\\d{4})\\s*[-–—]\\s*((?:${MONTHS})\\.?\\s+\\d{4}|\\d{4}|present|current)`, "i");
+const ACTION_VERBS = /^(administered|managed|led|developed|provided|directed|supervised|responsible|oversaw|maintained|coordinated|performed|conducted|executed|delivered|supported|assisted|ensured|prepared|operated|served|worked|handled|processed|created|built|implemented|trained|evaluated|reviewed|planned|organized|monitored|advised|negotiated|achieved|improved|increased|reduced|streamlined|established|designed|launched|mentored|briefed)\b/i;
+
+/** "Title, Company, Location; Feb 2015 – Present, Rank, …" → parts. */
+function parseJobHeader(line: string): { title: string; company: string; dates: string } {
+  const dates = line.match(DATE_RANGE_RE)?.[0] ?? "";
+  let head = line.split(";")[0];
+  head = head.replace(DATE_RANGE_RE, "").replace(/[:;,]\s*$/, "").trim();
+  let segs = head.split(/,\s*/).filter(Boolean);
+  if (segs.length === 1 && /[|—–]/.test(head)) segs = head.split(/\s*[|—–]\s*/).filter(Boolean);
+  return {
+    title: segs[0] ?? head,
+    company: segs.slice(1, 3).join(", "),
+    dates,
+  };
+}
 
 /** Heuristic: split flat resume text into a StructuredResume. */
 /** Lines that are PDF/browser furniture, not content (print headers, footers, page numbers). */
@@ -89,6 +131,35 @@ export function isPdfJunkLine(line: string): boolean {
     /^\d+\/\d+$/.test(l) || // bare "3/11" page marker
     /^…?\s*more\s*…?$/i.test(l)
   );
+}
+
+/** Skill phrases scanned for when a resume has no skills section. */
+const SKILL_TERMS = [
+  "strategic sourcing", "contract management", "federal contracting", "government contracting",
+  "spend analysis", "market research", "source selection", "negotiation", "vendor management",
+  "supplier management", "procurement", "subcontracting", "purchasing", "acquisitions",
+  "FAR", "DFARS", "budget management", "budgeting", "risk management", "compliance",
+  "team leadership", "leadership", "supervision", "project management", "program management",
+  "operations management", "logistics", "supply chain", "inventory management", "data analysis",
+  "Microsoft Excel", "Microsoft Office", "PowerPoint", "public speaking", "training",
+  "quality assurance", "process improvement", "stakeholder engagement", "scheduling",
+  "customer service", "sales", "marketing", "accounting", "financial analysis", "auditing",
+  "investigations", "physical security", "emergency management", "cybersecurity",
+  "network administration", "help desk", "JavaScript", "Python", "SQL", "Java", "React",
+  "cloud computing", "AWS", "Azure", "bookkeeping", "payroll", "recruiting", "onboarding",
+  "case management", "grant writing", "technical writing", "documentation", "mentoring",
+  "cross-functional collaboration", "performance management", "policy development",
+];
+
+/** Skills literally present in the text, in order of first appearance. */
+export function deriveSkills(text: string): string[] {
+  const lower = text.toLowerCase();
+  const found: { term: string; at: number }[] = [];
+  for (const term of SKILL_TERMS) {
+    const at = lower.indexOf(term.toLowerCase());
+    if (at !== -1) found.push({ term, at });
+  }
+  return found.sort((a, b) => a.at - b.at).map((f) => f.term).slice(0, 14);
 }
 
 export function textToStructured(text: string): StructuredResume {
@@ -118,14 +189,24 @@ export function textToStructured(text: string): StructuredResume {
       if (!sections.has(current)) sections.set(current, []);
       continue;
     }
-    if (current) sections.get(current)!.push(line);
+    // Combined summary+experience header: summary prose runs until the
+    // first line carrying a job date range, then it's experience.
+    if (current === "summaryExperience" && DATE_RANGE_RE.test(line)) {
+      current = "experience";
+      if (!sections.has(current)) sections.set(current, []);
+    }
+    if (current === "summaryExperience") {
+      if (!sections.has("summary")) sections.set("summary", []);
+      sections.get("summary")!.push(line);
+    } else if (current) {
+      sections.get(current)!.push(line);
+    }
   }
 
   r.summary = (sections.get("summary") ?? []).filter((l) => l.length > 10).join(" ");
 
   const expLines = sections.get("experience") ?? [];
   let currentJob: StructuredResume["experience"][number] | null = null;
-  const dateRe = /((19|20)\d{2}|present|current)/i;
   for (const line of expLines) {
     if (/^[•\-\*▪◦‣·]/.test(line) || /^\d+[.)]\s/.test(line)) {
       const bullet = line.replace(/^[•\-\*▪◦‣·]\s*/, "").replace(/^\d+[.)]\s*/, "").trim();
@@ -135,17 +216,13 @@ export function textToStructured(text: string): StructuredResume {
         r.experience.push(currentJob);
       }
     } else if (line.length > 3) {
-      // Likely a job header: "Title, Company — dates" or "Title | Company"
-      const hasDate = dateRe.test(line);
-      const looksLikeHeader = hasDate || line.length < 90;
+      const hasDate = DATE_RANGE_RE.test(line);
+      // A long sentence opening with an action verb is a bullet that lost
+      // its marker, not a job title — don't promote it to a role.
+      const sentenceLike = line.split(/\s+/).length > 6 && ACTION_VERBS.test(line);
+      const looksLikeHeader = hasDate || (line.length < 90 && !sentenceLike);
       if (looksLikeHeader) {
-        const parts = line.split(/[,|–—\-]\s*(?=[A-Z])/);
-        currentJob = {
-          title: parts[0]?.trim() ?? line,
-          company: parts[1]?.trim() ?? "",
-          dates: (line.match(/((19|20)\d{2}\s*[-–—]\s*((19|20)\d{2}|present|current))/i)?.[0] ?? ""),
-          bullets: [],
-        };
+        currentJob = { ...parseJobHeader(line), bullets: [] };
         r.experience.push(currentJob);
       } else if (currentJob) {
         currentJob.bullets.push(line);
@@ -153,14 +230,20 @@ export function textToStructured(text: string): StructuredResume {
     }
   }
 
+  // Education: one entry per degree line ("M.B.A, …, University of X, Dec 2017").
   const eduLines = (sections.get("education") ?? []).filter((l) => l.length > 3);
-  if (eduLines.length) {
-    r.education.push({
-      school: eduLines[0] ?? "",
-      degree: eduLines[1] ?? "",
-      dates: eduLines.join(" ").match(/((19|20)\d{2})/g)?.join(" – ") ?? "",
-      details: eduLines.slice(2).join(" "),
-    });
+  const DEGREE_RE = /\b(bachelor|master|associate|doctor|ph\.?\s?d|m\.?\s?b\.?\s?a|b\.?\s?s|b\.?\s?a|a\.?\s?a\.?\s?s|a\.?\s?a|m\.?\s?s|m\.?\s?a|m\.?\s?ed|diploma|certificate|ged)\b/i;
+  for (const line of eduLines) {
+    if (DEGREE_RE.test(line)) {
+      const segs = line.split(/,\s*/).filter(Boolean);
+      const dates = line.match(new RegExp(`(?:${MONTHS})\\.?\\s+\\d{4}|\\b(19|20)\\d{2}\\b`, "i"))?.[0] ?? "";
+      const school = segs.find((s) => /university|college|academy|institute|school|seminary/i.test(s)) ?? "";
+      const degree = segs.filter((s) => s !== school && s !== dates).join(", ");
+      r.education.push({ school, degree, dates, details: "" });
+    } else if (r.education.length) {
+      const last = r.education[r.education.length - 1];
+      last.details = last.details ? `${last.details} ${line}` : line;
+    }
   }
 
   const skillText = (sections.get("skills") ?? []).join(" ");
@@ -169,6 +252,12 @@ export function textToStructured(text: string): StructuredResume {
     .map((s) => s.trim())
     .filter((s) => s.length > 1 && s.length < 40)
     .slice(0, 30);
+  // No skills section (common in military resumes, where skills live inside
+  // prose) — derive them from terms actually present in the text.
+  if (r.skills.length < 4) {
+    const derived = deriveSkills(r.rawText);
+    if (derived.length > r.skills.length) r.skills = derived;
+  }
 
   const projLines = sections.get("projects") ?? [];
   let currentProj: StructuredResume["projects"][number] | null = null;
