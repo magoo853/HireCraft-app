@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { parseFile, structuredToText, textToStructured } from "@/lib/parse";
 import { mosTranslations } from "@/lib/careers";
+import { SAMPLE_MILITARY, SAMPLE_RESUME } from "@/lib/sample";
 import { ExperienceItem, ProjectItem, StructuredResume, emptyResume } from "@/lib/types";
 import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
 
@@ -29,7 +30,7 @@ function AiStatusPill() {
 
 export default function ResumePage() {
   const router = useRouter();
-  const { mode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary } = useApp();
+  const { mode, setMode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary } = useApp();
   const [tab, setTab] = useState<Tab>(mode === "new" ? "builder" : "upload");
   const [paste, setPaste] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -152,7 +153,25 @@ export default function ResumePage() {
           <Link href="/score"><Button className="w-full">Score my resume →</Button></Link>
         </Card>
       ) : (
+        <>
         <p className="text-sm text-muted mt-4 text-center">Add your resume above to unlock scoring, rewrites, and tailoring.</p>
+        <Card className="mt-4 text-center !bg-mint/60 border-emerald-100">
+          <p className="font-extrabold text-navy text-sm mb-1">Just looking around?</p>
+          <p className="text-xs text-muted leading-relaxed mb-3">
+            Load a fictional veteran resume (Army supply sergeant) with a sample
+            performance review, and see Score, Rewrite, Design, and the civilian
+            translation working in seconds.
+          </p>
+          <Button variant="emerald" className="w-full" onClick={() => {
+            setMode("veteran");
+            setMilitary(SAMPLE_MILITARY);
+            setResume(SAMPLE_RESUME);
+            setParseMsg("Sample loaded — Marcus Reed, Army 92Y. Explore every tab, then add your own resume whenever you're ready.");
+          }}>
+            🎖 Try the sample veteran resume
+          </Button>
+        </Card>
+        </>
       )}
 
       {mode === "veteran" && (

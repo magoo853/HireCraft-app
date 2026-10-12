@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { MODE_DESCRIPTIONS, MODE_LABELS, Mode } from "@/lib/types";
 import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
@@ -67,6 +68,14 @@ export default function SettingsPage() {
             <Button variant="secondary" onClick={() => setConfirmReset(false)}>Cancel</Button>
           </div>
         )}
+      </Card>
+
+      <Card className="mb-4">
+        <p className="font-bold text-ink text-sm mb-1">Help & support</p>
+        <p className="text-xs text-muted leading-relaxed mb-3">
+          Answers on trials, restores, alerts, and translations — plus a human to email.
+        </p>
+        <Link href="/support"><Button variant="secondary" className="w-full">Open support &amp; FAQ</Button></Link>
       </Card>
 
       <p className="text-center text-xs text-muted">HireCraft v0.1.0 · working title</p>

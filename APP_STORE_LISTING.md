@@ -9,8 +9,7 @@ Production URL: https://hirecraft-app-steel.vercel.app
 - **Bundle ID:** com.hirecraft.app
 - **Primary category:** Business — **Secondary:** Productivity
 - **Privacy policy URL:** https://hirecraft-app-steel.vercel.app/privacy
-- **Support URL:** https://hirecraft-app-steel.vercel.app/privacy
-  (interim — replace with a support page/mailbox before launch if possible)
+- **Support URL:** https://hirecraft-app-steel.vercel.app/support
 
 ## Promotional text (170 ch)
 
