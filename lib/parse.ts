@@ -35,7 +35,7 @@ async function parsePdf(file: File): Promise<string> {
 
 async function extractPdfText(pdf: { numPages: number; getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: unknown[] }> }> }): Promise<string> {
   const pages: string[] = [];
-  for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
+  for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     // Reconstruct rough lines by grouping items on Y position

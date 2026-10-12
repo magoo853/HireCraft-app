@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MODE_LABELS, Mode } from "../lib/types";
+import { useApp } from "../lib/store";
 
 export function Button({ children, onClick, variant = "primary", className = "", disabled, type }: {
   children: ReactNode; onClick?: () => void; variant?: "primary" | "emerald" | "secondary" | "ghost" | "danger";
@@ -112,6 +113,44 @@ export function SourceNote({ source, note }: { source: "ai" | "fallback"; note?:
     </p>
   ) : (
     <p className="text-xs text-muted mt-3">Generated with AI.</p>
+  );
+}
+
+/**
+ * Shows exactly which job posting everything is being judged against —
+ * or that scoring is generic because none is set. Change/Clear included.
+ */
+export function TargetJobBanner() {
+  const { jobText, targetTitle, company, setJobText, setJobUrl } = useApp();
+  const has = jobText.trim().length > 0;
+  if (!has) {
+    return (
+      <div className="bg-white border border-dashed border-line rounded-xl px-3 py-2.5 mb-4 flex items-center justify-between gap-2 print:hidden">
+        <p className="text-xs text-muted leading-snug">
+          🎯 <b className="text-ink">No target job set</b> — judging is generic. Add a posting to tailor everything to a real job.
+        </p>
+        <Link href="/resume" className="text-xs font-bold text-brand underline underline-offset-2 shrink-0 min-h-[36px] inline-flex items-center px-1">Add job</Link>
+      </div>
+    );
+  }
+  const firstLine = jobText.split("\n").map((l) => l.trim()).find((l) => l.length > 3) ?? "Pasted job posting";
+  const name = targetTitle || (firstLine.length > 64 ? `${firstLine.slice(0, 64)}…` : firstLine);
+  const words = jobText.split(/\s+/).filter(Boolean).length;
+  return (
+    <div className="bg-navy text-white rounded-xl px-3 py-2.5 mb-4 flex items-center justify-between gap-2 print:hidden">
+      <p className="text-xs leading-snug min-w-0">
+        🎯 Judging against: <b>{name}</b>{company ? ` · ${company}` : ""} <span className="opacity-70">({words} words)</span>
+      </p>
+      <span className="flex gap-2 shrink-0">
+        <Link href="/resume" className="text-xs font-bold underline underline-offset-2 min-h-[36px] inline-flex items-center px-1">Change</Link>
+        <button
+          onClick={() => { setJobText(""); setJobUrl(""); }}
+          className="text-xs font-bold underline underline-offset-2 min-h-[36px] inline-flex items-center px-1"
+        >
+          Clear
+        </button>
+      </span>
+    </div>
   );
 }
 

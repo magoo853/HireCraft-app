@@ -249,6 +249,76 @@ export function jobSearchLinks(title: string, location = "", veteranFirst = fals
 }
 
 /* ------------------------------------------------------------------ */
+/* Military translation (MOS / rating / AFSC -> civilian roles)        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Common military job codes and the civilian roles they translate to.
+ * Role titles match ROLES entries so matches carry real salary bands.
+ * A starting crosswalk — the AI path covers any code; this keeps the
+ * built-in engine useful for the most common codes.
+ */
+export const MOS_CROSSWALK: Record<string, { label: string; roles: string[] }> = {
+  // Army
+  "11B": { label: "Infantryman", roles: ["Operations Manager", "Warehouse Supervisor", "Logistics Coordinator", "Project Manager"] },
+  "11C": { label: "Indirect Fire Infantryman", roles: ["Operations Manager", "Warehouse Supervisor", "Logistics Coordinator"] },
+  "12B": { label: "Combat Engineer", roles: ["Construction Manager", "Maintenance Technician", "Project Manager"] },
+  "13F": { label: "Fire Support Specialist", roles: ["Operations Manager", "Data Analyst", "Logistics Coordinator"] },
+  "19D": { label: "Cavalry Scout", roles: ["Operations Manager", "Logistics Coordinator", "Warehouse Supervisor"] },
+  "25B": { label: "Information Technology Specialist", roles: ["IT Support Specialist", "Systems Administrator", "Network Administrator", "Cybersecurity Analyst"] },
+  "25U": { label: "Signal Support Systems Specialist", roles: ["IT Support Specialist", "Network Administrator", "Help Desk Technician"] },
+  "31B": { label: "Military Police", roles: ["Security Manager", "Operations Manager", "Logistics Coordinator"] },
+  "35F": { label: "Intelligence Analyst", roles: ["Data Analyst", "Business Analyst", "Cybersecurity Analyst"] },
+  "42A": { label: "Human Resources Specialist", roles: ["HR Generalist", "HR Manager", "Executive Assistant"] },
+  "68W": { label: "Combat Medic Specialist", roles: ["EMT / Paramedic", "Medical Assistant", "Registered Nurse"] },
+  "88M": { label: "Motor Transport Operator", roles: ["CDL Truck Driver", "Logistics Coordinator", "Warehouse Supervisor"] },
+  "89B": { label: "Ammunition Specialist", roles: ["Logistics Coordinator", "Warehouse Supervisor", "Supply Chain Analyst"] },
+  "91B": { label: "Wheeled Vehicle Mechanic", roles: ["Maintenance Technician", "HVAC Technician", "Electrician"] },
+  "92A": { label: "Automated Logistical Specialist", roles: ["Supply Chain Analyst", "Logistics Coordinator", "Warehouse Supervisor"] },
+  "92Y": { label: "Unit Supply Specialist", roles: ["Supply Chain Analyst", "Logistics Coordinator", "Warehouse Supervisor"] },
+  "94E": { label: "Radio/Communications Security Repairer", roles: ["IT Support Specialist", "Network Administrator", "Maintenance Technician"] },
+  // Navy ratings
+  "HM": { label: "Hospital Corpsman", roles: ["Medical Assistant", "EMT / Paramedic", "Registered Nurse"] },
+  "IT": { label: "Information Systems Technician", roles: ["IT Support Specialist", "Network Administrator", "Cybersecurity Analyst", "Systems Administrator"] },
+  "MA": { label: "Master-at-Arms", roles: ["Security Manager", "Operations Manager", "Logistics Coordinator"] },
+  "LS": { label: "Logistics Specialist", roles: ["Logistics Coordinator", "Supply Chain Analyst", "Warehouse Supervisor"] },
+  "OS": { label: "Operations Specialist", roles: ["Operations Manager", "Data Analyst", "Logistics Coordinator"] },
+  "ET": { label: "Electronics Technician", roles: ["Maintenance Technician", "Electrician", "IT Support Specialist"] },
+  "BM": { label: "Boatswain's Mate", roles: ["Operations Manager", "Warehouse Supervisor", "Logistics Coordinator"] },
+  // Air Force AFSC
+  "3P0X1": { label: "Security Forces", roles: ["Security Manager", "Operations Manager"] },
+  "3D1X2": { label: "Cyber Transport Systems", roles: ["Network Administrator", "Systems Administrator", "Cybersecurity Analyst"] },
+  "1D7X1": { label: "Cyber Defense Operations", roles: ["Cybersecurity Analyst", "Network Administrator", "Systems Administrator"] },
+  "2T1X1": { label: "Ground Transportation", roles: ["CDL Truck Driver", "Logistics Coordinator", "Warehouse Supervisor"] },
+  "4N0X1": { label: "Aerospace Medical Service", roles: ["Medical Assistant", "EMT / Paramedic"] },
+  "3F5X1": { label: "Administration", roles: ["Executive Assistant", "HR Generalist", "Operations Manager"] },
+  "2S0X1": { label: "Materiel Management", roles: ["Supply Chain Analyst", "Logistics Coordinator", "Warehouse Supervisor"] },
+  // Marines
+  "0311": { label: "Rifleman", roles: ["Operations Manager", "Logistics Coordinator", "Warehouse Supervisor"] },
+  "0651": { label: "Cyber Network Operator", roles: ["IT Support Specialist", "Network Administrator", "Systems Administrator"] },
+  "0671": { label: "Data Systems Administrator", roles: ["Systems Administrator", "IT Support Specialist", "Network Administrator"] },
+  "3531": { label: "Motor Vehicle Operator", roles: ["CDL Truck Driver", "Logistics Coordinator"] },
+  "0431": { label: "Logistics/Embarkation Specialist", roles: ["Logistics Coordinator", "Supply Chain Analyst", "Operations Manager"] },
+};
+
+/** Parse a free-text MOS entry ("11B, 25B · Army") into known translations. */
+export function mosTranslations(mosCodes: string): { code: string; label: string; roles: string[] }[] {
+  if (!mosCodes.trim()) return [];
+  const tokens = mosCodes.toUpperCase().split(/[,;·•\n]+/).map((t) => t.trim()).filter(Boolean);
+  const out: { code: string; label: string; roles: string[] }[] = [];
+  const seen = new Set<string>();
+  for (const tok of tokens) {
+    const word = (tok.split(/\s+/)[0] ?? "").replace(/[^A-Z0-9X]/g, "");
+    const hit = MOS_CROSSWALK[word];
+    if (hit && !seen.has(word)) {
+      seen.add(word);
+      out.push({ code: word, label: hit.label, roles: hit.roles });
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ */
 /* Roadmap                                                             */
 /* ------------------------------------------------------------------ */
 

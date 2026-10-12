@@ -90,6 +90,10 @@ export interface ScoreResult {
   keywordMatchPct: number;
   flags: FormatFlag[];
   readability: { score: number; label: string };
+  readabilityDetail: { avgWordsPerSentence: number; avgWordsPerBullet: number; longestBullets: string[] };
+  /** What the keyword score was judged against: the user's posting, or a generic checklist. */
+  keywordBasis: "job" | "generic";
+  genericTitle: string;
   bulletCount: number;
   quantifiedCount: number;
 }
@@ -122,3 +126,13 @@ export interface AiResponse<T> {
   /** Present when the AI key is set but the live call failed — explains the fallback. */
   note?: string;
 }
+
+/** Veteran-mode military background: branch, MOS/job codes, and the text of
+ *  the service member's yearly performance review (NCOER/OER/EPR/FITREP…). */
+export interface MilitaryInfo {
+  branch: string;
+  mosCodes: string;
+  evalText: string;
+}
+
+export const emptyMilitary = (): MilitaryInfo => ({ branch: "", mosCodes: "", evalText: "" });

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { Mode, StructuredResume, emptyResume } from "./types";
+import { MilitaryInfo, Mode, StructuredResume, emptyMilitary, emptyResume } from "./types";
 
 interface AppState {
   mode: Mode;
@@ -19,6 +19,8 @@ interface AppState {
   setJobUrl: (u: string) => void;
   linkedinText: string;
   setLinkedinText: (t: string) => void;
+  military: MilitaryInfo;
+  setMilitary: (m: MilitaryInfo) => void;
   hasResume: boolean;
   resetAll: () => void;
 }
@@ -44,6 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [jobText, setJobText] = useState("");
   const [jobUrl, setJobUrl] = useState("");
   const [linkedinText, setLinkedinText] = useState("");
+  const [military, setMilitary] = useState<MilitaryInfo>(emptyMilitary());
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -56,6 +59,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (s.jobText) setJobText(s.jobText as string);
       if (s.jobUrl) setJobUrl(s.jobUrl as string);
       if (s.linkedinText) setLinkedinText(s.linkedinText as string);
+      if (s.military) setMilitary({ ...emptyMilitary(), ...(s.military as MilitaryInfo) });
     }
     setHydrated(true);
   }, []);
@@ -63,9 +67,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -78,6 +82,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setJobText("");
     setJobUrl("");
     setLinkedinText("");
+    setMilitary(emptyMilitary());
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
   };
 
@@ -87,6 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{
       mode, setMode, targetTitle, setTargetTitle, company, setCompany,
       resume, setResume, updateResume, jobText, setJobText, jobUrl, setJobUrl, linkedinText, setLinkedinText,
+      military, setMilitary,
       hasResume, resetAll,
     }}>
       {children}
