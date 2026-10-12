@@ -7,13 +7,16 @@ Items marked **[JAMES]** need James directly. Everything else is buildable by th
 
 - [x] Next.js 14 app builds green (`npm run build`)
 - [x] Private GitHub repo `magoo853/hirecraft-app`
-- [x] Vercel project `hirecraft-app` (team code-red22), auto-deploys from main
+- [x] Vercel project `hirecraft-app` (separate for-profit team), production: https://hirecraft-app-steel.vercel.app
 - [x] Privacy policy live at `/privacy`
 - [x] Capacitor config (`com.hirecraft.app`) + icon/splash assets
 - [ ] **[JAMES]** Apple Developer Program enrollment ($99/yr) — <https://developer.apple.com/programs/enroll/>
 - [ ] **[JAMES]** SheerID account + API key (military verification)
 - [ ] **[JAMES]** ID.me developer app registration (military verification)
-- [ ] **[JAMES]** AI API key (`AI_API_KEY`) for production rewrites (app works on template fallback without it)
+- [x] AI API key (`AI_API_KEY`) live in Vercel; all AI tasks production-verified 2026-10-12
+- [x] **[JAMES]** Apple Developer enrollment submitted 2026-10-12 (approval pending)
+- [x] AI data-sharing consent gate shipped (Guideline 5.1.2)
+- [x] Mac build runbook + paste-ready listing pack written (`MAC_BUILD_RUNBOOK.md`, `APP_STORE_LISTING.md`)
 
 ## 1. Apple Developer enrollment [JAMES]
 
