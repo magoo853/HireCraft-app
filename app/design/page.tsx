@@ -37,6 +37,7 @@ export default function DesignPage() {
   const [editing, setEditing] = useState(false);
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [pages, setPages] = useState(1);
+  const [docxBusy, setDocxBusy] = useState(false);
   const [designOpts, setDesignOpts] = useState<DesignOptions>(DEFAULT_DESIGN_OPTIONS);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +96,34 @@ export default function DesignPage() {
       </span>
     );
   };
+
+  async function downloadDocx() {
+    if (docxBusy) return;
+    setDocxBusy(true);
+    try {
+      // Dynamic import: the docx library only loads when the user exports.
+      const { buildResumeDocxBlob, resumeDocxFileName } = await import("@/lib/docx");
+      const blob = await buildResumeDocxBlob(resume, templateId, {
+        accent: designOpts.accent,
+        font: designOpts.font,
+        nameAlign: designOpts.nameAlign,
+        headerStyle: designOpts.headerStyle,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = resumeDocxFileName(resume);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Give the browser time to start the download before revoking.
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch {
+      // Export is best-effort; the PDF/print path remains available.
+    } finally {
+      setDocxBusy(false);
+    }
+  }
 
   function replaceText(oldText: string, newText: string) {
     const r = { ...resume };
@@ -264,9 +293,14 @@ export default function DesignPage() {
         </div>
       </div>
 
-      <Button variant="emerald" onClick={() => window.print()} className="w-full mt-4 !min-h-[52px] print:hidden">
-        Export PDF
-      </Button>
+      <div className="flex gap-2 mt-4 print:hidden">
+        <Button variant="emerald" onClick={() => window.print()} className="flex-1 !min-h-[52px]">
+          Export PDF
+        </Button>
+        <Button variant="secondary" onClick={downloadDocx} disabled={docxBusy} className="flex-1 !min-h-[52px]">
+          {docxBusy ? "Preparing…" : "📄 Download .docx"}
+        </Button>
+      </div>
 
       <Card className="mt-3 print:hidden">
         <p className="text-xs text-muted leading-relaxed">

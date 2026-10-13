@@ -4,6 +4,7 @@
     "@capacitor/core": "^6.1.0",
     "@capacitor/ios": "^6.1.0",
     "cheerio": "^1.0.0-rc.12",
+    "docx": "^9.10.0",
     "mammoth": "^1.9.1",
     "next": "14.2.18",
     "pdfjs-dist": "^4.8.69",
