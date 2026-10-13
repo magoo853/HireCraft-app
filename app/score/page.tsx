@@ -298,7 +298,7 @@ export default function ScorePage() {
           <Card className="mb-3">
             <p className="font-bold text-ink text-sm mb-2">Your resume as the robot reads it</p>
             <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono bg-paper rounded-xl p-3 max-h-96 overflow-auto border border-line">
-              {sim.parsedText.slice(0, 4000)}{sim.parsedText.length > 4000 ? "\n…(truncated)" : ""}
+              {sim.parsedText}
             </pre>
           </Card>
           <div className="grid gap-2">
