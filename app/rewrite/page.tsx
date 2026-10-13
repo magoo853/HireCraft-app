@@ -10,7 +10,7 @@ import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJo
 
 function ImproveInner() {
   const params = useSearchParams();
-  const { resume, jobText, mode, hasResume, updateResume, military } = useApp();
+  const { resume, jobText, mode, hasResume, updateResume, military, setRewriteAccepted } = useApp();
   const [tab, setTab] = useState<"rewrite" | "tailor">(params.get("tab") === "tailor" ? "tailor" : "rewrite");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<RewriteResult[]> | null>(null);
@@ -91,6 +91,7 @@ function ImproveInner() {
   function acceptRewrite(i: number, original: string) {
     const text = result ? shown(result.data[i], i) : "";
     updateResume({ rawText: resume.rawText.split(original).join(text) });
+    setRewriteAccepted(true);
     setAccepted((s) => new Set(s).add(i));
     setEditingIdx(null);
   }

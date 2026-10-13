@@ -30,6 +30,16 @@ interface AppState {
   setNewJobCount: (n: number) => void;
   aiConsent: boolean;
   setAiConsent: (v: boolean) => void;
+  scoreViewed: boolean;
+  setScoreViewed: (v: boolean) => void;
+  rewriteAccepted: boolean;
+  setRewriteAccepted: (v: boolean) => void;
+  designChosen: boolean;
+  setDesignChosen: (v: boolean) => void;
+  exported: boolean;
+  setExported: (v: boolean) => void;
+  onboardingDismissed: boolean;
+  setOnboardingDismissed: (v: boolean) => void;
   hasResume: boolean;
   resetAll: () => void;
 }
@@ -60,6 +70,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [seenJobIds, setSeenJobIds] = useState<string[]>([]);
   const [newJobCount, setNewJobCount] = useState(0);
   const [aiConsent, setAiConsent] = useState(false);
+  const [scoreViewed, setScoreViewed] = useState(false);
+  const [rewriteAccepted, setRewriteAccepted] = useState(false);
+  const [designChosen, setDesignChosen] = useState(false);
+  const [exported, setExported] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -77,6 +92,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(s.seenJobIds)) setSeenJobIds(s.seenJobIds as string[]);
       if (typeof s.newJobCount === "number") setNewJobCount(s.newJobCount);
       if (typeof s.aiConsent === "boolean") setAiConsent(s.aiConsent);
+      if (typeof s.scoreViewed === "boolean") setScoreViewed(s.scoreViewed);
+      if (typeof s.rewriteAccepted === "boolean") setRewriteAccepted(s.rewriteAccepted);
+      if (typeof s.designChosen === "boolean") setDesignChosen(s.designChosen);
+      if (typeof s.exported === "boolean") setExported(s.exported);
+      if (typeof s.onboardingDismissed === "boolean") setOnboardingDismissed(s.onboardingDismissed);
     }
     setHydrated(true);
   }, []);
@@ -84,9 +104,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -104,6 +124,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSeenJobIds([]);
     setNewJobCount(0);
     setAiConsent(false);
+    setScoreViewed(false);
+    setRewriteAccepted(false);
+    setDesignChosen(false);
+    setExported(false);
+    setOnboardingDismissed(false);
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
   };
 
@@ -116,6 +141,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       military, setMilitary,
       alerts, setAlerts, seenJobIds, setSeenJobIds, newJobCount, setNewJobCount,
       aiConsent, setAiConsent,
+      scoreViewed, setScoreViewed, rewriteAccepted, setRewriteAccepted,
+      designChosen, setDesignChosen, exported, setExported,
+      onboardingDismissed, setOnboardingDismissed,
       hasResume, resetAll,
     }}>
       {children}

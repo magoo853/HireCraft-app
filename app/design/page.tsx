@@ -32,7 +32,7 @@ function LiveThumb({ id, resume, designOpts }: { id: string; resume: StructuredR
 }
 
 export default function DesignPage() {
-  const { resume, setResume, hasResume } = useApp();
+  const { resume, setResume, hasResume, setDesignChosen, setExported } = useApp();
   const [templateId, setTemplateId] = useState("modern");
   const [editing, setEditing] = useState(false);
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
@@ -116,6 +116,7 @@ export default function DesignPage() {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      setExported(true);
       // Give the browser time to start the download before revoking.
       setTimeout(() => URL.revokeObjectURL(url), 4000);
     } catch {
@@ -123,6 +124,11 @@ export default function DesignPage() {
     } finally {
       setDocxBusy(false);
     }
+  }
+
+  function printExport() {
+    setExported(true);
+    window.print();
   }
 
   function replaceText(oldText: string, newText: string) {
@@ -160,7 +166,7 @@ export default function DesignPage() {
 
       <div className="grid grid-cols-3 gap-2.5 mb-4 print:hidden">
         {TEMPLATES.map((t) => (
-          <button key={t.id} onClick={() => setTemplateId(t.id)}
+          <button key={t.id} onClick={() => { setTemplateId(t.id); setDesignChosen(true); }}
             className={`bg-white rounded-xl border-2 p-2 text-center transition active:scale-[0.98] ${templateId === t.id ? "border-brand" : "border-line"}`}>
             <LiveThumb id={t.id} resume={resume} designOpts={designOpts} />
             <span className="block text-[11px] font-bold text-ink mt-1.5 leading-tight">{t.name}{templateId === t.id ? " ✓" : ""}</span>
@@ -261,7 +267,7 @@ export default function DesignPage() {
         <Button variant={editing ? "emerald" : "secondary"} onClick={() => setEditing(!editing)} className="flex-1">
           {editing ? "✓ Done" : "✎ Edit text"}
         </Button>
-        <Button variant="secondary" onClick={() => window.print()} className="flex-1">🖨 Print</Button>
+        <Button variant="secondary" onClick={printExport} className="flex-1">🖨 Print</Button>
       </div>
       {editing && (
         <p className="text-xs text-emerald-900 bg-mint rounded-xl px-3 py-2 mb-4 print:hidden">
@@ -294,7 +300,7 @@ export default function DesignPage() {
       </div>
 
       <div className="flex gap-2 mt-4 print:hidden">
-        <Button variant="emerald" onClick={() => window.print()} className="flex-1 !min-h-[52px]">
+        <Button variant="emerald" onClick={printExport} className="flex-1 !min-h-[52px]">
           Export PDF
         </Button>
         <Button variant="secondary" onClick={downloadDocx} disabled={docxBusy} className="flex-1 !min-h-[52px]">

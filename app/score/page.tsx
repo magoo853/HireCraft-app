@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { atsSimulate, scoreResume, findMilitaryJargonDetailed } from "@/lib/fallback";
@@ -15,7 +15,7 @@ function flagCta(title: string): { href: string; label: string } | null {
 }
 
 export default function ScorePage() {
-  const { resume, jobText, mode, hasResume } = useApp();
+  const { resume, jobText, mode, hasResume, scoreViewed, setScoreViewed } = useApp();
   const [tab, setTab] = useState<"score" | "ats">("score");
   const [open, setOpen] = useState<string | null>(null);
   const toggle = (k: string) => setOpen((o) => (o === k ? null : k));
@@ -29,6 +29,13 @@ export default function ScorePage() {
     () => (mode === "veteran" && hasResume ? findMilitaryJargonDetailed(resume.rawText) : []),
     [mode, resume, hasResume]
   );
+
+  // A computed score is on screen exactly when `result` is non-null (the
+  // page early-returns to an empty state otherwise). Record that the
+  // user has seen their score — drives the Getting started checklist.
+  useEffect(() => {
+    if (result && !scoreViewed) setScoreViewed(true);
+  }, [result, scoreViewed, setScoreViewed]);
 
   if (!hasResume || !result || !sim) {
     return (
