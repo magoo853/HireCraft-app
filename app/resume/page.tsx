@@ -9,6 +9,7 @@ import { mosTranslations } from "@/lib/careers";
 import { SAMPLE_MILITARY, SAMPLE_RESUME } from "@/lib/sample";
 import { ExperienceItem, ProjectItem, StructuredResume, emptyResume } from "@/lib/types";
 import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
+import { GettingStartedCard } from "@/components/getting-started";
 
 type Tab = "upload" | "paste" | "builder";
 
@@ -104,6 +105,8 @@ export default function ResumePage() {
       </SectionTitle>
 
       <AiStatusPill />
+
+      <GettingStartedCard />
 
       <div className="grid grid-cols-3 gap-1 bg-stone-200/60 rounded-xl p-1 mb-5">
         {(["upload", "paste", "builder"] as Tab[]).map((t) => (
