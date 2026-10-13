@@ -105,7 +105,7 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
 
 const MONTHS = "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|Sept|October|November|December";
 /** A full date range anywhere in a line: "Feb 2015 – Present", "Mar 2013 – Mar 2015", "2019 - 2025". */
-const DATE_RANGE_RE = new RegExp(`((?:${MONTHS})\\.?\\s+\\d{4}|\\d{4})\\s*[-–—]\\s*((?:${MONTHS})\\.?\\s+\\d{4}|\\d{4}|present|current)`, "i");
+const DATE_RANGE_RE = new RegExp(`((?:${MONTHS})\\.?\\s+\\d{4}|\\d{1,2}/\\d{4}|\\d{4})\\s*[-–—]\\s*((?:${MONTHS})\\.?\\s+\\d{4}|\\d{1,2}/\\d{4}|\\d{4}|present|current)`, "i");
 const ACTION_VERBS = /^(administered|managed|led|developed|provided|directed|supervised|responsible|oversaw|maintained|coordinated|performed|conducted|executed|delivered|supported|assisted|ensured|prepared|operated|served|worked|handled|processed|created|built|implemented|trained|evaluated|reviewed|planned|organized|monitored|advised|negotiated|achieved|improved|increased|reduced|streamlined|established|designed|launched|mentored|briefed)\b/i;
 
 /** "Title, Company, Location; Feb 2015 – Present, Rank, …" → parts. */
@@ -178,7 +178,7 @@ export function textToStructured(text: string): StructuredResume {
   r.email = head.match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] ?? "";
   r.phone = head.match(/(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/)?.[0] ?? "";
   r.linkedin = head.match(/(linkedin\.com\/[^\s)]+)/i)?.[0] ?? "";
-  const locMatch = head.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?),\s*([A-Z]{2})\b/);
+  const locMatch = head.match(/\b([A-Z][a-z]+(?:[^\S\n]+[A-Z][a-z]+)?),[^\S\n]*([A-Z]{2})\b/);
   r.location = locMatch ? locMatch[0] : "";
   const nameLine = lines.find((l) => l.length > 2 && l.length < 60 && !/[@\d]/.test(l) && !/summary|resume|curriculum/i.test(l));
   r.name = nameLine ?? "";
@@ -187,7 +187,8 @@ export function textToStructured(text: string): StructuredResume {
   const sections = new Map<string, string[]>();
   let current: string | null = null;
   for (const line of lines) {
-    const header = SECTION_HEADERS.find(([re]) => re.test(line.trim()));
+    const headerLine = line.trim().replace(/:\s*$/, "");
+    const header = SECTION_HEADERS.find(([re]) => re.test(headerLine));
     if (header) {
       current = header[1];
       if (!sections.has(current)) sections.set(current, []);
@@ -241,7 +242,8 @@ export function textToStructured(text: string): StructuredResume {
     if (DEGREE_RE.test(line)) {
       const segs = line.split(/,\s*/).filter(Boolean);
       const dates = line.match(new RegExp(`(?:${MONTHS})\\.?\\s+\\d{4}|\\b(19|20)\\d{2}\\b`, "i"))?.[0] ?? "";
-      const school = segs.find((s) => /university|college|academy|institute|school|seminary/i.test(s)) ?? "";
+      const schoolCandidates = segs.filter((s) => /university|college|academy|institute|school|seminary/i.test(s));
+      const school = schoolCandidates.find((s) => !DEGREE_RE.test(s)) ?? schoolCandidates[0] ?? "";
       const degree = segs.filter((s) => s !== school && s !== dates).join(", ");
       r.education.push({ school, degree, dates, details: "" });
     } else if (r.education.length) {
@@ -250,7 +252,7 @@ export function textToStructured(text: string): StructuredResume {
     }
   }
 
-  const skillText = (sections.get("skills") ?? []).join(" ");
+  const skillText = (sections.get("skills") ?? []).join("\n");
   r.skills = skillText
     .split(/[,;•\n|]/)
     .map((s) => s.trim())

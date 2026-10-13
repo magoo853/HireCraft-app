@@ -4,9 +4,8 @@ import {
   ProviderId,
   appBaseUrl,
   idmeAuthorizeUrl,
-  idmeConfigured,
+  providerAvailable,
   randomState,
-  sheeridConfigured,
   sheeridCreateVerification,
 } from "@/lib/verification";
 
@@ -19,6 +18,11 @@ export const maxDuration = 30;
  *  - idme:    OAuth authorize redirect (state in httpOnly cookie for CSRF check)
  *  - sheerid: server creates the verification, then redirects to SheerID's hosted form
  *             (verificationId kept in an httpOnly cookie so the callback can poll it)
+ *
+ * FAIL-CLOSED IN V1: verification is disabled at launch (see the launch gate
+ * in lib/verification.ts). Until it is live AND the provider is configured,
+ * this returns a controlled 503 and starts nothing — there is no fallback
+ * claim path.
  */
 export async function GET(
   req: NextRequest,
@@ -29,10 +33,24 @@ export async function GET(
   const origin = new URL(req.url).origin; // where the user actually is (dev ports etc.)
   const jar = cookies();
 
+  if (provider !== "idme" && provider !== "sheerid") {
+    return NextResponse.json({ error: "unknown provider" }, { status: 404 });
+  }
+
+  if (!providerAvailable(provider)) {
+    return NextResponse.json(
+      {
+        error: "military verification is not available yet",
+        detail:
+          "The 6-month military offer launches in a post-launch update, once SheerID/ID.me verification is fully integrated. No verification was started and no trial was granted.",
+        provider,
+        available: false,
+      },
+      { status: 503 }
+    );
+  }
+
   if (provider === "idme") {
-    if (!idmeConfigured()) {
-      return NextResponse.redirect(`${origin}/paywall?trial=unavailable`);
-    }
     const state = randomState();
     jar.set("idme_state", state, { httpOnly: true, path: "/", maxAge: 600, sameSite: "lax" });
     // redirect_uri must exactly match the URI registered in the ID.me app dashboard
@@ -41,9 +59,6 @@ export async function GET(
   }
 
   if (provider === "sheerid") {
-    if (!sheeridConfigured()) {
-      return NextResponse.redirect(`${origin}/paywall?trial=unavailable`);
-    }
     try {
       const { verificationId, hostedUrl } = await sheeridCreateVerification();
       jar.set("sheerid_vid", verificationId, { httpOnly: true, path: "/", maxAge: 3600, sameSite: "lax" });

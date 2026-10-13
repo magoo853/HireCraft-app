@@ -26,60 +26,71 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="mt-2 text-[13px] text-slate-500">
-          Effective: October 11, 2026 · HireCraft ("we", "us")
+          Effective: October 13, 2026 · HireCraft ("we", "us")
         </p>
 
         <S>
           <H>The short version</H>
           <P>
-            Your resume is your business. We use what you upload only to provide
-            the service you asked for — scoring, rewriting, tailoring, and
-            design. <strong>We never train AI models on your data, we never sell
-            your data, and you can delete everything at any time.</strong>
+            Your resume is your business. HireCraft stores it on your device,
+            not on our servers. There are no HireCraft accounts and no server
+            copy of your resume. If you use an AI feature, the relevant text is
+            sent to Google Gemini only after you give consent and only to
+            generate the result you asked for. <strong>We never sell your data
+            and never use it for advertising.</strong>
           </P>
         </S>
 
         <S>
           <H>What we collect</H>
-          <P><strong>You provide:</strong> resume text or files you upload, job postings you paste or link, career goals and salary targets you enter, quiz answers, your name and email if you create an account, and military-service information if you claim the military trial.</P>
-          <P><strong>Automatic:</strong> basic usage analytics (pages visited, features used), device type, and crash reports. No advertising identifiers are collected or shared.</P>
+          <P><strong>Stored only on your device:</strong> resume text (including text extracted from files you upload), job postings you paste or link, LinkedIn text you provide, career goals and salary targets, quiz answers, generated content, job alerts, and — in Veteran mode — your branch, job codes, and performance-review text. This information is kept in the app's local storage on your device.</P>
+          <P><strong>Sent only when you use a feature:</strong> after you consent, AI features send the relevant resume, job, LinkedIn, goal, and military text to Google Gemini to generate a response. Job alerts send only your search terms, described below. The app sends us no record of the pages you visit or the features you use, and no advertising identifiers are collected or shared.</P>
         </S>
 
         <S>
           <H>How we use it</H>
           <P>
-            • To provide the service: your resume text is sent to our AI
-            provider solely to generate your score, rewrites, cover letters,
-            and recommendations. It is not retained by us for any other purpose
-            and is never used to train models.<br />
-            • To operate your account, process subscriptions via Apple's
-            StoreKit, and enforce the free/paid tiers.<br />
-            • To improve the product in aggregate (e.g., "users rewrite bullets
-            4x more than cover letters") — never tied to your identity.
+            • On-device features: scoring, resume editing, design templates,
+            and job matching work with the information stored on your device.<br />
+            • AI features: when you run one and have given consent, the
+            relevant text passes through our server to Google Gemini solely to
+            generate your rewrites, cover letters, LinkedIn content,
+            recommendations, or roadmap. We do not store a copy of that text on
+            our servers.<br />
+            • Job alerts: the role, company, and location terms you enter are
+            sent to job-board providers to find matching postings. Your resume
+            is not sent for alerts.<br />
+            • Subscriptions: Apple handles App Store purchases and payment
+            details. HireCraft does not receive or store your payment card
+            information.
           </P>
         </S>
 
         <S>
           <H>What we never do</H>
           <P>
-            • <strong>Never train AI models</strong> on your resumes, cover
-            letters, or personal data.<br />
             • <strong>Never sell or rent</strong> your personal data to anyone,
             including recruiters, advertisers, or data brokers.<br />
+            • <strong>Never use your data for advertising.</strong><br />
+            • <strong>Never use your resumes, cover letters, or personal
+            information to train AI models.</strong><br />
             • <strong>Never share</strong> your resume content with third
-            parties except the AI provider processing your request and the
-            verification providers below.
+            parties except Google Gemini when you choose to run an AI feature.
+            Job-board providers receive only the search terms you enter for an
+            alert.
           </P>
         </S>
 
         <S>
           <H>Military verification (SheerID / ID.me)</H>
           <P>
-            If you claim the free military trial, you verify through SheerID or
-            ID.me — not through us. Those providers handle your service
-            documentation under their own privacy policies. We receive only a
-            yes/no verification result and a verification token; we do not see
-            or store your military records.
+            The six-month military Pro offer is not enabled in the current
+            version of HireCraft; it is planned as an update using SheerID or
+            ID.me. If that feature launches, those providers — not HireCraft —
+            will handle verification documents under their own privacy
+            policies, and this policy will be updated before the feature is
+            enabled. HireCraft does not ask for or store copies of military ID
+            cards, DD214s, or other verification documents.
           </P>
         </S>
 
@@ -95,14 +106,18 @@ export default function PrivacyPage() {
         <S>
           <H>Data retention & deletion</H>
           <P>
-            Your resumes and generated content are stored so you can return to
-            them. <strong>You can delete your data at any time</strong> from
-            Settings → Delete my data, or by emailing{" "}
+            Your information remains in local storage on your device until you
+            delete it. <strong>You can delete everything at any time</strong>
+            from Settings → Delete all my data. That removes your resume,
+            military record, alerts, generated content, and consent from the
+            device. You can also clear the app's or browser's stored site data
+            or delete the app. There is no HireCraft server copy for us to
+            erase. If you email{" "}
             <a className="font-semibold text-emerald-700" href="mailto:privacy@hirecraft.app">
               privacy@hirecraft.app
             </a>
-            . We honor deletion requests within 30 days. Backups expire within
-            90 days.
+            , we can explain the deletion steps, but we cannot reach into your
+            device and delete its local storage for you.
           </P>
         </S>
 
@@ -118,9 +133,12 @@ export default function PrivacyPage() {
         <S>
           <H>Security</H>
           <P>
-            Data is encrypted in transit (TLS) and at rest. Access is limited to
-            the small team operating the service. No system is perfect — if we
-            ever have a breach affecting your data, we will tell you promptly.
+            Content you keep in HireCraft is held in your device's local
+            storage, so protect the device and the browser or app profile you
+            use. Information sent for an AI feature or job alert travels over
+            encrypted connections (TLS). We do not maintain a server database
+            of resumes or generated content. No system is perfect, but keeping
+            the data on your device removes a central store of resumes.
           </P>
         </S>
 

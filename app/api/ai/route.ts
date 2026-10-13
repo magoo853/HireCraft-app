@@ -40,6 +40,85 @@ const API_KEY = process.env.AI_API_KEY;
 const API_BASE = (process.env.AI_API_BASE || "https://generativelanguage.googleapis.com/v1beta/openai").replace(/\/$/, "");
 const MODEL = process.env.AI_MODEL || "gemini-3.8-flash";
 
+const TASKS: readonly AiRequest["task"][] = ["rewrite", "cover-letter", "linkedin", "roadmap", "discover"];
+const MODES: readonly Mode[] = ["veteran", "general", "new"];
+const TONES: readonly NonNullable<AiRequest["tone"]>[] = ["professional", "confident", "warm"];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isOneOf<T extends string>(value: unknown, allowed: readonly T[]): value is T {
+  return typeof value === "string" && allowed.includes(value as T);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function hasOptionalString(record: Record<string, unknown>, field: string): boolean {
+  return record[field] === undefined || typeof record[field] === "string";
+}
+
+function validateAiRequest(value: unknown): string | null {
+  if (!isRecord(value)) return "Request body must be a JSON object.";
+  if (!isOneOf(value.task, TASKS)) return `Field 'task' must be one of: ${TASKS.join(", ")}.`;
+  if (!isOneOf(value.mode, MODES)) return `Field 'mode' must be one of: ${MODES.join(", ")}.`;
+  if (!isRecord(value.resume)) return "Field 'resume' must be an object.";
+
+  const resume = value.resume;
+  if (typeof resume.rawText !== "string") return "Field 'resume.rawText' must be a string.";
+  if (!isStringArray(resume.skills)) return "Field 'resume.skills' must be an array of strings.";
+  if (
+    !Array.isArray(resume.experience) ||
+    resume.experience.some((item) => !isRecord(item) || !isStringArray(item.bullets))
+  ) {
+    return "Field 'resume.experience' must be an array of objects with a 'bullets' array of strings.";
+  }
+  if (value.task === "linkedin" && !Array.isArray(resume.education)) {
+    return "Field 'resume.education' must be an array.";
+  }
+
+  for (const field of ["jobText", "targetTitle", "company", "linkedinText", "feedback"] as const) {
+    if (!hasOptionalString(value, field)) return `Field '${field}' must be a string when provided.`;
+  }
+  if (value.tone !== undefined && !isOneOf(value.tone, TONES)) {
+    return `Field 'tone' must be one of: ${TONES.join(", ")}.`;
+  }
+  if (
+    value.goals !== undefined &&
+    (!Array.isArray(value.goals) ||
+      value.goals.some(
+        (goal) =>
+          !isRecord(goal) ||
+          typeof goal.years !== "number" ||
+          !Number.isFinite(goal.years) ||
+          typeof goal.text !== "string" ||
+          typeof goal.salary !== "number" ||
+          !Number.isFinite(goal.salary)
+      ))
+  ) {
+    return "Field 'goals' must be an array of objects with numeric 'years' and 'salary' and a string 'text'.";
+  }
+  if (
+    value.answers !== undefined &&
+    (!Array.isArray(value.answers) || value.answers.some((answer) => typeof answer !== "number" || !Number.isFinite(answer)))
+  ) {
+    return "Field 'answers' must be an array of numbers.";
+  }
+  if (
+    value.military !== undefined &&
+    (!isRecord(value.military) || ["branch", "mosCodes", "evalText"].some((field) => !hasOptionalString(value.military as Record<string, unknown>, field)))
+  ) {
+    return "Field 'military' must be an object with string 'branch', 'mosCodes', and 'evalText' fields when provided.";
+  }
+  return null;
+}
+
+function badRequest(error: string) {
+  return NextResponse.json({ error }, { status: 400 });
+}
+
 const HONESTY = `Critical rules: NEVER invent facts, numbers, job titles, companies, dates, or skills the user did not provide. Only rephrase what exists. Where a bullet lacks a metric, say so in the "gaps" field instead of inventing one.`;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -118,7 +197,17 @@ function extractJson(text: string): unknown {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as AiRequest;
+  let rawBody: unknown;
+  try {
+    rawBody = await req.json();
+  } catch {
+    return badRequest("Request body must be valid JSON.");
+  }
+
+  const validationError = validateAiRequest(rawBody);
+  if (validationError) return badRequest(validationError);
+
+  const body = rawBody as AiRequest;
   const { task, mode, resume, jobText = "", targetTitle = "", company = "", tone = "professional" } = body;
 
   if (!API_KEY) {

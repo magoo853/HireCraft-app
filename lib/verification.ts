@@ -23,6 +23,15 @@
  *     for your program, point it at that callback URL.
  *  4. SheerID webhook payload shape — stubbed in /api/verify/sheerid/webhook; confirm
  *     the event format in the SheerID dashboard when you enable notifications.
+ *
+ * V1 LAUNCH STATE — VERIFICATION IS DISABLED (fail closed):
+ *  Provider accounts/credentials are not in place and the response contracts
+ *  above are unconfirmed, so no flow in v1 may mark a user verified or grant
+ *  the military trial. `providerStatus()` reports every provider as
+ *  unavailable unless MILITARY_VERIFICATION_ENABLED="true" is set AND that
+ *  provider is fully configured. Flip the flag only after the real
+ *  SheerID/ID.me integration above is finished and tested end to end.
+ *  There is deliberately NO attestation/self-declaration path.
  */
 
 export type ProviderId = "idme" | "sheerid";
@@ -31,6 +40,27 @@ export interface VerificationResult {
   verified: boolean;
   provider: ProviderId;
   detail?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Launch gate                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Master switch for military verification. OFF in v1: returns true only when
+ * MILITARY_VERIFICATION_ENABLED="true" is set server-side. Even then, a
+ * provider is usable only when its own credentials are configured. Every
+ * caller (status, start, callback, webhook, paywall) must fail closed when
+ * this is false.
+ */
+export function verificationLive(): boolean {
+  return process.env.MILITARY_VERIFICATION_ENABLED === "true";
+}
+
+/** True only when verification is live AND this provider is configured. */
+export function providerAvailable(provider: ProviderId): boolean {
+  if (!verificationLive()) return false;
+  return provider === "idme" ? idmeConfigured() : sheeridConfigured();
 }
 
 /* ------------------------------------------------------------------ */
@@ -159,8 +189,17 @@ export function appBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
-export function providerStatus(): Record<ProviderId, boolean> {
-  return { idme: idmeConfigured(), sheerid: sheeridConfigured() };
+/**
+ * What the paywall may offer. In v1 this is always
+ * { idme: false, sheerid: false, available: false } — providers report
+ * available only when verification is live AND configured (see launch gate).
+ */
+export function providerStatus(): Record<ProviderId, boolean> & { available: boolean } {
+  return {
+    idme: providerAvailable("idme"),
+    sheerid: providerAvailable("sheerid"),
+    available: verificationLive() && (idmeConfigured() || sheeridConfigured()),
+  };
 }
 
 export function randomState(): string {

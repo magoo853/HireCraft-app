@@ -3,8 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
-import { getPromoState, loadTrial, saveTrial, startLaunchTrial, TrialRecord } from "@/lib/promo";
+import { Button, Card, SectionTitle } from "@/components/ui";
+import { getPromoState, loadTrial, startLaunchTrial, TrialRecord } from "@/lib/promo";
 
 const FREE_FEATURES = ["Full ATS score + breakdown", "ATS simulator (see what the robot reads)", "Keyword match preview"];
 const PAID_FEATURES = [
@@ -19,6 +19,7 @@ const PAID_FEATURES = [
 interface ProviderStatus {
   idme: boolean;
   sheerid: boolean;
+  available?: boolean;
 }
 
 function PaywallInner() {
@@ -26,14 +27,11 @@ function PaywallInner() {
   const [note, setNote] = useState("");
   const [providers, setProviders] = useState<ProviderStatus | null>(null);
 
-  // Attestation fallback (used when no provider keys are configured)
-  const [attested, setAttested] = useState(false);
-  const [milEmail, setMilEmail] = useState("");
-  const [showAttestation, setShowAttestation] = useState(false);
-
-  const [trialActive, setTrialActive] = useState(false);
-  const [trialProvider, setTrialProvider] = useState<string | null>(null);
-  const [trialError, setTrialError] = useState("");
+  // Military verification is NOT available in v1 (post-launch update, once
+  // SheerID/ID.me are really integrated). This page never grants a military
+  // trial: no attestation path, and ?trial= query params are informational
+  // only — they cannot activate anything.
+  const [verifyNote, setVerifyNote] = useState("");
   const [promoActive, setPromoActive] = useState(false);
   const [promoDaysLeft, setPromoDaysLeft] = useState(0);
   const [launchTrial, setLaunchTrial] = useState<TrialRecord | null>(null);
@@ -53,49 +51,27 @@ function PaywallInner() {
     setPromoActive(promo.active);
     setPromoDaysLeft(promo.daysLeft);
 
-    // Trial already activated in this browser?
+    // Only the launch promo is honored from local storage in v1. Any older
+    // military-trial record (e.g. from the removed attestation demo) is
+    // ignored — it does not unlock or display anything.
     const saved = loadTrial();
-    if (saved) {
-      if (saved.provider === "launch-promo") {
-        setLaunchTrial(saved);
-      } else {
-        setTrialActive(true);
-        setTrialProvider(saved.provider ?? null);
-      }
+    if (saved && saved.provider === "launch-promo") {
+      setLaunchTrial(saved);
     }
 
     const trial = params.get("trial");
-    if (trial === "verified") {
-      const provider = params.get("provider") ?? "verified";
-      setTrialActive(true);
-      setTrialProvider(provider);
-      saveTrial({ active: true, provider, at: new Date().toISOString() });
-    } else if (trial === "failed") {
-      setTrialError(params.get("reason") || "Verification didn't complete. You can retry or use attestation below.");
-    } else if (trial === "unavailable" || trial === "error") {
-      setTrialError("Verification is temporarily unavailable. Please use attestation below.");
-      setShowAttestation(true);
+    if (trial === "failed") {
+      setVerifyNote("Verification didn't complete. Military verification arrives in a post-launch update — nothing was activated.");
+    } else if (trial === "unavailable" || trial === "error" || trial === "verified") {
+      // "verified" is deliberately NOT honored here: in v1 no flow can grant
+      // a military trial, so a hand-crafted link must not activate one.
+      setVerifyNote("Military verification isn't available yet — the 6-month free offer arrives in a post-launch update, once SheerID/ID.me verification is live.");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function choosePaid() {
     setNote("Paid subscriptions will be purchasable here via Apple In-App Purchase when HireCraft ships on the App Store. In this web build everything is unlocked — enjoy the full tour.");
-  }
-
-  function startAttestation() {
-    if (!attested) {
-      setTrialError("Please confirm your service with the checkbox above.");
-      return;
-    }
-    if (milEmail && !/\.mil$/i.test(milEmail.trim())) {
-      setTrialError("That doesn't look like a .mil address — it's optional, so you can leave it blank.");
-      return;
-    }
-    setTrialError("");
-    setTrialActive(true);
-    setTrialProvider("attestation (demo)");
-    saveTrial({ active: true, provider: "attestation", at: new Date().toISOString() });
   }
 
   function startPromoTrial() {
@@ -183,74 +159,41 @@ function PaywallInner() {
         <Card className="!bg-navy !border-navy text-white">
           <p className="font-extrabold mb-1">🎖 Military: 6 months free</p>
           <p className="text-sm text-white/70 leading-relaxed mb-4">
-            Currently serving or served? Get the full paid tier free for 6 months — permanent, not a launch gimmick. No card required.
+            Currently serving or served? The full paid tier will be free for 6 months — no card required.
           </p>
 
-          {trialActive ? (
+          {verifyNote && <p className="text-sm text-amber-300 mb-3">{verifyNote}</p>}
+
+          {providers === null && (
+            <p className="text-sm text-white/60">Checking verification options…</p>
+          )}
+
+          {providers !== null && anyProvider ? (
+            <div className="grid gap-2">
+              {providers.idme && (
+                <a href="/api/verify/idme/start"
+                  className="flex items-center justify-center gap-2 rounded-[14px] bg-white text-navy font-bold min-h-[52px] px-5 text-[15px] active:scale-[0.98] transition">
+                  <span className="w-6 h-6 rounded-md bg-[#0A66C2] text-white text-xs font-extrabold flex items-center justify-center">id</span>
+                  Verify with ID.me
+                </a>
+              )}
+              {providers.sheerid && (
+                <a href="/api/verify/sheerid/start"
+                  className="flex items-center justify-center gap-2 rounded-[14px] bg-brand text-white font-bold min-h-[52px] px-5 text-[15px] active:scale-[0.98] transition">
+                  ✓ Verify with SheerID
+                </a>
+              )}
+            </div>
+          ) : providers !== null ? (
             <div className="bg-white/10 rounded-xl p-4">
-              <p className="font-bold text-white mb-1">✓ Trial activated</p>
+              <p className="font-bold text-white mb-1">Coming in a post-launch update</p>
               <p className="text-sm text-white/70 leading-relaxed">
-                {trialProvider === "attestation (demo)" || trialProvider === "attestation"
-                  ? "Your 6-month military trial is active in this build (attestation demo). At App Store launch, service is verified securely via SheerID/ID.me."
-                  : `Verified via ${trialProvider === "idme" ? "ID.me" : trialProvider === "sheerid" ? "SheerID" : trialProvider}. Your 6-month trial is active.`}
+                We're finishing secure verification with SheerID and ID.me. Until that's live, the military
+                offer can't be claimed in this version — there's no sign-up form or self-declaration here,
+                because we won't grant it on anything less than real verification.
               </p>
             </div>
-          ) : (
-            <>
-              {trialError && <p className="text-sm text-amber-300 mb-3">{trialError}</p>}
-
-              {providers === null && (
-                <p className="text-sm text-white/60 mb-3">Checking verification options…</p>
-              )}
-
-              {providers !== null && anyProvider && (
-                <div className="grid gap-2 mb-2">
-                  {providers.idme && (
-                    <a href="/api/verify/idme/start"
-                      className="flex items-center justify-center gap-2 rounded-[14px] bg-white text-navy font-bold min-h-[52px] px-5 text-[15px] active:scale-[0.98] transition">
-                      <span className="w-6 h-6 rounded-md bg-[#0A66C2] text-white text-xs font-extrabold flex items-center justify-center">id</span>
-                      Verify with ID.me
-                    </a>
-                  )}
-                  {providers.sheerid && (
-                    <a href="/api/verify/sheerid/start"
-                      className="flex items-center justify-center gap-2 rounded-[14px] bg-brand text-white font-bold min-h-[52px] px-5 text-[15px] active:scale-[0.98] transition">
-                      ✓ Verify with SheerID
-                    </a>
-                  )}
-                  <button onClick={() => setShowAttestation(!showAttestation)}
-                    className="text-xs text-white/60 underline min-h-[44px]">
-                    {showAttestation ? "hide attestation option" : "or continue with attestation instead"}
-                  </button>
-                </div>
-              )}
-
-              {(!anyProvider || showAttestation) && providers !== null && (
-                <div className={anyProvider ? "border-t border-white/15 pt-4 mt-2" : ""}>
-                  {!anyProvider && (
-                    <p className="text-xs text-white/50 mb-3">
-                      Instant verification isn't configured in this build — claim with attestation below.
-                    </p>
-                  )}
-                  <label className="flex gap-3 items-start mb-3 cursor-pointer min-h-[44px]">
-                    <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)}
-                      className="mt-1 w-5 h-5 accent-[#10B981]" />
-                    <span className="text-sm text-white/85">
-                      I confirm I am currently serving or have served in the U.S. Armed Forces.
-                    </span>
-                  </label>
-                  <Field label=" " hint="Optional — helps us verify faster at launch.">
-                    <input value={milEmail} onChange={(e) => setMilEmail(e.target.value)} inputMode="email"
-                      placeholder="you@mail.mil (optional)"
-                      className={`${inputCls} !bg-white/10 !border-white/20 !text-white placeholder:!text-white/40`} />
-                  </Field>
-                  <Button variant="emerald" onClick={startAttestation} className="w-full">
-                    Start my 6-month free trial
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+          ) : null}
         </Card>
       </div>
 

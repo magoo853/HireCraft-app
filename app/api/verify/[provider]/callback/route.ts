@@ -4,6 +4,7 @@ import {
   ProviderId,
   appBaseUrl,
   idmeVerify,
+  providerAvailable,
   sheeridCheckStatus,
 } from "@/lib/verification";
 
@@ -18,7 +19,12 @@ export const maxDuration = 60;
  *             paywall's "I've finished — check status" button).
  *
  * On success: sets the hirecraft_trial cookie and redirects to /paywall?trial=verified.
- * Otherwise: redirects to /paywall?trial=failed (user can retry or use attestation).
+ * Otherwise: redirects to /paywall?trial=failed.
+ *
+ * FAIL-CLOSED IN V1: while verification is disabled (launch gate in
+ * lib/verification.ts) or the provider is unconfigured, this NEVER grants —
+ * no cookie is set and the user lands on /paywall?trial=unavailable. A
+ * hand-crafted callback therefore cannot mint a trial.
  */
 export async function GET(
   req: NextRequest,
@@ -28,6 +34,17 @@ export async function GET(
   const base = appBaseUrl(); // registered callback base (must match ID.me dashboard)
   const origin = new URL(req.url).origin; // where the user actually is
   const jar = cookies();
+
+  if (provider !== "idme" && provider !== "sheerid") {
+    return NextResponse.json({ error: "unknown provider" }, { status: 404 });
+  }
+
+  // Launch gate: disabled or unconfigured providers can never grant a trial.
+  if (!providerAvailable(provider)) {
+    jar.delete("idme_state");
+    jar.delete("sheerid_vid");
+    return NextResponse.redirect(`${origin}/paywall?trial=unavailable`);
+  }
 
   const grant = () => {
     jar.set("hirecraft_trial", JSON.stringify({ provider, verified: true, at: new Date().toISOString() }), {
