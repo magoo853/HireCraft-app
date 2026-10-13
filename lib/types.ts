@@ -108,6 +108,8 @@ export interface RewriteResult {
   why: string;
   gaps: string[];
   translationNote?: string;
+  /** Set when this pair is an addition mined from the civilian performance review. */
+  source?: "review";
 }
 
 export interface CoverLetterResult {
@@ -144,3 +146,11 @@ export interface MilitaryInfo {
 }
 
 export const emptyMilitary = (): MilitaryInfo => ({ branch: "", mosCodes: "", evalText: "" });
+
+/** A user's latest civilian performance review, stored only on-device. */
+export interface PerformanceReview {
+  text: string;
+  updatedAt: number;
+}
+
+export const emptyPerfReview = (): PerformanceReview => ({ text: "", updatedAt: 0 });

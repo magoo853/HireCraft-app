@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { MilitaryInfo, Mode, StructuredResume, emptyMilitary, emptyResume } from "./types";
+import { MilitaryInfo, Mode, PerformanceReview, StructuredResume, emptyMilitary, emptyPerfReview, emptyResume } from "./types";
 import type { JobAlert } from "./jobs";
 import {
   SavedVersion, addVersion, createVersion, findVersion,
@@ -26,6 +26,8 @@ interface AppState {
   setLinkedinText: (t: string) => void;
   military: MilitaryInfo;
   setMilitary: (m: MilitaryInfo) => void;
+  perfReview: PerformanceReview;
+  setPerfReview: (r: PerformanceReview) => void;
   alerts: JobAlert[];
   setAlerts: (a: JobAlert[]) => void;
   seenJobIds: string[];
@@ -78,6 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [jobUrl, setJobUrl] = useState("");
   const [linkedinText, setLinkedinText] = useState("");
   const [military, setMilitary] = useState<MilitaryInfo>(emptyMilitary());
+  const [perfReview, setPerfReview] = useState<PerformanceReview>(emptyPerfReview());
   const [alerts, setAlerts] = useState<JobAlert[]>([]);
   const [seenJobIds, setSeenJobIds] = useState<string[]>([]);
   const [newJobCount, setNewJobCount] = useState(0);
@@ -102,6 +105,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (s.jobUrl) setJobUrl(s.jobUrl as string);
       if (s.linkedinText) setLinkedinText(s.linkedinText as string);
       if (s.military) setMilitary({ ...emptyMilitary(), ...(s.military as MilitaryInfo) });
+      if (s.perfReview && typeof s.perfReview === "object") {
+        const review = s.perfReview as Partial<PerformanceReview>;
+        setPerfReview({
+          text: typeof review.text === "string" ? review.text : "",
+          updatedAt: typeof review.updatedAt === "number" && Number.isFinite(review.updatedAt) ? review.updatedAt : 0,
+        });
+      }
       if (Array.isArray(s.alerts)) setAlerts(s.alerts as JobAlert[]);
       if (Array.isArray(s.seenJobIds)) setSeenJobIds(s.seenJobIds as string[]);
       if (typeof s.newJobCount === "number") setNewJobCount(s.newJobCount);
@@ -120,9 +130,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -162,6 +172,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setJobUrl("");
     setLinkedinText("");
     setMilitary(emptyMilitary());
+    setPerfReview(emptyPerfReview());
     setAlerts([]);
     setSeenJobIds([]);
     setNewJobCount(0);
@@ -183,6 +194,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       mode, setMode, targetTitle, setTargetTitle, company, setCompany,
       resume, setResume, updateResume, jobText, setJobText, jobUrl, setJobUrl, linkedinText, setLinkedinText,
       military, setMilitary,
+      perfReview, setPerfReview,
       alerts, setAlerts, seenJobIds, setSeenJobIds, newJobCount, setNewJobCount,
       aiConsent, setAiConsent,
       scoreViewed, setScoreViewed, rewriteAccepted, setRewriteAccepted,

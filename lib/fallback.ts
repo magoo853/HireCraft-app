@@ -9,7 +9,7 @@ import {
   StructuredResume,
   SummaryResult,
 } from "./types";
-import { textToStructured, parseLinkedInProfile, isPdfJunkLine as isJunkLine } from "./parse";
+import { deriveSkills, textToStructured, parseLinkedInProfile, isPdfJunkLine as isJunkLine } from "./parse";
 
 /* ------------------------------------------------------------------ */
 /* Shared language data                                                */
@@ -651,6 +651,132 @@ function upgradeVerb(bullet: string): { text: string; changed: boolean } {
 
 export function rewriteBullets(text: string, mode: Mode): RewriteResult[] {
   return extractBullets(text).map((b) => rewriteBullet(b, mode));
+}
+
+function normalizeForMatch(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[–—]/g, "-")
+    .replace(/[^a-z0-9%$+#]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenOverlap(a: string, b: string): number {
+  const aTokens = new Set(tokenize(a));
+  const bTokens = new Set(tokenize(b));
+  if (!aTokens.size || !bTokens.size) return 0;
+  let shared = 0;
+  aTokens.forEach((token) => {
+    if (bTokens.has(token)) shared++;
+  });
+  return shared / Math.max(1, Math.min(aTokens.size, bTokens.size));
+}
+
+function reviewCandidates(reviewText: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const lines = reviewText.replace(/\r\n?/g, "\n").split("\n");
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/^[\s•\-*▪◦‣·]+/, "").trim();
+    if (!line) continue;
+    const sentences = line.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [];
+    for (const rawSentence of sentences) {
+      const sentence = rawSentence.replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
+      const key = normalizeForMatch(sentence);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(sentence);
+    }
+  }
+  return out;
+}
+
+const REVIEW_HEADER_RE =
+  /^(employee|reviewer|manager|supervisor|review period|reporting period|overall rating|rating|signature|department|position title|job title|date of review|review date|company|prepared by)\b/i;
+const ACHIEVEMENT_SIGNAL_RE =
+  /\b(led|directed|managed|supervised|oversaw|coordinated|spearheaded|drove|delivered|achieved|exceeded|accelerated|launched|built|developed|designed|created|established|implemented|deployed|streamlined|optimized|improved|enhanced|transformed|automated|reduced|cut|decreased|eliminated|increased|grew|boosted|expanded|scaled|generated|secured|negotiated|closed|mentored|coached|trained|resolved|executed|promoted|selected|recognized|earned|awarded|saved|won)\b/i;
+
+/** Drop a leading subject ("Priya reduced…" / "She mentored…") — reviews are
+ * written in third person; resume bullets are not. Facts stay verbatim. */
+function dropReviewSubject(sentence: string): string {
+  const pronoun = sentence.replace(/^(?:She|He|They)\s+/i, "");
+  if (pronoun !== sentence) return pronoun.charAt(0).toUpperCase() + pronoun.slice(1);
+  const m = sentence.match(/^([A-Z][a-z]+)\s+([a-z]+)\s+(.*)$/);
+  if (m && ACHIEVEMENT_SIGNAL_RE.test(m[2])) {
+    const rest = `${m[2]} ${m[3]}`;
+    return rest.charAt(0).toUpperCase() + rest.slice(1);
+  }
+  return sentence;
+}
+
+/**
+ * Deterministically mine a civilian performance review for accomplishments
+ * that are not already represented in the resume. The `original` is the
+ * review's own sentence; the rewrite uses the same deterministic bullet
+ * engine as the rest of the fallback. Nothing is sourced from outside the
+ * review text.
+ */
+export function extractReviewAdditions(
+  reviewText: string,
+  resume: StructuredResume,
+  mode: Mode = "general"
+): RewriteResult[] {
+  if (!reviewText.trim()) return [];
+  const resumeText = [resume.rawText, ...resume.experience.flatMap((e) => e.bullets)].join("\n");
+  const resumeNorm = normalizeForMatch(resumeText);
+  const ranked: { sentence: string; score: number; index: number }[] = [];
+
+  reviewCandidates(reviewText).forEach((sentence, index) => {
+    if (sentence.length < 35 || sentence.length > 340) return;
+    if (REVIEW_HEADER_RE.test(sentence) || /@/.test(sentence) || /\?$/.test(sentence)) return;
+    if (/^(overall|summary|comments?|strengths?|areas? for improvement|goals? for next year)\s*:/i.test(sentence)) return;
+
+    const norm = normalizeForMatch(sentence);
+    if (!norm || resumeNorm.includes(norm)) return;
+    if (tokenOverlap(sentence, resumeText) >= 0.78) return;
+
+    const hasMetric = /\$\s?\d|\b\d+(?:[.,]\d+)?\s*(?:%|percent|hours?|days?|weeks?|months?|years?|people|employees|customers|clients|projects|tickets|cases|accounts|sales|units|members)\b|\b\d+(?:[.,]\d+)?\b/.test(sentence);
+    const hasAchievementSignal = ACHIEVEMENT_SIGNAL_RE.test(sentence);
+    if (!hasMetric && !hasAchievementSignal) return;
+
+    let score = hasMetric ? 3 : 0;
+    if (hasAchievementSignal) score += 2;
+    if (/\b(exceeded|reduced|improved|increased|saved|generated|promoted|recognized|awarded)\b/i.test(sentence)) score += 1;
+    if (/\b(always|consistently|successfully)\b/i.test(sentence)) score -= 1;
+    ranked.push({ sentence, score, index });
+  });
+
+  return ranked
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, 4)
+    .map(({ sentence }) => {
+      let rewritten = rewriteBullet(sentence, mode).rewritten;
+      if (normalizeForMatch(rewritten) === normalizeForMatch(sentence)) {
+        rewritten = dropReviewSubject(sentence);
+      }
+      return {
+        original: sentence,
+        rewritten,
+        why: "New — mined from your performance review. This accomplishment is stated in the review and is not in your resume yet.",
+        gaps: [],
+        source: "review" as const,
+      };
+    });
+}
+
+/** Skills evidenced by the review that the resume does not already list. */
+export function reviewStrengths(reviewText: string, currentSkills: string[]): string[] {
+  if (!reviewText.trim()) return [];
+  return deriveSkills(reviewText).filter((skill) => {
+    const s = skill.toLowerCase();
+    return !currentSkills.some((existing) => {
+      const e = existing.trim().toLowerCase();
+      return e === s || e.includes(s) || s.includes(e);
+    });
+  });
 }
 
 /**
