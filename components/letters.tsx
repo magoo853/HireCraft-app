@@ -223,9 +223,9 @@ export function LinkedIn() {
         <>
           <Card className="mb-3">
             <Field label="Your LinkedIn profile" hint="Export your profile as a PDF from LinkedIn (Me → View Profile → More → Save to PDF), or paste the text — generation uses it as the source of truth.">
-              <label className={`${inputCls} flex items-center justify-center gap-2 cursor-pointer text-center !text-pine font-bold`}>
+              <label className={`${inputCls} flex items-center justify-center gap-2 cursor-pointer text-center !text-pine font-bold focus-within:ring-2 focus-within:ring-brand/40 focus-within:border-brand`}>
                 {uploading ? "Reading file…" : linkedinText ? "↻ Replace profile file" : "⬆ Upload LinkedIn PDF / DOCX / TXT"}
-                <input type="file" accept=".pdf,.docx,.doc,.txt" className="hidden"
+                <input type="file" accept=".pdf,.docx,.doc,.txt" className="sr-only"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadProfile(f); e.target.value = ""; }} />
               </label>
             </Field>
@@ -262,12 +262,14 @@ export function LinkedIn() {
             </div>
           ) : null}
           <p className="text-[13px] font-extrabold text-navy mt-1 mb-1">Headline — pick one, tap to edit</p>
-          <div className="grid gap-2">
+          <div className="grid gap-2" role="radiogroup" aria-label="Headline options">
             {headlines.map((h, i) => (
-              <div key={i} onClick={() => setPicked(i)}
-                className={`rounded-xl p-3 border-[1.5px] min-h-[44px] transition cursor-pointer ${
+              <label key={i}
+                className={`rounded-xl p-3 border-[1.5px] min-h-[44px] transition cursor-pointer has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-linkedin/50 ${
                   picked === i ? "border-linkedin bg-blue-50" : "border-line bg-white"
                 }`}>
+                <input type="radio" name="linkedin-headline" className="sr-only"
+                  checked={picked === i} onChange={() => setPicked(i)} />
                 <span className={`text-[10px] font-bold uppercase tracking-wide ${picked === i ? "text-linkedin" : "text-muted"}`}>
                   {i === 0 ? "Recommended" : `Option ${i + 1}`}
                 </span>
@@ -279,7 +281,7 @@ export function LinkedIn() {
                 ) : (
                   <p className="text-[13px] mt-1 leading-relaxed text-slate-800">{h}</p>
                 )}
-              </div>
+              </label>
             ))}
           </div>
 

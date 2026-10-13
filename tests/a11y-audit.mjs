@@ -19,6 +19,11 @@
  *   4. Muted/secondary-text contrast: WCAG ratios for a curated table of
  *      foreground/background pairings actually used in the UI. Values in
  *      the table mirror the current source; update them with the source.
+ *   5. Keyboard operability (Cycle 17): onClick on non-interactive tags
+ *      (div/span/li/section) with no tabIndex/role, and inputs hidden with
+ *      display:none (class "hidden") instead of the focusable sr-only
+ *      pattern. Visually-hidden (sr-only) inputs are exempt from class 3 —
+ *      their <label> is the sized control.
  *
  * Usage: node tests/a11y-audit.mjs   (exit code always 0 — reporting tool)
  */
@@ -209,6 +214,7 @@ const hasGlobalFocusRule = /:focus-visible\s*\{[^}]*outline/.test(globalsCss);
 
 const c1 = [];
 const c2Suppressed = [];
+const c5 = [];
 let interactiveTotal = 0;
 let explicitFocus = 0;
 const c3 = [];
@@ -217,6 +223,16 @@ for (const f of files) {
   const src = readFileSync(f, "utf8");
   const rel = relative(ROOT, f);
   for (const el of extractElements(src)) {
+    // Class 5 — keyboard operability (Cycle 17): clickable non-interactive
+    // elements with no focusability/semantics, and display:none inputs
+    // (unreachable by keyboard and dropped by assistive tech).
+    if (el.hasOnClick && ["div", "span", "li", "section"].includes(el.tag) &&
+        !/\btabIndex\b/.test(el.openTag) && !/\brole=/.test(el.openTag)) {
+      c5.push(`${rel}:${el.line} <${el.tag} onClick> — clickable ${el.tag}, not keyboard-operable`);
+    }
+    if (el.tag === "input" && /(?:^|[\s"{`])hidden(?:[\s"}`]|$)/.test(classText(el.openTag))) {
+      c5.push(`${rel}:${el.line} <input> — display:none (class "hidden"); use sr-only so it stays focusable`);
+    }
     if (el.openTag.includes('type="file"') && el.openTag.includes("hidden")) continue; // display:none upload input; its <label> is the control
     interactiveTotal++;
     const cls = classText(el.openTag);
@@ -237,6 +253,7 @@ for (const f of files) {
     }
     // Class 3
     if (el.tag === "textarea") continue; // multi-line by design
+    if (/\bsr-only\b/.test(cls)) continue; // visually-hidden input; its <label> is the sized, visible control
     if (/<(Button|button)[\s>]/.test(el.inner)) continue; // wrapper; nested control scanned itself
     const { height, width, estHeight } = sizeEvidence(el);
     const hEff = height !== null ? height : estHeight;
@@ -270,3 +287,5 @@ for (const [fg, bg, where, note] of PAIRINGS) {
   console.log(`  ${pass ? "PASS" : note ? "DOC " : "FAIL"} ${r.toFixed(2)}:1  ${fg} on ${bg} — ${where}${note ? " | " + note : ""}`);
 }
 console.log(`  Undocumented failures: ${fails}`);
+console.log(`\nCLASS 5 — keyboard operability (clickable non-interactive elements; display:none inputs): ${c5.length}`);
+c5.forEach((x) => console.log("  " + x));
