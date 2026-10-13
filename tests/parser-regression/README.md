@@ -1,7 +1,8 @@
 # Parser regression suite
 
 Synthetic-fixture regression tests for `lib/parse.ts` (`textToStructured`
-and the LinkedIn profile router). Every fixture is a fictional resume —
+and the LinkedIn profile router) and `lib/parse-file.ts` (`extractPdfText`).
+Every fixture is a fictional resume —
 invented people, 555 phone numbers, `example.com` emails. No real user
 data is used or needed.
 
@@ -11,7 +12,7 @@ data is used or needed.
 node tests/parser-regression/run.mjs
 ```
 
-The runner compiles `lib/parse.ts` with the project's own TypeScript
+The runner compiles `lib/parse.ts` + `lib/parse-file.ts` with the project's own TypeScript
 (`node_modules/typescript`) into a temp directory, loads it in Node, feeds
 each fixture through `textToStructured()`, and asserts the fields users
 check first: name/contact, summary, dated roles, education, skills,

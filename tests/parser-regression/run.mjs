@@ -29,8 +29,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
 const fixturesDir = path.join(here, "fixtures");
 
-/* Compile lib/parse.ts (+ its types import) with the project's own tsc
- * into a throwaway dir and load the CommonJS output. */
+/* Compile lib/parse.ts + lib/parse-file.ts (+ their imports) with the
+ * project's own tsc into a throwaway dir and load the CommonJS output.
+ * File ingestion (parseFile / extractPdfText) lives in parse-file.ts
+ * since the Cycle 15 bundle split; its exports are merged into `mod`. */
 function buildParser() {
   const out = mkdtempSync(path.join(tmpdir(), "hc-parse-build-"));
   const tsc = path.join(root, "node_modules", "typescript", "bin", "tsc");
@@ -39,6 +41,7 @@ function buildParser() {
     [
       tsc,
       path.join(root, "lib", "parse.ts"),
+      path.join(root, "lib", "parse-file.ts"),
       "--outDir", out,
       "--module", "commonjs",
       "--target", "es2021",
@@ -49,7 +52,9 @@ function buildParser() {
     { stdio: "pipe" }
   );
   const require = createRequire(import.meta.url);
-  return { mod: require(path.join(out, "parse.js")), out };
+  const mod = require(path.join(out, "parse.js"));
+  Object.assign(mod, require(path.join(out, "parse-file.js")));
+  return { mod, out };
 }
 
 /* ---------------- assertion helpers ---------------- */
