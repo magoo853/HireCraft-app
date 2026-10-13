@@ -85,6 +85,15 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
   [/^(work\s+)?experience$/i, "experience"],
   [/^employment(\s+history)?$/i, "experience"],
   [/^professional\s+experience$/i, "experience"],
+  [/^professional\s+accomplishments\s*(and|&)\s*experience$/i, "experience"],
+  [/^career\s+history$/i, "experience"],
+  [/^professional\s+background$/i, "experience"],
+  // Generic titled experience header: 1–4 capitalized words (plus
+  // connectors) ending in Experience/Employment — "Leadership Experience",
+  // "Professional Accomplishments and Experience". The leading token must
+  // be a capitalized word, so a skills cell like "10+ Years of Leadership
+  // Experience" (starts with a digit) can never trip it.
+  [/^(?:(?:[A-Z][a-z]+|of|and|the|&)\s+){0,3}(?:Experience|Employment)$/, "experience"],
   [/^military\s+(experience|service)$/i, "experience"],
   [/^education$/i, "education"],
   [/^(technical\s+)?skills$/i, "skills"],
@@ -171,7 +180,14 @@ export function textToStructured(text: string): StructuredResume {
   if (looksLikeLinkedInProfile(text)) return parseLinkedInProfile(text);
   const r = emptyResume();
   r.rawText = text;
-  const lines = text.split("\n").map((l) => l.trim()).filter((l) => !isPdfJunkLine(l));
+  // Normalize lines: strip invisible characters Word/PDF exports embed
+  // (soft hyphens broke date ranges like "Aug 2021 ­– Present") and
+  // collapse tab / multi-space runs (table cells, date columns) that
+  // otherwise survive into parsed fields.
+  const lines = text
+    .split("\n")
+    .map((l) => l.replace(/[\u00AD\u200B-\u200D\uFEFF]/g, "").replace(/[\t ]+/g, " ").trim())
+    .filter((l) => !isPdfJunkLine(l));
 
   // Contact block: first ~6 lines
   const head = lines.slice(0, 8).join("\n");
@@ -212,7 +228,8 @@ export function textToStructured(text: string): StructuredResume {
 
   const expLines = sections.get("experience") ?? [];
   let currentJob: StructuredResume["experience"][number] | null = null;
-  for (const line of expLines) {
+  for (let idx = 0; idx < expLines.length; idx++) {
+    const line = expLines[idx];
     if (/^[•\-\*▪◦‣·]/.test(line) || /^\d+[.)]\s/.test(line)) {
       const bullet = line.replace(/^[•\-\*▪◦‣·]\s*/, "").replace(/^\d+[.)]\s*/, "").trim();
       if (currentJob) currentJob.bullets.push(bullet);
@@ -227,6 +244,23 @@ export function textToStructured(text: string): StructuredResume {
       const sentenceLike = line.split(/\s+/).length > 6 && ACTION_VERBS.test(line);
       const looksLikeHeader = hasDate || (line.length < 90 && !sentenceLike);
       if (looksLikeHeader) {
+        // Two-line job header: the title stands alone (blank lines may
+        // intervene) and a following line carries "Company, Location;
+        // dates". Merge them into one role instead of a title-only role
+        // plus a company-only role.
+        if (!hasDate) {
+          let j = idx + 1;
+          while (j < expLines.length && !expLines[j]) j++;
+          const next = expLines[j];
+          if (next && DATE_RANGE_RE.test(next) && !/^[•\-\*▪◦‣·]/.test(next)) {
+            const nd = next.match(DATE_RANGE_RE)?.[0] ?? "";
+            const nHead = next.split(";")[0].replace(DATE_RANGE_RE, "").replace(/[:;,]\s*$/, "").trim();
+            currentJob = { title: line, company: nHead, dates: nd, bullets: [] };
+            r.experience.push(currentJob);
+            idx = j; // the company/dates line is consumed
+            continue;
+          }
+        }
         currentJob = { ...parseJobHeader(line), bullets: [] };
         r.experience.push(currentJob);
       } else if (currentJob) {
@@ -244,7 +278,16 @@ export function textToStructured(text: string): StructuredResume {
       const dates = line.match(new RegExp(`(?:${MONTHS})\\.?\\s+\\d{4}|\\b(19|20)\\d{2}\\b`, "i"))?.[0] ?? "";
       const schoolCandidates = segs.filter((s) => /university|college|academy|institute|school|seminary/i.test(s));
       const school = schoolCandidates.find((s) => !DEGREE_RE.test(s)) ?? schoolCandidates[0] ?? "";
-      const degree = segs.filter((s) => s !== school && s !== dates).join(", ");
+      // Degree is what precedes the school on the line ("Master of X,
+      // University of Y, City, ST  Dec 2017"). School-first lines fall
+      // back to everything-but-the-school, minus the date segment and a
+      // trailing bare state — the city/state and the date are not part
+      // of the degree name.
+      const schoolIdx = segs.indexOf(school);
+      let degreeSegs = schoolIdx > 0 ? segs.slice(0, schoolIdx) : segs.filter((s) => s !== school);
+      degreeSegs = degreeSegs.filter((s) => !(dates && s.includes(dates)));
+      while (degreeSegs.length && /^[A-Z]{2}$/.test(degreeSegs[degreeSegs.length - 1])) degreeSegs.pop();
+      const degree = degreeSegs.join(", ");
       r.education.push({ school, degree, dates, details: "" });
     } else if (r.education.length) {
       const last = r.education[r.education.length - 1];
@@ -258,11 +301,14 @@ export function textToStructured(text: string): StructuredResume {
     .map((s) => s.trim())
     .filter((s) => s.length > 1 && s.length < 40)
     .slice(0, 30);
-  // No skills section (common in military resumes, where skills live inside
-  // prose) — derive them from terms actually present in the text.
+  // A thin skills section still outranks derivation: keep the user's own
+  // listed skills first and only top up with derived terms that aren't
+  // already covered. With no section at all, derivation stands alone.
   if (r.skills.length < 4) {
-    const derived = deriveSkills(r.rawText);
-    if (derived.length > r.skills.length) r.skills = derived;
+    const derived = deriveSkills(r.rawText).filter(
+      (d) => !r.skills.some((s) => s.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(s.toLowerCase()))
+    );
+    r.skills = [...r.skills, ...derived].slice(0, 14);
   }
 
   const projLines = sections.get("projects") ?? [];

@@ -332,6 +332,39 @@ CASES.push(
   }
 );
 
+CASES.push(
+  {
+    file: "modern-docx-layout.txt",
+    title: "Modern DOCX layout — competencies table, education first, two-line job headers, soft hyphens",
+    run(r, a) {
+      a.eq("name", r.name, "Jordan Ellis");
+      a.eq("location", r.location, "Austin, TX");
+      a.minCount("competency table items land in skills", r.skills, 3);
+      a.eq("the user's own first skill stays first", r.skills[0], "12+ Years of Operations Experience");
+      a.hasSkill("digit-leading '…Years of Operations Experience' stays a skill, not a section flip", r.skills, "Operations Experience");
+      a.hasSkill("skills include Vendor Negotiation", r.skills, "Vendor Negotiation");
+      a.count("two roles from two-line headers", r.experience, 2);
+      a.eq("role 1 title", r.experience[0]?.title, "Regional Operations Manager");
+      a.includes("role 1 company from the following line", r.experience[0]?.company, "Lone Star Freight");
+      a.includes("role 1 runs to Present", r.experience[0]?.dates, "Present");
+      a.minCount("role 1 bullets", r.experience[0]?.bullets, 3);
+      a.eq("role 2 title keeps its comma", r.experience[1]?.title, "Logistics Coordinator, Gulf Division");
+      a.jobDates("role 2 is dated despite the soft hyphen", r.experience[1]);
+      a.includes("role 2 dates keep Sept 2018", r.experience[1]?.dates, "Sept 2018");
+      a.count("two education entries", r.education, 2);
+      a.includes("education 1 school", r.education[0]?.school, "Texas A&M University");
+      a.eq("education 1 degree is clean (no city/date residue)", r.education[0]?.degree, "Master of Science in Logistics");
+      a.includes("education 1 dates", r.education[0]?.dates, "2019");
+      a.eq("education 2 degree is clean", r.education[1]?.degree, "Bachelor of Arts in History");
+      a.count("one certification", r.certifications, 1);
+      a.includes("certification includes CSCP", r.certifications.join(" | "), "CSCP");
+      a.check("certification whitespace is clean", !/[\t]| {2}/.test(r.certifications[0] ?? ""), {
+        detail: `got ${JSON.stringify(r.certifications[0])}`,
+      });
+    },
+  }
+);
+
 /* ---------------- main ---------------- */
 
 const { mod, out } = buildParser();
