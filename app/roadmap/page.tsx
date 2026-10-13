@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/store";
-import { GOAL_EXAMPLES, RoadmapGoal, RoadmapNode, fmtSalary, jobSearchLinks } from "@/lib/careers-core";
+import { RoadmapGoal, RoadmapNode, fmtSalary, jobSearchLinks } from "@/lib/careers-core";
+import {
+  clearCustomGoalIdeas,
+  computeGoalIdeas,
+  loadCustomGoalIdeas,
+  saveCustomGoalIdeas,
+} from "@/lib/goal-ideas";
+import { GoalIdeas } from "@/components/goal-ideas";
 import { AiResponse } from "@/lib/types";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, Pill, inputCls } from "@/components/ui";
 
@@ -73,6 +80,35 @@ export default function RoadmapPage() {
     } catch { /* noop */ }
   }, [location]);
 
+  /* Goal ideas: computed from the user's resume/military background,
+     unless they have customized the set (persisted per device). */
+  const [customIdeas, setCustomIdeas] = useState<string[] | null>(null);
+  const [ideasReady, setIdeasReady] = useState(false);
+  const [editingIdeas, setEditingIdeas] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCustomIdeas(loadCustomGoalIdeas(window.localStorage));
+    } catch { /* noop */ }
+    setIdeasReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!ideasReady || customIdeas === null) return;
+    saveCustomGoalIdeas(window.localStorage, customIdeas);
+  }, [ideasReady, customIdeas]);
+
+  const computedIdeas = useMemo(
+    () => computeGoalIdeas(resume, military, mode),
+    [resume, military, mode]
+  );
+
+  const resetIdeas = () => {
+    clearCustomGoalIdeas(window.localStorage);
+    setCustomIdeas(null);
+    setEditingIdeas(false);
+  };
+
   if (!hasResume) {
     return (
       <EmptyState
@@ -118,7 +154,13 @@ export default function RoadmapPage() {
     }
   }
 
-  const examples = GOAL_EXAMPLES[mode] ?? GOAL_EXAMPLES.general;
+  const ideas = customIdeas ?? computedIdeas.ideas;
+  const ideasLabel =
+    customIdeas !== null
+      ? "Your ideas"
+      : computedIdeas.personalized
+        ? "Ideas from your resume — tap to use, or write your own"
+        : "Examples — tap to use, or write your own";
   const maxYears = nodes ? Math.max(...nodes.data.map((n) => n.years)) : 0;
 
   return (
@@ -160,20 +202,18 @@ export default function RoadmapPage() {
                   value={g.text}
                   onChange={(e) => setGoal(i, { text: e.target.value })}
                   rows={2}
-                  placeholder={`e.g. ${examples[0]}`}
+                  placeholder={`e.g. ${ideas[0] ?? "A bigger role in my field"}`}
                   className={`${inputCls} !text-sm mb-2`}
                 />
-                <div className="flex flex-wrap gap-1.5 mb-2.5">
-                  {examples.map((ex) => (
-                    <button
-                      key={ex}
-                      onClick={() => setGoal(i, { text: ex })}
-                      className="text-[11px] font-semibold text-pine bg-mint border border-brand/30 rounded-full px-2.5 py-1.5 min-h-[44px] inline-flex items-center"
-                    >
-                      {ex}
-                    </button>
-                  ))}
-                </div>
+                <GoalIdeas
+                  ideas={ideas}
+                  label={ideasLabel}
+                  editing={editingIdeas}
+                  onToggleEdit={() => setEditingIdeas((v) => !v)}
+                  onPick={(idea) => setGoal(i, { text: idea })}
+                  onChange={setCustomIdeas}
+                  onReset={resetIdeas}
+                />
                 <Field label="Salary target (annual)">
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">$</span>
