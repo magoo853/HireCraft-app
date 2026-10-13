@@ -7,8 +7,8 @@ import { useApp } from "@/lib/store";
 import { structuredToText, textToStructured } from "@/lib/parse";
 import { mosTranslations } from "@/lib/mos";
 import { SAMPLE_MILITARY, SAMPLE_RESUME } from "@/lib/sample";
-import { ExperienceItem, ProjectItem, StructuredResume, emptyResume } from "@/lib/types";
-import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
+import { AiResponse, ExperienceItem, ProjectItem, StructuredResume, SummaryResult, emptyResume } from "@/lib/types";
+import { Button, Card, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
 import { GettingStartedCard } from "@/components/getting-started";
 import { VersionsCard } from "@/components/versions";
 
@@ -180,6 +180,8 @@ export default function ResumePage() {
         </>
       )}
 
+      {resume.rawText ? <SummaryCard /> : null}
+
       {mode === "veteran" && (
         <div className="mt-8">
           <SectionTitle sub="Your job codes + yearly evaluation power the civilian translation across Discover, Roadmap, and Rewrites.">
@@ -322,6 +324,64 @@ export default function ResumePage() {
 
       <VersionsCard />
     </div>
+  );
+}
+
+/* Professional summary editor — catches a missing summary and drafts one
+   with AI (user edits after; nothing is written without the tap). */
+function SummaryCard() {
+  const { resume, updateResume, mode, jobText, targetTitle, company, military } = useApp();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<AiResponse<SummaryResult> | null>(null);
+  const hasSummary = resume.summary.trim().length > 0;
+
+  async function draftWithAi() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: "summary", mode, resume, jobText, targetTitle, company, military }),
+      });
+      const json = (await res.json()) as AiResponse<SummaryResult>;
+      if (!json.data?.text) throw new Error("Unexpected response");
+      setResult(json);
+      updateResume({ summary: json.data.text });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Card className="mt-4">
+      {!hasSummary && (
+        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-3">
+          ⚠️ <b>No summary yet</b> — most recruiters read this first. Draft one from your resume, then edit it to sound like you.
+        </p>
+      )}
+      <Field label="Professional summary" hint="Sits at the top of your resume — 3–5 sentences on who you are and your strongest proof.">
+        <textarea
+          value={resume.summary}
+          onChange={(e) => updateResume({ summary: e.target.value })}
+          rows={5}
+          placeholder="e.g. Logistics manager who cut picking errors 38% across a 120-person team…"
+          className={inputCls}
+          aria-label="Professional summary"
+        />
+      </Field>
+      <Button variant="emerald" onClick={draftWithAi} disabled={loading} className="w-full">
+        {loading ? "Drafting…" : hasSummary ? "↻ Redraft with AI" : "✨ Draft it with AI"}
+      </Button>
+      {hasSummary && (
+        <p className="text-xs text-muted mt-2">Redrafting replaces the text above with a fresh draft — you can edit it right after.</p>
+      )}
+      {error && <p className="text-sm text-red-700 mt-2">{error}</p>}
+      {result && <SourceNote source={result.source} note={result.note} />}
+    </Card>
   );
 }
 

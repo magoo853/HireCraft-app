@@ -1,11 +1,13 @@
 import {
   CoverLetterResult,
+  ExperienceItem,
   Keyword,
   LinkedInResult,
   Mode,
   RewriteResult,
   ScoreResult,
   StructuredResume,
+  SummaryResult,
 } from "./types";
 import { textToStructured, parseLinkedInProfile, isPdfJunkLine as isJunkLine } from "./parse";
 
@@ -790,6 +792,104 @@ export function generateCoverLetter(
     tone,
     text: `Dear Hiring Manager,\n\n${opener}\n\n${body}\n\n${closer}\n\nSincerely,\n${name}${resume.phone ? `\n${resume.phone}` : ""}${resume.email ? `\n${resume.email}` : ""}`,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Professional summary (fallback)                                     */
+/* ------------------------------------------------------------------ */
+
+/** Join ["a","b","c"] as "a, b, and c". */
+function joinList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+/** Score a bullet by the strength of its own numbers — $ and % weigh most. */
+function metricStrength(bullet: string): number {
+  let score = 0;
+  if (/\$\s?\d/.test(bullet)) score += 3;
+  if (/\d\s?%/.test(bullet)) score += 3;
+  const nums = bullet.match(/\d[\d,.]*/g);
+  if (nums) score += nums.length;
+  return score;
+}
+
+/** Normalize a user bullet into a standalone summary sentence — facts verbatim. */
+function asSentence(bullet: string): string {
+  let s = bullet.replace(/^[\s•\-*·–—]+/, "").trim();
+  if (!s) return "";
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  if (!/[.!?]$/.test(s)) s += ".";
+  return s;
+}
+
+/**
+ * Compose a professional summary ONLY from the structured resume: current
+ * and prior roles, the user's own strongest quantified bullets, education,
+ * and certifications. Nothing is invented — a thin resume gets a shorter
+ * summary rather than padded generic claims.
+ */
+export function generateSummary(resume: StructuredResume): SummaryResult {
+  const roles = resume.experience.filter((e) => (e.title || e.company).trim());
+  const rolePhrase = (e: ExperienceItem) =>
+    e.title && e.company ? `${e.title} at ${e.company}` : e.title || e.company;
+  const skills = resume.skills.map((s) => s.trim()).filter(Boolean).slice(0, 4);
+  const sentences: string[] = [];
+
+  if (roles.length) {
+    sentences.push(
+      skills.length
+        ? `${rolePhrase(roles[0])}, with strengths in ${joinList(skills)}.`
+        : `${rolePhrase(roles[0])}.`
+    );
+  } else if (skills.length) {
+    sentences.push(`Skilled in ${joinList(skills)}.`);
+  }
+
+  if (roles.length > 1) {
+    sentences.push(`Previously ${joinList(roles.slice(1, 3).map(rolePhrase))}.`);
+  }
+
+  // Reserve room for the education/certification sentences so the strongest
+  // achievement never crowds them out of the sentence budget.
+  const edu = resume.education.find((e) => (e.degree || e.school).trim());
+  const certs = resume.certifications.map((c) => c.trim()).filter(Boolean).slice(0, 3);
+  const extras = (edu ? 1 : 0) + (certs.length ? 1 : 0);
+
+  // The user's own quantified achievements, strongest numbers first.
+  const bullets = roles
+    .flatMap((e) => e.bullets)
+    .filter((b) => b.trim().length > 12 && !isJunkLine(b));
+  const ranked = bullets
+    .map((b) => ({ text: asSentence(b), score: metricStrength(b) }))
+    .filter((x) => x.text && x.score > 0)
+    .sort((a, b2) => b2.score - a.score);
+  const achCap = ranked.length ? Math.min(2, Math.max(1, 6 - sentences.length - extras)) : 0;
+  const seen = new Set<string>();
+  let added = 0;
+  for (const item of ranked) {
+    if (added >= achCap) break;
+    const key = item.text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    sentences.push(item.text);
+    added++;
+  }
+
+  if (edu && sentences.length < 6) {
+    if (edu.degree && edu.school) sentences.push(`Earned ${edu.degree} from ${edu.school}.`);
+    else if (edu.degree) sentences.push(`Earned ${edu.degree}.`);
+    else sentences.push(`Studied at ${edu.school}.`);
+  }
+
+  if (certs.length && sentences.length < 6) {
+    sentences.push(
+      certs.length === 1 ? `Certified: ${certs[0]}.` : `Certifications include ${joinList(certs)}.`
+    );
+  }
+
+  return { text: sentences.join(" ") };
 }
 
 /* ------------------------------------------------------------------ */

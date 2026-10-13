@@ -12,15 +12,16 @@ import {
 import {
   generateCoverLetter,
   generateLinkedIn,
+  generateSummary,
   rewriteBullets,
 } from "@/lib/fallback";
-import { MilitaryInfo, Mode, StructuredResume } from "@/lib/types";
+import { MilitaryInfo, Mode, StructuredResume, SummaryResult } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 interface AiRequest {
-  task: "rewrite" | "cover-letter" | "linkedin" | "roadmap" | "discover";
+  task: "rewrite" | "cover-letter" | "linkedin" | "roadmap" | "discover" | "summary";
   mode: Mode;
   resume: StructuredResume;
   jobText?: string;
@@ -40,7 +41,7 @@ const API_KEY = process.env.AI_API_KEY;
 const API_BASE = (process.env.AI_API_BASE || "https://generativelanguage.googleapis.com/v1beta/openai").replace(/\/$/, "");
 const MODEL = process.env.AI_MODEL || "gemini-3.8-flash";
 
-const TASKS: readonly AiRequest["task"][] = ["rewrite", "cover-letter", "linkedin", "roadmap", "discover"];
+const TASKS: readonly AiRequest["task"][] = ["rewrite", "cover-letter", "linkedin", "roadmap", "discover", "summary"];
 const MODES: readonly Mode[] = ["veteran", "general", "new"];
 const TONES: readonly NonNullable<AiRequest["tone"]>[] = ["professional", "confident", "warm"];
 
@@ -237,6 +238,7 @@ function runFallback(b: AiRequest) {
     return rewriteBullets(structured.length ? structured.join("\n") : resume.rawText, mode);
   }
   if (task === "cover-letter") return generateCoverLetter(resume, jobText, targetTitle, company, (tone ?? "professional") as "professional" | "confident" | "warm");
+  if (task === "summary") return generateSummary(resume);
   if (task === "roadmap") {
     const current = resume.experience[0]?.title || "";
     const gs = (goals ?? []) as { years: number; text: string; salary: number }[];
@@ -327,6 +329,17 @@ async function runAi(b: AiRequest) {
       `${resumeContext}${militaryContext(b)}${jobContext}\n\nTarget title: ${targetTitle || "(not specified)"}\nCompany: ${company || "(not specified)"}\n\nWrite a concise cover letter (3-4 short paragraphs) tailored to the posting.`
     );
     return extractJson(text);
+  }
+
+  if (task === "summary") {
+    const text = await callLLM(
+      `You are a senior resume coach. Write a professional summary of 3-5 sentences for the top of this resume. GROUNDING RULE: use ONLY facts present in the resume provided below — job titles, employers, scope of responsibility, quantified achievements, education, and certifications, exactly as the resume states them. NEVER invent metrics, employers, degrees, certifications, skills, or years of experience that the resume does not state. ${HONESTY}${modeContext}\n\nWrite in polished third-person prose (no first-person pronouns, no name). If a target job posting is included, angle the emphasis toward it without adding facts.\n\nReturn JSON: {"text":string}`,
+      `${resumeContext}${militaryContext(b)}${jobContext}\n\nTarget title: ${targetTitle || "(not specified)"}\n\nWrite the summary now — 3-5 sentences, facts from the resume only.`
+    );
+    const parsed = extractJson(text) as { text?: unknown };
+    const summary = typeof parsed.text === "string" ? parsed.text.trim() : "";
+    if (!summary) throw new Error("Empty AI summary response");
+    return { text: summary } as SummaryResult;
   }
 
   const text = await callLLM(

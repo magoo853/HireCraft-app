@@ -115,6 +115,10 @@ export interface CoverLetterResult {
   text: string;
 }
 
+export interface SummaryResult {
+  text: string;
+}
+
 export interface LinkedInResult {
   headlines: string[];
   about: string;
