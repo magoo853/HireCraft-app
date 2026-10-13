@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
+import { hasLinkedInContent } from "@/lib/linkedin-result";
 import { AiResponse, CoverLetterResult, LinkedInResult } from "@/lib/types";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, TargetJobBanner, inputCls } from "./ui";
 import { AiOffNote } from "./consent";
@@ -11,7 +12,7 @@ type Tone = "professional" | "confident" | "warm";
 /* ---------------- Cover letter ---------------- */
 
 export function CoverLetter() {
-  const { resume, jobText, setJobText, jobUrl, setJobUrl, targetTitle, company, mode, military, aiConsent } = useApp();
+  const { resume, jobText, setJobText, jobUrl, setJobUrl, targetTitle, company, mode, military, aiConsent, coverLetterText, setCoverLetterText } = useApp();
   const [tone, setTone] = useState<Tone>("confident");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<CoverLetterResult> | null>(null);
@@ -20,6 +21,23 @@ export function CoverLetter() {
   const [copied, setCopied] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
+  // The letter persists in the store (coverLetterText); `edited` is the
+  // working copy. Until the user touches it, mirror the stored letter in
+  // (this also picks it up when the store hydrates after first render,
+  // and when a saved version carrying a letter is loaded).
+  const editedDirty = useRef(false);
+  const [warnTone, setWarnTone] = useState<Tone | null>(null);
+  useEffect(() => {
+    if (!editedDirty.current && coverLetterText && coverLetterText !== edited) setEdited(coverLetterText);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coverLetterText]);
+  const hasLetter = edited.trim().length > 0;
+
+  function editLetter(v: string) {
+    editedDirty.current = true;
+    setEdited(v);
+    setCoverLetterText(v);
+  }
 
   async function fetchJob() {
     if (!jobUrl.trim()) { setFetchMsg("Paste a job posting URL first."); return; }
@@ -38,7 +56,7 @@ export function CoverLetter() {
     }
   }
 
-  async function generate() {
+  async function doGenerate(t: Tone) {
     if (!aiConsent) return; // AI off — no request fires; the CTAs show AiOffNote instead
     setLoading(true);
     setError("");
@@ -46,16 +64,26 @@ export function CoverLetter() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "cover-letter", mode, resume, jobText, targetTitle, company, tone, military }),
+        body: JSON.stringify({ task: "cover-letter", mode, resume, jobText, targetTitle, company, tone: t, military }),
       });
       const json = (await res.json()) as AiResponse<CoverLetterResult>;
       setResult(json);
+      editedDirty.current = true;
       setEdited(json.data.text);
+      setCoverLetterText(json.data.text);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
+  }
+
+  // Any (re)generation replaces the current letter and the user's edits —
+  // when a letter exists, warn inline first instead of discarding silently.
+  function requestGenerate(t: Tone) {
+    if (hasLetter) { setWarnTone(t); return; }
+    setTone(t);
+    void doGenerate(t);
   }
 
   function copy() {
@@ -71,6 +99,20 @@ export function CoverLetter() {
     a.href = URL.createObjectURL(blob);
     a.download = "cover-letter.txt";
     a.click();
+  }
+
+  async function downloadDocx() {
+    try {
+      const { buildCoverLetterDocxBlob } = await import("@/lib/docx");
+      const blob = await buildCoverLetterDocxBlob(edited);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "cover-letter.docx";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch {
+      setError("Couldn't build the Word file — the .txt download still works.");
+    }
   }
 
   return (
@@ -97,7 +139,7 @@ export function CoverLetter() {
         )}
         <div className="flex gap-2 mt-3">
           {aiConsent ? (
-            <Button onClick={generate} disabled={loading} className="flex-1">
+            <Button onClick={() => requestGenerate(tone)} disabled={loading} className="flex-1">
               {loading ? "…" : "Tailor"}
             </Button>
           ) : (
@@ -109,7 +151,7 @@ export function CoverLetter() {
 
       <div className="flex gap-2 mb-3">
         {(["professional", "confident", "warm"] as Tone[]).map((t) => (
-          <button key={t} onClick={() => { setTone(t); setResult(null); }}
+          <button key={t} onClick={() => { if (hasLetter) setWarnTone(t); else setTone(t); }}
             className={`flex-1 text-center text-[13px] font-bold py-2.5 rounded-full border-[1.5px] min-h-[44px] capitalize transition ${
               tone === t ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"
             }`}>
@@ -118,14 +160,26 @@ export function CoverLetter() {
         ))}
       </div>
 
-      {!result && !loading && (
+      {warnTone && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-3">
+          <p className="text-xs text-amber-900 leading-relaxed mb-2">
+            Regenerating replaces this letter and your edits.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="danger" onClick={() => { const t = warnTone; setWarnTone(null); setTone(t); void doGenerate(t); }} className="flex-1">Regenerate</Button>
+            <Button variant="secondary" onClick={() => setWarnTone(null)} className="flex-1">Keep mine</Button>
+          </div>
+        </div>
+      )}
+
+      {!hasLetter && !loading && (
         <Card className="text-center py-8">
           <p className="font-extrabold text-navy mb-2">A letter written for this exact job</p>
           <p className="text-sm text-muted mb-5 max-w-xs mx-auto">
             Tailored to your resume{jobText ? " and the posting" : ""}, in your tone. Fully editable before you send it.
           </p>
           {aiConsent ? (
-            <Button variant="emerald" onClick={generate} className="w-full !min-h-[52px]">
+            <Button variant="emerald" onClick={() => requestGenerate(tone)} className="w-full !min-h-[52px]">
               ✉ Generate cover letter
             </Button>
           ) : (
@@ -135,14 +189,14 @@ export function CoverLetter() {
       )}
       {loading && <p className="text-sm text-muted text-center py-8">Writing your letter…</p>}
 
-      {result && (
+      {hasLetter && (
         <>
           <div className="bg-white border border-line rounded-xl p-4 text-[13px] leading-[1.7] text-slate-700 mb-3">
-            <textarea value={edited} onChange={(e) => setEdited(e.target.value)} rows={14}
+            <textarea value={edited} onChange={(e) => editLetter(e.target.value)} rows={14}
               className="w-full bg-transparent resize-y" />
           </div>
-          <div className="flex gap-2 mb-2">
-            <button onClick={() => { setResult(null); }} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">
+          <div className="flex flex-wrap gap-2 mb-2">
+            <button onClick={() => requestGenerate(tone)} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">
               ↻ Regenerate
             </button>
             <button onClick={copy} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-brand text-white min-h-[44px]">
@@ -151,8 +205,11 @@ export function CoverLetter() {
             <button onClick={download} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">
               .txt
             </button>
+            <button onClick={downloadDocx} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">
+              Download .docx
+            </button>
           </div>
-          <SourceNote source={result.source} note={result.note} />
+          {result && <SourceNote source={result.source} note={result.note} />}
         </>
       )}
     </>
@@ -162,19 +219,35 @@ export function CoverLetter() {
 /* ---------------- LinkedIn ---------------- */
 
 export function LinkedIn() {
-  const { resume, jobText, targetTitle, linkedinText, setLinkedinText, mode, military, aiConsent } = useApp();
+  const { resume, jobText, targetTitle, linkedinText, setLinkedinText, mode, military, aiConsent, linkedinResult, setLinkedinResult, updateResume } = useApp();
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AiResponse<LinkedInResult> | null>(null);
+  const [meta, setMeta] = useState<{ source: "ai" | "fallback"; note?: string } | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
   const [picked, setPicked] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
-  // Editable copies of the generated content
-  const [headlines, setHeadlines] = useState<string[]>([]);
-  const [about, setAbout] = useState("");
-  const [bullets, setBullets] = useState<{ original: string; polished: string }[]>([]);
+  // The generated content lives in the store (linkedinResult) so it
+  // survives navigation; edits write straight back to it. `meta` only
+  // carries this session's source/note for the SourceNote line.
+  const data = hasLinkedInContent(linkedinResult) ? linkedinResult : null;
+  const headlines = data?.headlines ?? [];
+  const about = data?.about ?? "";
+  const bullets = data?.polishedBullets ?? [];
+  const atSkillCap = resume.skills.length >= 24;
+
+  function patchResult(patch: Partial<LinkedInResult>) {
+    if (data) setLinkedinResult({ ...data, ...patch });
+  }
+
+  // Mirrors the Resume tab's "Strengths found in your review" one-tap
+  // add: same case-insensitive dedupe and the same 24-skill cap.
+  function addSkill(skill: string) {
+    if (atSkillCap) return;
+    if (resume.skills.some((s) => s.toLowerCase() === skill.toLowerCase())) return;
+    updateResume({ skills: [...resume.skills, skill] });
+  }
 
   async function generate(fb = "") {
     if (!aiConsent) return; // AI off — no request fires; the CTA shows AiOffNote instead
@@ -187,11 +260,9 @@ export function LinkedIn() {
         body: JSON.stringify({ task: "linkedin", mode, resume, jobText, targetTitle, linkedinText, feedback: fb, military }),
       });
       const json = (await res.json()) as AiResponse<LinkedInResult>;
-      setResult(json);
+      setLinkedinResult(json.data);
+      setMeta({ source: json.source, note: json.note });
       setPicked(0);
-      setHeadlines(json.data.headlines);
-      setAbout(json.data.about);
-      setBullets(json.data.polishedBullets);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -223,14 +294,21 @@ export function LinkedIn() {
   }
 
   function copyAll() {
-    if (!result) return;
-    const all = `HEADLINE\n${headlines[picked]}\n\nABOUT\n${about}`;
-    copy(all, "all");
+    if (!data) return;
+    // Every generated section, labelled — the button's label is the truth.
+    const sections = [
+      `HEADLINE\n${headlines[picked] ?? ""}`,
+      `ABOUT\n${about}`,
+      `POLISHED BULLETS\n${bullets.map((b) => `• ${b.polished}`).join("\n")}`,
+      `SKILLS GAP\n${data.skillsGap.join(", ")}`,
+      ...(data.tip ? [`TIP\n${data.tip}`] : []),
+    ];
+    copy(sections.join("\n\n"), "all");
   }
 
   return (
     <>
-      {!result && !loading && (
+      {!data && !loading && (
         <>
           <Card className="mb-3">
             <Field label="Your LinkedIn profile" hint="Export your profile as a PDF from LinkedIn (Me → View Profile → More → Save to PDF), or paste the text — generation uses it as the source of truth.">
@@ -267,11 +345,11 @@ export function LinkedIn() {
       )}
       {loading && <p className="text-sm text-muted text-center py-8">Building your profile content…</p>}
 
-      {result && (
+      {data && (
         <>
-          {result.data.appliedFeedback?.length ? (
+          {data.appliedFeedback?.length ? (
             <div className="bg-mint border border-emerald-200 rounded-xl p-3 mb-3">
-              {result.data.appliedFeedback.map((a, i) => (
+              {data.appliedFeedback.map((a, i) => (
                 <p key={i} className="text-xs text-emerald-900 leading-relaxed">✓ {a}</p>
               ))}
             </div>
@@ -290,7 +368,7 @@ export function LinkedIn() {
                 </span>
                 {picked === i ? (
                   <textarea value={h} rows={2}
-                    onChange={(e) => setHeadlines(headlines.map((x, j) => (j === i ? e.target.value : x)))}
+                    onChange={(e) => patchResult({ headlines: headlines.map((x, j) => (j === i ? e.target.value : x)) })}
                     onClick={(e) => e.stopPropagation()}
                     className="w-full bg-transparent text-[13px] mt-1 leading-relaxed text-slate-800 resize-y" />
                 ) : (
@@ -302,7 +380,7 @@ export function LinkedIn() {
 
           <p className="text-[13px] font-extrabold text-navy mt-5 mb-1">About section — edit freely</p>
           <div className="bg-white border border-line rounded-xl p-3">
-            <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={8}
+            <textarea value={about} onChange={(e) => patchResult({ about: e.target.value })} rows={8}
               className="w-full bg-transparent text-[13px] text-slate-700 leading-relaxed resize-y" />
             <button onClick={() => copy(about, "about")}
               className="text-xs text-linkedin font-bold mt-1 min-h-[44px] inline-flex items-center">{copied === "about" ? "✓ Copied" : "Tap to copy →"}</button>
@@ -312,11 +390,11 @@ export function LinkedIn() {
             <>
               <p className="text-[13px] font-extrabold text-navy mt-5 mb-1">Experience polish — edit freely</p>
               <div className="grid gap-2">
-                {bullets.slice(0, 4).map((b, i) => (
+                {bullets.map((b, i) => (
                   <Card key={i} className="!p-3.5">
                     <p className="text-xs text-muted line-through decoration-red-400 mb-1">{b.original}</p>
                     <textarea value={b.polished} rows={2}
-                      onChange={(e) => setBullets(bullets.map((x, j) => (j === i ? { ...x, polished: e.target.value } : x)))}
+                      onChange={(e) => patchResult({ polishedBullets: bullets.map((x, j) => (j === i ? { ...x, polished: e.target.value } : x)) })}
                       className="w-full bg-transparent text-[13px] text-ink font-medium resize-y" />
                   </Card>
                 ))}
@@ -324,13 +402,28 @@ export function LinkedIn() {
             </>
           )}
 
-          {result.data.skillsGap.length > 0 && (
-            <div className="mt-4 bg-white border border-line rounded-xl p-3 flex gap-2.5">
-              <span className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-sm shrink-0">🎯</span>
-              <div>
-                <p className="text-[13px] font-bold text-ink">{result.data.skillsGap.length} skills to add</p>
-                <p className="text-xs text-muted leading-snug">{result.data.skillsGap.slice(0, 5).join(", ")}</p>
+          {data.skillsGap.length > 0 && (
+            <div className="mt-4 bg-white border border-line rounded-xl p-3">
+              <div className="flex gap-2.5 mb-2.5">
+                <span className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-sm shrink-0">🎯</span>
+                <div>
+                  <p className="text-[13px] font-bold text-ink">{data.skillsGap.length} skills to add</p>
+                  <p className="text-xs text-muted leading-snug">From the posting, not in your resume skills yet. Add the ones you truly have.</p>
+                </div>
               </div>
+              <div className="flex flex-wrap gap-1.5">
+                {data.skillsGap.map((skill) => {
+                  const already = resume.skills.some((s) => s.toLowerCase() === skill.toLowerCase());
+                  return (
+                    <button key={skill} onClick={() => addSkill(skill)} disabled={already || atSkillCap}
+                      aria-label={already ? `${skill} already in your resume skills` : `Add ${skill} to your resume skills`}
+                      className="text-xs font-bold rounded-full px-3 py-2 border border-brand/40 bg-mint text-emerald-900 min-h-[44px] disabled:opacity-50">
+                      {already ? `✓ ${skill}` : `+ Add ${skill}`}
+                    </button>
+                  );
+                })}
+              </div>
+              {atSkillCap && <p className="text-xs text-muted mt-2">Your resume skills list is at the 24-skill cap — remove one before adding more.</p>}
             </div>
           )}
 
@@ -349,8 +442,8 @@ export function LinkedIn() {
             </Field>
           </Card>
           <div className="flex items-center justify-between mt-2">
-            <SourceNote source={result.source} note={result.note} />
-            <button onClick={() => setResult(null)} className="text-xs text-muted underline min-h-[44px] px-2 shrink-0">Regenerate</button>
+            {meta ? <SourceNote source={meta.source} note={meta.note} /> : <span />}
+            <button onClick={() => { setLinkedinResult(null); setMeta(null); }} className="text-xs text-muted underline min-h-[44px] px-2 shrink-0">Regenerate</button>
           </div>
         </>
       )}
