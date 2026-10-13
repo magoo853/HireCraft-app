@@ -10,10 +10,12 @@ import { AiResponse, RewriteResult, ScoreResult, StructuredResume } from "@/lib/
 import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJobBanner, inputCls } from "@/components/ui";
 import { SaveVersionForm } from "@/components/versions";
 import { AiOffNote } from "@/components/consent";
+import { ScoreJumpCard } from "@/components/score-card";
+import { scoreJobBasis } from "@/lib/score-history";
 
 function ImproveInner() {
   const params = useSearchParams();
-  const { resume, jobText, mode, hasResume, setResume, military, perfReview, setRewriteAccepted, aiConsent } = useApp();
+  const { resume, jobText, mode, hasResume, setResume, military, perfReview, setRewriteAccepted, aiConsent, recordScore, targetTitle, company } = useApp();
   const [tab, setTab] = useState<"rewrite" | "tailor">(params.get("tab") === "tailor" ? "tailor" : "rewrite");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<RewriteResult[]> | null>(null);
@@ -131,11 +133,22 @@ function ImproveInner() {
     return applyRewriteToResume(current, item.original, text);
   }
 
+  // Record a Wave 3 score-history entry when an accept actually moves
+  // the score, scored with the same yardstick as the delta readout.
+  function recordIfScoreChanged(before: StructuredResume, after: StructuredResume) {
+    const basisText = baseline?.jobText ?? jobText;
+    const b = scoreResume(before, basisText);
+    const a = scoreResume(after, basisText);
+    if (a.total !== b.total) recordScore(a.total, a.grade, scoreJobBasis(targetTitle, company, basisText));
+  }
+
   function acceptRewrite(i: number, original: string) {
     const item = result?.data[i];
     if (!item) return;
     const text = shown(item, i);
-    setResume(applyAccept(resume, item, text));
+    const next = applyAccept(resume, item, text);
+    recordIfScoreChanged(resume, next);
+    setResume(next);
     setRewriteAccepted(true);
     setAccepted((s) => new Set(s).add(i));
     setEditingIdx(null);
@@ -152,6 +165,7 @@ function ImproveInner() {
       next = applyAccept(next, r, shown(r, i));
       ids.push(i);
     }
+    recordIfScoreChanged(resume, next);
     setResume(next);
     setRewriteAccepted(true);
     setAccepted((s) => { const n = new Set(s); ids.forEach((id) => n.add(id)); return n; });
@@ -295,6 +309,13 @@ function ImproveInner() {
                     </Button>
                   )}
                 </Card>
+              )}
+              {baseline && currentScore && currentScore.total > baseline.score.total && (
+                <ScoreJumpCard
+                  beforeTotal={baseline.score.total} beforeGrade={baseline.score.grade}
+                  afterTotal={currentScore.total} afterGrade={currentScore.grade}
+                  basis={scoreJobBasis(targetTitle, company, baseline.jobText)}
+                />
               )}
               {visible.length === 0 ? (
                 <Card className="text-center py-8">

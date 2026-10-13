@@ -33,11 +33,44 @@ function AiStatusPill() {
 
 export default function ResumePage() {
   const router = useRouter();
-  const { mode, setMode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary } = useApp();
+  const { mode, setMode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary, hasResume, saveVersion } = useApp();
   const [tab, setTab] = useState<Tab>(mode === "new" ? "builder" : "upload");
   const [paste, setPaste] = useState("");
   const [parsing, setParsing] = useState(false);
   const [parseMsg, setParseMsg] = useState("");
+  // Wave 3 (#10): replacing/clearing a loaded resume is destructive, so
+  // it goes through an inline two-step confirm (the VersionsCard idiom)
+  // with an option to snapshot the current resume as a version first.
+  const [pending, setPending] = useState<
+    | { kind: "replace"; next: StructuredResume; msg: string }
+    | { kind: "clear" }
+    | null
+  >(null);
+
+  function requestReplace(next: StructuredResume, msg: string) {
+    if (hasResume && next.rawText !== resume.rawText) {
+      setPending({ kind: "replace", next, msg });
+      return;
+    }
+    setResume(next);
+    setParseMsg(msg);
+  }
+
+  function applyPending(saveFirst: boolean) {
+    if (!pending) return;
+    if (saveFirst) {
+      const err = saveVersion("");
+      if (err) { setParseMsg(err); return; }
+    }
+    if (pending.kind === "replace") {
+      setResume(pending.next);
+      setParseMsg(pending.msg);
+    } else {
+      setResume(emptyResume());
+      setParseMsg("Resume cleared.");
+    }
+    setPending(null);
+  }
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
   const [evalParsing, setEvalParsing] = useState(false);
@@ -70,8 +103,7 @@ export default function ResumePage() {
       const { parseFile } = await import("@/lib/parse-file");
       const text = await parseFile(f);
       if (text.trim().length < 50) throw new Error("Couldn't read much text from that file. Try pasting the text instead.");
-      setResume(textToStructured(text));
-      setParseMsg(`Parsed ${text.split(/\s+/).length} words from ${f.name}.`);
+      requestReplace(textToStructured(text), `Parsed ${text.split(/\s+/).length} words from ${f.name}.`);
     } catch (e) {
       setParseMsg(e instanceof Error ? e.message : "Couldn't parse that file.");
     } finally {
@@ -81,8 +113,7 @@ export default function ResumePage() {
 
   function handlePaste() {
     if (paste.trim().length < 50) { setParseMsg("Paste a bit more — at least a few lines of your resume."); return; }
-    setResume(textToStructured(paste));
-    setParseMsg("Resume loaded from pasted text.");
+    requestReplace(textToStructured(paste), "Resume loaded from pasted text.");
   }
 
   async function fetchJob() {
@@ -121,12 +152,29 @@ export default function ResumePage() {
         ))}
       </div>
 
+      {pending && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
+          <p className="text-sm text-amber-900 font-medium leading-relaxed mb-2">
+            {pending.kind === "clear" ? "This clears your current resume." : "This replaces your current resume."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => applyPending(true)} className="flex-1">
+              {pending.kind === "clear" ? "Save as a version & clear" : "Save as a version & replace"}
+            </Button>
+            <Button variant="danger" onClick={() => applyPending(false)} className="flex-1">
+              {pending.kind === "clear" ? "Clear" : "Replace"}
+            </Button>
+            <Button variant="secondary" onClick={() => setPending(null)} className="flex-1">Cancel</Button>
+          </div>
+        </div>
+      )}
+
       {tab === "upload" && (
         <Card>
           <Field label="Resume file (PDF, DOCX, or TXT)">
             <input
               type="file" accept=".pdf,.docx,.doc,.txt"
-              onChange={(e) => handleFile(e.target.files?.[0])}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void handleFile(f); }}
               className="block w-full text-sm text-muted file:mr-4 file:rounded-xl file:border-0 file:bg-ink file:text-white file:px-5 file:py-3 file:text-sm file:font-bold file:min-h-[44px]"
             />
           </Field>
@@ -152,7 +200,7 @@ export default function ResumePage() {
         <Card className="mt-4 border-brand/40">
           <div className="flex items-center justify-between mb-2">
             <p className="font-bold text-ink text-sm">Resume loaded ✓</p>
-            <button onClick={() => setResume(emptyResume())} className="text-xs text-muted underline min-h-[44px] px-2">clear</button>
+            <button onClick={() => setPending({ kind: "clear" })} className="text-xs text-muted underline min-h-[44px] px-2">clear</button>
           </div>
           <p className="text-xs text-muted mb-3">
             {resume.name || "Unnamed"} · {resume.experience.length} role(s) · {resume.skills.length} skills · ~{resume.rawText.split(/\s+/).length} words

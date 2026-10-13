@@ -6,6 +6,8 @@ import { useApp } from "@/lib/store";
 import { atsSimulate, scoreResume, findMilitaryJargonDetailed } from "@/lib/fallback";
 import { Button, Card, EmptyState, SectionTitle, ScoreRing, ModeBadge, Pill, TargetJobBanner } from "@/components/ui";
 import { SaveVersionForm } from "@/components/versions";
+import { ScoreJumpCard } from "@/components/score-card";
+import { scoreJobBasis } from "@/lib/score-history";
 
 function flagCta(title: string): { href: string; label: string } | null {
   const t = title.toLowerCase();
@@ -16,7 +18,7 @@ function flagCta(title: string): { href: string; label: string } | null {
 }
 
 export default function ScorePage() {
-  const { resume, jobText, mode, hasResume, scoreViewed, setScoreViewed } = useApp();
+  const { resume, jobText, mode, hasResume, scoreViewed, setScoreViewed, scoreHistory, recordScore, targetTitle, company } = useApp();
   const [tab, setTab] = useState<"score" | "ats">("score");
   const [open, setOpen] = useState<string | null>(null);
   const toggle = (k: string) => setOpen((o) => (o === k ? null : k));
@@ -37,6 +39,14 @@ export default function ScorePage() {
   useEffect(() => {
     if (result && !scoreViewed) setScoreViewed(true);
   }, [result, scoreViewed, setScoreViewed]);
+
+  // Record each computed score in the persisted history (Wave 3). The
+  // store's append dedupes an entry identical in total to the previous
+  // one, so re-renders and repeat visits don't spam the history.
+  useEffect(() => {
+    if (result) recordScore(result.total, result.grade, scoreJobBasis(targetTitle, company, jobText));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
 
   if (!hasResume || !result || !sim) {
     return (
@@ -201,6 +211,36 @@ export default function ScorePage() {
               </div>
             )}
           </Card>
+
+          {scoreHistory.length > 0 && (
+            <Card className="mb-3">
+              <p className="font-bold text-ink text-sm mb-1.5">Your progress</p>
+              {scoreHistory.length >= 2 && (
+                <p className="text-[13px] text-ink leading-snug mb-2">
+                  <b>{scoreHistory[0].total} ({scoreHistory[0].grade})</b> → <b>{scoreHistory[scoreHistory.length - 1].total} ({scoreHistory[scoreHistory.length - 1].grade})</b>
+                  {" "}({scoreHistory[scoreHistory.length - 1].total - scoreHistory[0].total >= 0 ? "+" : ""}{scoreHistory[scoreHistory.length - 1].total - scoreHistory[0].total}) since {new Date(scoreHistory[0].at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </p>
+              )}
+              <div className="grid gap-1.5">
+                {scoreHistory.slice(-8).map((h, i) => (
+                  <div key={`${h.at}-${i}`} className="flex items-baseline justify-between gap-3 bg-paper border border-line rounded-lg px-2.5 py-2">
+                    <span className="text-xs text-muted">
+                      {new Date(h.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {h.jobBasis}
+                    </span>
+                    <b className="text-sm text-ink shrink-0">{h.total} ({h.grade})</b>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {scoreHistory.length >= 2 && scoreHistory[scoreHistory.length - 1].total > scoreHistory[0].total && (
+            <ScoreJumpCard
+              beforeTotal={scoreHistory[0].total} beforeGrade={scoreHistory[0].grade}
+              afterTotal={scoreHistory[scoreHistory.length - 1].total} afterGrade={scoreHistory[scoreHistory.length - 1].grade}
+              basis={scoreHistory[scoreHistory.length - 1].jobBasis}
+            />
+          )}
 
           {missingKw.length > 0 && (
             <div className="bg-white border border-line rounded-xl p-3 mb-2">
