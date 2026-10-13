@@ -4,8 +4,8 @@ import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/store";
-import { extractKeywords } from "@/lib/fallback";
-import { AiResponse, RewriteResult } from "@/lib/types";
+import { extractKeywords, scoreResume } from "@/lib/fallback";
+import { AiResponse, RewriteResult, ScoreResult } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJobBanner, inputCls } from "@/components/ui";
 
 function ImproveInner() {
@@ -19,6 +19,10 @@ function ImproveInner() {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [edits, setEdits] = useState<Record<number, string>>({});
+  // Score snapshot captured when a rewrite result is generated — the
+  // "before" anchor for the score-delta readout. Component state only,
+  // same lifetime as `result`; nothing is persisted to the store.
+  const [baseline, setBaseline] = useState<{ score: ScoreResult; jobText: string } | null>(null);
 
   const keywords = useMemo(
     () => (jobText && hasResume ? extractKeywords(jobText, resume.rawText, 14) : []),
@@ -37,6 +41,7 @@ function ImproveInner() {
       const json = (await res.json()) as AiResponse<RewriteResult[]>;
       if (!Array.isArray(json.data)) throw new Error("Unexpected response");
       setResult(json);
+      setBaseline({ score: scoreResume(resume, jobText), jobText });
       setAccepted(new Set());
       setEdits({});
     } catch (e) {
@@ -58,6 +63,30 @@ function ImproveInner() {
     ? result.data.map((r, i) => ({ r, i })).filter(({ r }) => normCmp(r.original) !== normCmp(r.rewritten))
     : [];
   const hiddenCount = result ? result.data.length - visible.length : 0;
+
+  // Score-delta readout. The baseline, the live resume, and the projection
+  // are all scored with the SAME yardstick — the job text as it stood when
+  // the rewrites were generated — using scoreResume, the exact function the
+  // Score tab renders. The projection replays the split/join replacements
+  // acceptRewrite performs, in list order, so an estimate can never promise
+  // more than actually accepting would deliver.
+  const acceptedCount = visible.filter(({ i }) => accepted.has(i)).length;
+  const remaining = visible.filter(({ i }) => !accepted.has(i));
+  const currentScore = baseline ? scoreResume(resume, baseline.jobText) : null;
+  const projectedScore =
+    baseline && currentScore && remaining.length > 0
+      ? scoreResume(
+          {
+            ...resume,
+            rawText: remaining.reduce(
+              (txt, { r, i }) => txt.split(r.original).join(shown(r, i)),
+              resume.rawText
+            ),
+          },
+          baseline.jobText
+        )
+      : null;
+  const fmtScore = (s: ScoreResult) => `${s.total} (${s.grade})`;
 
   function acceptRewrite(i: number, original: string) {
     const text = result ? shown(result.data[i], i) : "";
@@ -108,8 +137,49 @@ function ImproveInner() {
             <>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs text-muted">Tap Accept to apply a rewrite to your resume.{hiddenCount > 0 ? ` ${hiddenCount} bullet${hiddenCount > 1 ? "s were" : " was"} already strong — not shown.` : ""}</p>
-                <button onClick={() => setResult(null)} className="text-xs text-muted underline min-h-[44px] px-2">run again</button>
+                <button onClick={() => { setResult(null); setBaseline(null); }} className="text-xs text-muted underline min-h-[44px] px-2">run again</button>
               </div>
+              {baseline && currentScore && visible.length > 0 && (
+                <Card className="mb-3">
+                  <p className="font-bold text-ink text-sm mb-1.5">ATS score impact</p>
+                  {acceptedCount === 0 ? (
+                    <>
+                      <p className="text-[13px] text-ink leading-snug">
+                        Your score now: <b>{fmtScore(currentScore)}</b>
+                      </p>
+                      {projectedScore && projectedScore.total !== currentScore.total ? (
+                        <p className="text-[13px] text-ink leading-snug mt-1">
+                          Apply all {visible.length} rewrites and it would score <b>~{fmtScore(projectedScore)}</b> — an estimate; your score only changes when you accept.
+                        </p>
+                      ) : (
+                        <p className="text-[13px] text-ink leading-snug mt-1">
+                          These rewrites sharpen the wording — the measured ATS score would not change.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[13px] text-ink leading-snug">
+                        {currentScore.total === baseline.score.total ? (
+                          <>ATS score still <b>{fmtScore(currentScore)}</b> — {acceptedCount} accepted rewrite{acceptedCount > 1 ? "s" : ""} so far strengthened wording without moving the measured score.</>
+                        ) : (
+                          <>ATS score <b>{fmtScore(baseline.score)} → {fmtScore(currentScore)}</b> · <b>{currentScore.total - baseline.score.total > 0 ? `+${currentScore.total - baseline.score.total}` : currentScore.total - baseline.score.total}</b> from {acceptedCount} accepted rewrite{acceptedCount > 1 ? "s" : ""} so far</>
+                        )}
+                      </p>
+                      {projectedScore && projectedScore.total !== currentScore.total && (
+                        <p className="text-[13px] text-ink leading-snug mt-1">
+                          The remaining {remaining.length} would take it to <b>~{fmtScore(projectedScore)}</b> if accepted — an estimate.
+                        </p>
+                      )}
+                    </>
+                  )}
+                  <p className="text-xs text-muted leading-snug mt-2">
+                    {baseline.score.keywordBasis === "job"
+                      ? "Scored against your job posting — the same scoring the Score tab uses."
+                      : `No job posting set — scored against a generic ${baseline.score.genericTitle} checklist, like the Score tab. Add a posting on the Resume tab for a sharper read.`}
+                  </p>
+                </Card>
+              )}
               {visible.length === 0 ? (
                 <Card className="text-center py-8">
                   <p className="font-extrabold text-navy mb-2">Nothing to change 🎉</p>
