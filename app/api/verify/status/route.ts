@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { providerStatus } from "@/lib/verification";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * Which verification providers are usable right now. Drives the paywall UI.
