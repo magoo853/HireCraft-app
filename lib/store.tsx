@@ -3,6 +3,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { MilitaryInfo, Mode, StructuredResume, emptyMilitary, emptyResume } from "./types";
 import type { JobAlert } from "./jobs";
+import {
+  SavedVersion, addVersion, createVersion, findVersion,
+  removeVersion, renameVersion as renameVersionInList, sanitizeVersions, versionToContext,
+} from "./versions";
 
 interface AppState {
   mode: Mode;
@@ -40,6 +44,14 @@ interface AppState {
   setExported: (v: boolean) => void;
   onboardingDismissed: boolean;
   setOnboardingDismissed: (v: boolean) => void;
+  templateId: string;
+  setTemplateId: (t: string) => void;
+  versions: SavedVersion[];
+  /** Snapshot the current resume + target-job context. Returns an error message to show, or null on success. */
+  saveVersion: (name: string) => string | null;
+  loadVersion: (id: string) => void;
+  renameVersion: (id: string, name: string) => void;
+  deleteVersion: (id: string) => void;
   hasResume: boolean;
   resetAll: () => void;
 }
@@ -75,6 +87,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [designChosen, setDesignChosen] = useState(false);
   const [exported, setExported] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [templateId, setTemplateId] = useState("modern");
+  const [versions, setVersions] = useState<SavedVersion[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -97,6 +111,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (typeof s.designChosen === "boolean") setDesignChosen(s.designChosen);
       if (typeof s.exported === "boolean") setExported(s.exported);
       if (typeof s.onboardingDismissed === "boolean") setOnboardingDismissed(s.onboardingDismissed);
+      if (typeof s.templateId === "string" && s.templateId) setTemplateId(s.templateId);
+      if (Array.isArray(s.versions)) setVersions(sanitizeVersions(s.versions));
     }
     setHydrated(true);
   }, []);
@@ -104,12 +120,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
+
+  const saveVersion = (name: string): string | null => {
+    const v = createVersion({ targetTitle, company, jobText, jobUrl, templateId, resume }, name);
+    const res = addVersion(versions, v);
+    if (!res.ok) return res.error;
+    setVersions(res.versions);
+    return null;
+  };
+
+  const loadVersion = (id: string) => {
+    const v = findVersion(versions, id);
+    if (!v) return;
+    const ctx = versionToContext(v);
+    setResume(ctx.resume);
+    setTargetTitle(ctx.targetTitle);
+    setCompany(ctx.company);
+    setJobText(ctx.jobText);
+    setJobUrl(ctx.jobUrl);
+    setTemplateId(ctx.templateId);
+  };
+
+  const renameVersion = (id: string, name: string) =>
+    setVersions((list) => renameVersionInList(list, id, name));
+
+  const deleteVersion = (id: string) =>
+    setVersions((list) => removeVersion(list, id));
 
   const resetAll = () => {
     setMode("general");
@@ -129,6 +171,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDesignChosen(false);
     setExported(false);
     setOnboardingDismissed(false);
+    setTemplateId("modern");
+    setVersions([]);
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
   };
 
@@ -144,6 +188,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       scoreViewed, setScoreViewed, rewriteAccepted, setRewriteAccepted,
       designChosen, setDesignChosen, exported, setExported,
       onboardingDismissed, setOnboardingDismissed,
+      templateId, setTemplateId,
+      versions, saveVersion, loadVersion, renameVersion, deleteVersion,
       hasResume, resetAll,
     }}>
       {children}

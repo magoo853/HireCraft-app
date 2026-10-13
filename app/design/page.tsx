@@ -9,6 +9,7 @@ import {
 import { structuredToText } from "@/lib/parse";
 import { StructuredResume } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle } from "@/components/ui";
+import { SaveVersionForm } from "@/components/versions";
 
 const LS_DESIGN_OPTS = "hirecraft-design-opts";
 
@@ -32,8 +33,7 @@ function LiveThumb({ id, resume, designOpts }: { id: string; resume: StructuredR
 }
 
 export default function DesignPage() {
-  const { resume, setResume, hasResume, setDesignChosen, setExported } = useApp();
-  const [templateId, setTemplateId] = useState("modern");
+  const { resume, setResume, hasResume, setDesignChosen, setExported, templateId, setTemplateId } = useApp();
   const [editing, setEditing] = useState(false);
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [pages, setPages] = useState(1);
@@ -313,6 +313,8 @@ export default function DesignPage() {
           <b className="text-ink">PDF tip:</b> tap Export PDF, then choose "Save as PDF" as the destination. Templates use solid colors and standard fonts so they print cleanly from any device.
         </p>
       </Card>
+
+      <SaveVersionForm className="mt-3" />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { SAMPLE_MILITARY, SAMPLE_RESUME } from "@/lib/sample";
 import { ExperienceItem, ProjectItem, StructuredResume, emptyResume } from "@/lib/types";
 import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
 import { GettingStartedCard } from "@/components/getting-started";
+import { VersionsCard } from "@/components/versions";
 
 type Tab = "upload" | "paste" | "builder";
 
@@ -318,6 +319,8 @@ export default function ResumePage() {
           )}
         </Card>
       </div>
+
+      <VersionsCard />
     </div>
   );
 }

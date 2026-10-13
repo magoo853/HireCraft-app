@@ -7,6 +7,7 @@ import { useApp } from "@/lib/store";
 import { extractKeywords, scoreResume } from "@/lib/fallback";
 import { AiResponse, RewriteResult, ScoreResult } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJobBanner, inputCls } from "@/components/ui";
+import { SaveVersionForm } from "@/components/versions";
 
 function ImproveInner() {
   const params = useSearchParams();
@@ -232,6 +233,7 @@ function ImproveInner() {
               </div>
               )}
               <SourceNote source={result.source} note={result.note} />
+              <SaveVersionForm className="mt-3" />
               <Link href="/design"><Button className="w-full mt-4 !min-h-[52px]">See it in a designed template →</Button></Link>
             </>
           )}
