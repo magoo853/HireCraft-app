@@ -10,6 +10,7 @@ import { SAMPLE_MILITARY, SAMPLE_RESUME } from "@/lib/sample";
 import { AiResponse, ExperienceItem, ProjectItem, StructuredResume, SummaryResult, emptyResume } from "@/lib/types";
 import { Button, Card, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
 import { GettingStartedCard } from "@/components/getting-started";
+import { AiOffNote } from "@/components/consent";
 import { VersionsCard } from "@/components/versions";
 
 type Tab = "upload" | "paste" | "builder";
@@ -103,7 +104,7 @@ export default function ResumePage() {
 
   return (
     <div>
-      <SectionTitle sub="Upload, paste, or build from scratch. Everything stays on your device unless you add an AI key.">
+      <SectionTitle sub="Upload, paste, or build from scratch. Everything stays on your device — when you use an AI feature, the text it needs is sent to our AI provider, only with your consent.">
         Your resume
       </SectionTitle>
 
@@ -321,6 +322,11 @@ export default function ResumePage() {
           {jobText.trim().length > 100 && (
             <p className="text-sm text-emerald-900 font-medium">✓ Job posting loaded (~{jobText.split(/\s+/).length} words).</p>
           )}
+          {jobText.trim().length > 0 && (
+            <Link href="/rewrite">
+              <Button variant="emerald" className="w-full mt-3">Tailor for this job →</Button>
+            </Link>
+          )}
         </Card>
       </div>
 
@@ -471,13 +477,14 @@ function PerformanceReviewCard() {
 /* Professional summary editor — catches a missing summary and drafts one
    with AI (user edits after; nothing is written without the tap). */
 function SummaryCard() {
-  const { resume, updateResume, mode, jobText, targetTitle, company, military } = useApp();
+  const { resume, updateResume, mode, jobText, targetTitle, company, military, aiConsent } = useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<AiResponse<SummaryResult> | null>(null);
   const hasSummary = resume.summary.trim().length > 0;
 
   async function draftWithAi() {
+    if (!aiConsent) return; // AI off — no request fires; the button shows AiOffNote instead
     setLoading(true);
     setError("");
     try {
@@ -514,9 +521,13 @@ function SummaryCard() {
           aria-label="Professional summary"
         />
       </Field>
-      <Button variant="emerald" onClick={draftWithAi} disabled={loading} className="w-full">
-        {loading ? "Drafting…" : hasSummary ? "↻ Redraft with AI" : "✨ Draft it with AI"}
-      </Button>
+      {aiConsent ? (
+        <Button variant="emerald" onClick={draftWithAi} disabled={loading} className="w-full">
+          {loading ? "Drafting…" : hasSummary ? "↻ Redraft with AI" : "✨ Draft it with AI"}
+        </Button>
+      ) : (
+        <AiOffNote />
+      )}
       {hasSummary && (
         <p className="text-xs text-muted mt-2">Redrafting replaces the text above with a fresh draft — you can edit it right after.</p>
       )}

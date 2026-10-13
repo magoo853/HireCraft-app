@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { MODE_DESCRIPTIONS, MODE_LABELS, Mode } from "@/lib/types";
 import { Button, Card, Logo } from "@/components/ui";
+import { gettingStartedSteps } from "@/lib/getting-started";
 
 const MODES: { id: Mode; icon: string; tile: string }[] = [
   { id: "veteran", icon: "🎖️", tile: "#D1FAE5" },
@@ -14,7 +15,7 @@ const MODES: { id: Mode; icon: string; tile: string }[] = [
 const TOOLS = [
   { href: "/score", icon: "◉", title: "ATS Score", body: "Your 0–100 score, keyword match, and what the robot actually reads." },
   { href: "/rewrite", icon: "✎", title: "Bullet Rewrites", body: "Impact-first rewrites with the 'why' behind every change." },
-  { href: "/design", icon: "▦", title: "Design Templates", body: "Five recruiter-grade layouts. Edit inline, export clean PDF." },
+  { href: "/design", icon: "▦", title: "Design Templates", body: "Nine recruiter-grade layouts. Edit inline, export clean PDF." },
   { href: "/cover", icon: "✉", title: "Cover Letters", body: "Tailored to your resume + the posting, in three tones." },
   { href: "/linkedin", icon: "in", title: "LinkedIn Builder", body: "Headlines, About section, skills-gap analysis." },
   { href: "/roadmap", icon: "🗺", title: "Career Roadmap", body: "2/5/10-year goals → roles, salary bands, stepping stones." },
@@ -23,7 +24,16 @@ const TOOLS = [
 ];
 
 export default function Home() {
-  const { mode, setMode, hasResume } = useApp();
+  const { mode, setMode, hasResume, jobText, scoreViewed, rewriteAccepted, designChosen, exported } = useApp();
+  // Returning users resume the getting-started journey at its next
+  // unfinished step instead of restarting at the Resume tab.
+  const nextStep = hasResume
+    ? gettingStartedSteps({
+        hasResume,
+        hasTargetJob: jobText.trim().length > 0,
+        scoreViewed, rewriteAccepted, designChosen, exported,
+      }).find((s) => s.state === "next")
+    : undefined;
 
   return (
     <div>
@@ -59,9 +69,12 @@ export default function Home() {
         ))}
       </div>
 
-      <Link href="/resume">
+      {hasResume && (
+        <p className="text-[13px] text-muted leading-relaxed mb-2">Welcome back — pick up where you left off.</p>
+      )}
+      <Link href={nextStep ? nextStep.href : "/resume"}>
         <Button variant="emerald" className="w-full !min-h-[52px] !text-[15px] mb-8">
-          {hasResume ? "Continue →" : "Continue →"}
+          {nextStep ? `${nextStep.label} →` : "Continue →"}
         </Button>
       </Link>
 
@@ -81,7 +94,7 @@ export default function Home() {
       <Card className="mt-6 !bg-navy !border-navy text-white">
         <p className="font-bold mb-1">The honest pitch</p>
         <p className="text-sm text-white/70 leading-relaxed">
-          75% of resumes are rejected by software before a human sees them. HireCraft shows you exactly what the software sees — and fixes it before you apply.
+          HireCraft reads your resume the way screening software does — and shows you every finding, so you can fix what the software would flag before you apply.
         </p>
       </Card>
     </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { atsSimulate, scoreResume, findMilitaryJargonDetailed } from "@/lib/fallback";
 import { Button, Card, EmptyState, SectionTitle, ScoreRing, ModeBadge, Pill, TargetJobBanner } from "@/components/ui";
+import { SaveVersionForm } from "@/components/versions";
 
 function flagCta(title: string): { href: string; label: string } | null {
   const t = title.toLowerCase();
@@ -278,6 +279,7 @@ export default function ScorePage() {
           <Link href="/rewrite">
             <Button variant="emerald" className="w-full !min-h-[52px]">Rewrite my bullets →</Button>
           </Link>
+          <SaveVersionForm className="mt-3" />
           <SectionTitle sub=""> </SectionTitle>
         </>
       )}
