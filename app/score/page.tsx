@@ -73,7 +73,7 @@ export default function ScorePage() {
       <div className="grid grid-cols-2 gap-1 bg-slate-200/60 rounded-xl p-1 mb-4">
         {([ "score", "ats"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`rounded-lg py-2.5 text-sm font-bold min-h-[44px] ${tab === t ? "bg-white text-ink shadow-sm" : "text-muted"}`}>
+            className={`rounded-lg py-2.5 text-sm font-bold min-h-[44px] ${tab === t ? "bg-white text-ink shadow-sm" : "text-slate-600"}`}>
             {t === "score" ? "Score" : "ATS simulator"}
           </button>
         ))}
@@ -86,9 +86,9 @@ export default function ScorePage() {
               <ScoreRing score={result.total} />
               <div className="flex-1 min-w-0">
                 {kpis.map((k) => (
-                  <button key={k.key} onClick={() => toggle(k.key)} className="block w-full text-left mb-2.5 last:mb-0 min-h-[36px]">
+                  <button key={k.key} onClick={() => toggle(k.key)} className="block w-full text-left mb-2.5 last:mb-0 min-h-[44px]">
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-muted">{k.label} <span className="text-brand font-bold">{open === k.key ? "▾" : "▸"}</span></span>
+                      <span className="text-muted">{k.label} <span className="text-emerald-700 font-bold">{open === k.key ? "▾" : "▸"}</span></span>
                       <b className="text-ink">{k.pct}%</b>
                     </div>
                     <div className="h-[7px] rounded-full bg-slate-200 overflow-hidden">
@@ -145,7 +145,7 @@ export default function ScorePage() {
                         <p key={i} className="text-xs text-ink bg-paper border border-line rounded-lg px-2.5 py-2 leading-snug">“{b.length > 140 ? `${b.slice(0, 140)}…` : b}”</p>
                       ))}
                     </div>
-                    <p className="text-xs text-muted mt-2">Split each into a result + how, or let <Link href="/rewrite" className="font-bold text-brand underline underline-offset-2">Rewrites</Link> tighten them.</p>
+                    <p className="text-xs text-muted mt-2">Split each into a result + how, or let <Link href="/rewrite" className="font-bold text-emerald-700 underline underline-offset-2">Rewrites</Link> tighten them.</p>
                   </>
                 )}
               </div>
@@ -176,7 +176,7 @@ export default function ScorePage() {
               {result.keywordBasis === "job" ? " · scored against your job posting" : " · generic checklist — add a posting for a sharper read"}
             </p>
 
-            <button onClick={() => toggle("breakdown")} className="text-xs font-bold text-brand underline underline-offset-2 min-h-[40px] mt-1">
+            <button onClick={() => toggle("breakdown")} className="text-xs font-bold text-emerald-700 underline underline-offset-2 min-h-[44px] mt-1">
               {open === "breakdown" ? "Hide" : "How your score is built"} {open === "breakdown" ? "▾" : "▸"}
             </button>
             {open === "breakdown" && (
@@ -199,7 +199,7 @@ export default function ScorePage() {
               <button onClick={() => toggle("missing")} className="flex gap-2.5 w-full text-left min-h-[44px]">
                 <span className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center text-sm shrink-0">⚠️</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-bold text-ink">{missingKw.length} keywords missing <span className="text-brand">{open === "missing" ? "▾" : "▸"}</span></p>
+                  <p className="text-[13px] font-bold text-ink">{missingKw.length} keywords missing <span className="text-emerald-700">{open === "missing" ? "▾" : "▸"}</span></p>
                   <p className="text-xs text-muted leading-snug">
                     {result.keywordBasis === "job" ? "From the posting above" : `From a generic ${result.genericTitle} checklist`} — tap to see all of them.
                   </p>
@@ -213,7 +213,7 @@ export default function ScorePage() {
                 </div>
               )}
               <div className="ml-9 mt-2">
-                <Link href="/rewrite"><Pill tone="bad">Fix in rewrites →</Pill></Link>
+                <Link href="/rewrite" className="inline-flex items-center min-h-[44px]"><Pill tone="bad">Fix in rewrites →</Pill></Link>
               </div>
             </div>
           )}
@@ -228,7 +228,7 @@ export default function ScorePage() {
                 <div className="min-w-0">
                   <p className="text-[13px] font-bold text-ink">{f.title}</p>
                   <p className="text-xs text-muted leading-snug">{f.detail}</p>
-                  {cta && <Link href={cta.href}><Pill tone={f.level === "warn" ? "warn" : "ok"}>{cta.label}</Pill></Link>}
+                  {cta && <Link href={cta.href} className="inline-flex items-center min-h-[44px]"><Pill tone={f.level === "warn" ? "warn" : "ok"}>{cta.label}</Pill></Link>}
                 </div>
               </div>
             );
@@ -239,7 +239,7 @@ export default function ScorePage() {
               <button onClick={() => toggle("jargon")} className="flex gap-2.5 w-full text-left min-h-[44px]">
                 <span className="w-7 h-7 rounded-lg bg-mint flex items-center justify-center text-sm shrink-0">🎖</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-bold text-ink">Military jargon spotted ({jargon.length}) <span className="text-brand">{open === "jargon" ? "▾" : "▸"}</span></p>
+                  <p className="text-[13px] font-bold text-ink">Military jargon spotted ({jargon.length}) <span className="text-emerald-700">{open === "jargon" ? "▾" : "▸"}</span></p>
                   <p className="text-xs text-muted leading-snug">Recruiters won't know these terms. Tap to see each one and its civilian translation.</p>
                 </div>
               </button>
@@ -253,7 +253,7 @@ export default function ScorePage() {
                 </div>
               )}
               <div className="ml-9 mt-2">
-                <Link href="/rewrite"><Pill tone="ok">Translate in rewrites →</Pill></Link>
+                <Link href="/rewrite" className="inline-flex items-center min-h-[44px]"><Pill tone="ok">Translate in rewrites →</Pill></Link>
               </div>
             </div>
           )}

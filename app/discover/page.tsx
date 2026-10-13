@@ -284,7 +284,7 @@ function MatchList({ matches, selected, onSelect, offset, location, veteran }: {
                 <div className="flex flex-wrap gap-1.5">
                   {links.map((l) => (
                     <a key={l.name} href={l.url} target="_blank" rel="noopener noreferrer"
-                      className="text-xs font-bold bg-navy text-white rounded-full px-3 py-2 min-h-[36px] inline-flex items-center">
+                      className="text-xs font-bold bg-navy text-white rounded-full px-3 py-2 min-h-[44px] inline-flex items-center">
                       {l.name} ↗
                     </a>
                   ))}
@@ -437,7 +437,7 @@ function JobAlertsSection() {
                   <button
                     aria-label={`Delete alert for ${a.role}`}
                     onClick={() => setAlerts(alerts.filter((x) => x.id !== a.id))}
-                    className="w-6 h-6 rounded-full bg-white/70 text-emerald-900 font-extrabold leading-none"
+                    className="relative w-6 h-6 rounded-full bg-white/70 text-emerald-900 font-extrabold leading-none after:absolute after:-inset-[10px] after:content-['']"
                   >×</button>
                 </span>
               ))}
@@ -462,7 +462,7 @@ function JobAlertsSection() {
                   </div>
                   <p className="text-xs text-muted mb-2">
                     {p.company}{p.location ? ` · ${p.location}` : ""} · via {p.source}
-                    {p.isNew && <span className="ml-2 font-extrabold text-white bg-brand rounded-full px-2 py-0.5 text-[10px] align-middle">NEW</span>}
+                    {p.isNew && <span className="ml-2 font-extrabold text-white bg-emerald-700 rounded-full px-2 py-0.5 text-[10px] align-middle">NEW</span>}
                   </p>
                   <div className="h-2 rounded-full bg-line overflow-hidden">
                     <div className="h-full bg-brand rounded-full" style={{ width: `${p.score.match}%` }} />

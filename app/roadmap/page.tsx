@@ -168,7 +168,7 @@ export default function RoadmapPage() {
                     <button
                       key={ex}
                       onClick={() => setGoal(i, { text: ex })}
-                      className="text-[11px] font-semibold text-pine bg-mint border border-brand/30 rounded-full px-2.5 py-1.5 min-h-[36px]"
+                      className="text-[11px] font-semibold text-pine bg-mint border border-brand/30 rounded-full px-2.5 py-1.5 min-h-[44px] inline-flex items-center"
                     >
                       {ex}
                     </button>
@@ -229,10 +229,12 @@ export default function RoadmapPage() {
                 <div key={i} className="relative mb-3">
                   <button
                     onClick={() => setOpen(isOpen ? null : i)}
-                    className="absolute -left-8 top-1 w-6 h-6 rounded-full bg-white border-2 border-brand flex items-center justify-center z-10 min-h-[24px]"
+                    className="absolute -left-[42px] -top-[6px] w-11 h-11 min-h-[44px] flex items-center justify-center z-10"
                     aria-label={`Toggle ${n.horizon}`}
                   >
-                    {i === 0 && <span className="w-2 h-2 rounded-full bg-brand" />}
+                    <span className="w-6 h-6 rounded-full bg-white border-2 border-brand flex items-center justify-center shrink-0">
+                      {i === 0 && <span className="w-2 h-2 rounded-full bg-brand" />}
+                    </span>
                   </button>
                   <div className="bg-white border border-line rounded-2xl overflow-hidden">
                     <button onClick={() => setOpen(isOpen ? null : i)} className="w-full text-left p-4 min-h-[44px]">
@@ -267,7 +269,7 @@ export default function RoadmapPage() {
                             <div className="flex flex-wrap gap-1.5 mt-2">
                               {jobSearchLinks(t.title, location, mode === "veteran").map((l) => (
                                 <a key={l.name} href={l.url} target="_blank" rel="noopener noreferrer"
-                                  className="text-[11px] font-bold text-brand underline underline-offset-2 min-h-[32px] inline-flex items-center px-1">
+                                  className="text-[11px] font-bold text-emerald-700 underline underline-offset-2 min-h-[44px] inline-flex items-center px-1">
                                   {l.name} ↗
                                 </a>
                               ))}

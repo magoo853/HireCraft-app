@@ -108,7 +108,7 @@ export default function ResumePage() {
       <div className="grid grid-cols-3 gap-1 bg-stone-200/60 rounded-xl p-1 mb-5">
         {(["upload", "paste", "builder"] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`rounded-lg py-2.5 text-sm font-bold min-h-[44px] ${tab === t ? "bg-white text-ink shadow-sm" : "text-muted"}`}>
+            className={`rounded-lg py-2.5 text-sm font-bold min-h-[44px] ${tab === t ? "bg-white text-ink shadow-sm" : "text-slate-600"}`}>
             {t === "upload" ? "Upload" : t === "paste" ? "Paste" : "Build"}
           </button>
         ))}
@@ -234,7 +234,7 @@ export default function ResumePage() {
                       </div>
                     </div>
                   ))}
-                  <p className="text-[11px] text-emerald-900/70 mt-3.5 leading-relaxed">
+                  <p className="text-[11px] text-emerald-900 mt-3.5 leading-relaxed">
                     This translation also drives your rewrites, cover letters, and LinkedIn — anywhere the app speaks civilian.
                   </p>
                 </div>
@@ -256,7 +256,7 @@ export default function ResumePage() {
               </div>
             ) : (
               <>
-                <button onClick={() => setShowEvalPaste(!showEvalPaste)} className="text-xs font-bold text-brand underline underline-offset-2 min-h-[40px]">
+                <button onClick={() => setShowEvalPaste(!showEvalPaste)} className="text-xs font-bold text-emerald-700 underline underline-offset-2 min-h-[44px]">
                   {showEvalPaste ? "Hide paste box" : "…or paste the review text instead"}
                 </button>
                 {showEvalPaste && (
@@ -383,7 +383,7 @@ function BuilderForm() {
       <div className="flex items-center justify-between mt-5 mb-2">
         <p className="font-bold text-ink text-sm">Projects <span className="font-normal text-muted">(class, personal, anything you built)</span></p>
         <button onClick={() => setProjects([...projects, { name: "", description: "", tech: "", bullets: [] }])}
-          className="text-brand font-bold text-sm min-h-[44px] px-2">+ Add</button>
+          className="text-emerald-700 font-bold text-sm min-h-[44px] px-2">+ Add</button>
       </div>
       {projects.map((p, i) => (
         <div key={i} className="rounded-xl border border-line p-3 mb-2">
@@ -399,7 +399,7 @@ function BuilderForm() {
       <div className="flex items-center justify-between mt-4 mb-2">
         <p className="font-bold text-ink text-sm">Work / volunteer <span className="font-normal text-muted">(any job counts)</span></p>
         <button onClick={() => setWork([...work, { title: "", company: "", dates: "", bullets: [] }])}
-          className="text-brand font-bold text-sm min-h-[44px] px-2">+ Add</button>
+          className="text-emerald-700 font-bold text-sm min-h-[44px] px-2">+ Add</button>
       </div>
       {work.map((w, i) => (
         <div key={i} className="rounded-xl border border-line p-3 mb-2">
