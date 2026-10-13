@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { MilitaryInfo, Mode, PerformanceReview, StructuredResume, emptyMilitary, emptyPerfReview, emptyResume } from "./types";
+import { LinkedInResult, MilitaryInfo, Mode, PerformanceReview, ScoreHistoryEntry, StructuredResume, emptyMilitary, emptyPerfReview, emptyResume } from "./types";
+import { appendScoreHistory, sanitizeScoreHistory } from "./score-history";
+import { sanitizeLinkedInResult } from "./linkedin-result";
 import type { JobAlert } from "./jobs";
 import {
   SavedVersion, addVersion, createVersion, findVersion,
@@ -50,6 +52,16 @@ interface AppState {
   setOnboardingDismissed: (v: boolean) => void;
   templateId: string;
   setTemplateId: (t: string) => void;
+  /** Wave 3: recorded ATS scores, oldest → newest (cap 30, deduped on total). */
+  scoreHistory: ScoreHistoryEntry[];
+  recordScore: (total: number, grade: string, jobBasis: string) => void;
+  /** Wave 3: the current cover letter — persists across navigation and is
+   *  captured into saved versions (the application packet). */
+  coverLetterText: string;
+  setCoverLetterText: (t: string) => void;
+  /** Wave 3: the last generated LinkedIn result — survives navigation. */
+  linkedinResult: LinkedInResult | null;
+  setLinkedinResult: (r: LinkedInResult | null) => void;
   versions: SavedVersion[];
   /** Snapshot the current resume + target-job context. Returns an error message to show, or null on success. */
   saveVersion: (name: string) => string | null;
@@ -94,6 +106,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [exported, setExported] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [templateId, setTemplateId] = useState("modern");
+  const [scoreHistory, setScoreHistory] = useState<ScoreHistoryEntry[]>([]);
+  const [coverLetterText, setCoverLetterText] = useState("");
+  const [linkedinResult, setLinkedinResult] = useState<LinkedInResult | null>(null);
   const [versions, setVersions] = useState<SavedVersion[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -126,6 +141,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (typeof s.exported === "boolean") setExported(s.exported);
       if (typeof s.onboardingDismissed === "boolean") setOnboardingDismissed(s.onboardingDismissed);
       if (typeof s.templateId === "string" && s.templateId) setTemplateId(s.templateId);
+      if (Array.isArray(s.scoreHistory)) setScoreHistory(sanitizeScoreHistory(s.scoreHistory));
+      if (typeof s.coverLetterText === "string") setCoverLetterText(s.coverLetterText);
+      setLinkedinResult(sanitizeLinkedInResult(s.linkedinResult));
       if (Array.isArray(s.versions)) setVersions(sanitizeVersions(s.versions));
     }
     setHydrated(true);
@@ -134,15 +152,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
 
+  const recordScore = (total: number, grade: string, jobBasis: string) =>
+    setScoreHistory((list) => appendScoreHistory(list, { at: Date.now(), total, grade, jobBasis }));
+
   const saveVersion = (name: string): string | null => {
-    const v = createVersion({ targetTitle, company, jobText, jobUrl, templateId, resume }, name);
+    const v = createVersion({ targetTitle, company, jobText, jobUrl, templateId, resume, coverLetter: coverLetterText }, name);
     const res = addVersion(versions, v);
     if (!res.ok) return res.error;
     setVersions(res.versions);
@@ -159,6 +180,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setJobText(ctx.jobText);
     setJobUrl(ctx.jobUrl);
     setTemplateId(ctx.templateId);
+    setCoverLetterText(ctx.coverLetter ?? "");
   };
 
   const renameVersion = (id: string, name: string) =>
@@ -188,6 +210,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setExported(false);
     setOnboardingDismissed(false);
     setTemplateId("modern");
+    setScoreHistory([]);
+    setCoverLetterText("");
+    setLinkedinResult(null);
     setVersions([]);
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
   };
@@ -206,6 +231,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       designChosen, setDesignChosen, exported, setExported,
       onboardingDismissed, setOnboardingDismissed,
       templateId, setTemplateId,
+      scoreHistory, recordScore,
+      coverLetterText, setCoverLetterText,
+      linkedinResult, setLinkedinResult,
       versions, saveVersion, loadVersion, renameVersion, deleteVersion,
       hasResume, resetAll,
     }}>

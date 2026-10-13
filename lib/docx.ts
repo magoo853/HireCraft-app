@@ -409,6 +409,49 @@ export function buildResumeDocument(resume: StructuredResume, identity: DocxTemp
   });
 }
 
+/* ------------------------------------------------------------------ */
+/* Cover letter DOCX (Wave 3) — plain professional layout: the letter  */
+/* text as paragraphs in a Word-safe font on US Letter. Same file     */
+/* name as the .txt download, with a .docx extension.                 */
+/* ------------------------------------------------------------------ */
+
+/** Pure builder: cover-letter text → docx Document (paragraphs split on newlines). */
+export function buildCoverLetterDocument(text: string): Document {
+  const children: Paragraph[] = text.split("\n").map(
+    (line) =>
+      new Paragraph({
+        spacing: { after: line.trim() ? 120 : 60 },
+        children: line.trim() ? [new TextRun({ text: line })] : [],
+      })
+  );
+  return new Document({
+    creator: "HireCraft",
+    title: "Cover Letter",
+    description: "Cover letter exported from HireCraft.",
+    styles: {
+      default: {
+        document: { run: { font: SANS, size: 22, color: "1A1A1A" } },
+      },
+    },
+    sections: [
+      {
+        properties: {
+          page: {
+            size: { width: 12240, height: 15840 }, // US Letter, twips
+            margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 }, // 1"
+          },
+        },
+        children,
+      },
+    ],
+  });
+}
+
+/** Browser entry point: build the cover-letter .docx Blob. */
+export async function buildCoverLetterDocxBlob(text: string): Promise<Blob> {
+  return Packer.toBlob(buildCoverLetterDocument(text));
+}
+
 /** Browser entry point: build the .docx Blob for `resume` in template `templateId`. */
 export async function buildResumeDocxBlob(
   resume: StructuredResume,

@@ -21,6 +21,9 @@ export interface SavedVersion {
   jobUrl: string;
   templateId: string;
   resume: StructuredResume;
+  /** The cover letter written for this job (Wave 3 application packet).
+   *  Optional/additive — legacy versions have no field and load unchanged. */
+  coverLetter?: string;
 }
 
 /** Everything a save captures from the live store. */
@@ -31,6 +34,8 @@ export interface VersionContext {
   jobUrl: string;
   templateId: string;
   resume: StructuredResume;
+  /** Current cover-letter text at save time; "" when there is none. */
+  coverLetter?: string;
 }
 
 export const MAX_VERSIONS = 20;
@@ -69,6 +74,7 @@ export function createVersion(ctx: VersionContext, name: string, now?: number): 
     jobUrl: ctx.jobUrl,
     templateId: ctx.templateId || "modern",
     resume: cloneResume(ctx.resume),
+    ...(ctx.coverLetter ? { coverLetter: ctx.coverLetter } : {}),
   };
 }
 
@@ -130,6 +136,7 @@ export function versionToContext(v: SavedVersion): VersionContext {
     jobUrl: v.jobUrl,
     templateId: v.templateId || "modern",
     resume: cloneResume(v.resume),
+    coverLetter: typeof v.coverLetter === "string" ? v.coverLetter : "",
   };
 }
 
@@ -166,6 +173,7 @@ export function sanitizeVersions(raw: unknown): SavedVersion[] {
       jobUrl: asString(e.jobUrl),
       templateId: asString(e.templateId) || "modern",
       resume: { ...emptyResume(), ...r },
+      ...(typeof e.coverLetter === "string" && e.coverLetter ? { coverLetter: e.coverLetter } : {}),
     });
   }
   return out;

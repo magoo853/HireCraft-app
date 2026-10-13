@@ -131,6 +131,15 @@ export interface LinkedInResult {
   appliedFeedback?: string[];
 }
 
+/** One recorded ATS score (Wave 3) — persisted additively in the store. */
+export interface ScoreHistoryEntry {
+  at: number;
+  total: number;
+  grade: string;
+  /** Short label of what the score was judged against (target job, or "General"). */
+  jobBasis: string;
+}
+
 export interface AiResponse<T> {
   source: "ai" | "fallback";
   data: T;
