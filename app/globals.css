@@ -43,6 +43,20 @@ body {
   outline-offset: 2px;
 }
 
+/* Resume template text protection — every template root carries .hc-doc.
+   User-authored text must wrap inside its column at any width: it may
+   never spill across a sidebar edge or clip silently. min-width: 0 stops
+   flex/grid children from blowing out their columns; overflow-wrap:
+   anywhere gives unbreakable strings (emails, URLs, compound words like
+   "Negotiation/Management") a break instead of an overflow. Elements
+   with white-space: nowrap (dates) are unaffected by overflow-wrap. */
+.hc-doc :where(div, section, p, li, h1, h2, h3, h4, span, b, strong, a) {
+  min-width: 0;
+}
+.hc-doc :where(div, p, li, h1, h2, h3, h4, span, b, strong, a) {
+  overflow-wrap: anywhere;
+}
+
 /* Print: only the resume sheet prints, with zero browser chrome */
 @media print {
   body * {

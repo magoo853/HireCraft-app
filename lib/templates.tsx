@@ -25,10 +25,10 @@ export const TEMPLATES: TemplateDef[] = [
     name: "Classic",
     blurb: "Timeless serif. The safe choice for finance, law, and government.",
     render: (r, ed) => (
-      <div className="font-serif text-[#1a1a1a] text-[13px] leading-relaxed">
+      <div className="hc-doc font-serif text-[#1a1a1a] text-[13px] leading-relaxed">
         <div className="text-center border-b-2 border-[#1a1a1a] pb-3 mb-4">
           {ed(r.name || "Your Name", () => {}, "block text-[24px] font-bold tracking-wide")}
-          <p className="text-[12px] mt-1 text-[#444]">{contact(r) || "City, ST · phone · email · linkedin"}</p>
+          <p className="text-[12px] mt-1 text-[#444] [overflow-wrap:anywhere]">{contact(r) || "City, ST · phone · email · linkedin"}</p>
         </div>
         {r.summary && (
           <section className="mb-4">
@@ -93,10 +93,10 @@ export const TEMPLATES: TemplateDef[] = [
     name: "Modern",
     blurb: "Clean sans-serif with a confident accent. Great for tech and startups.",
     render: (r, ed) => (
-      <div className="text-[#17202a] text-[13px] leading-relaxed" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
+      <div className="hc-doc text-[#17202a] text-[13px] leading-relaxed" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
         <div className="mb-4">
           {ed(r.name || "Your Name", () => {}, "block text-[24px] font-extrabold tracking-tight text-[#0B6E4F]")}
-          <p className="text-[12px] text-[#5B6470] mt-1">{contact(r) || "City, ST · phone · email · linkedin"}</p>
+          <p className="text-[12px] text-[#5B6470] mt-1 [overflow-wrap:anywhere]">{contact(r) || "City, ST · phone · email · linkedin"}</p>
         </div>
         {r.summary && (
           <section className="mb-4">
@@ -170,10 +170,10 @@ export const TEMPLATES: TemplateDef[] = [
     name: "Minimal",
     blurb: "Maximum whitespace. For designers and anyone who hates clutter.",
     render: (r, ed) => (
-      <div className="text-[#222] text-[13px] leading-loose" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
+      <div className="hc-doc text-[#222] text-[13px] leading-loose" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
         <div className="mb-6">
           {ed(r.name || "Your Name", () => {}, "block text-[24px] font-light tracking-wide")}
-          <p className="text-[12px] text-[#888] mt-1 tracking-wide">{contact(r) || "City, ST · phone · email · linkedin"}</p>
+          <p className="text-[12px] text-[#888] mt-1 tracking-wide [overflow-wrap:anywhere]">{contact(r) || "City, ST · phone · email · linkedin"}</p>
         </div>
         {r.summary && <p className="mb-6 text-[#444] italic">{ed(r.summary, () => {}, "block")}</p>}
         {r.experience.length > 0 && (
@@ -233,10 +233,10 @@ export const TEMPLATES: TemplateDef[] = [
     name: "Executive",
     blurb: "Dark header band, authoritative type. For senior roles and leadership.",
     render: (r, ed) => (
-      <div className="text-[#1c1c1c] text-[13px] leading-relaxed" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+      <div className="hc-doc text-[#1c1c1c] text-[13px] leading-relaxed" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
         <div className="bg-[#1c1c1c] text-white px-6 py-6 -mx-6 -mt-6 mb-5">
           {ed(r.name || "Your Name", () => {}, "block text-[24px] font-bold tracking-wide text-white")}
-          <p className="text-[12px] mt-1.5 text-white/70">{contact(r) || "City, ST · phone · email · linkedin"}</p>
+          <p className="text-[12px] mt-1.5 text-white/70 [overflow-wrap:anywhere]">{contact(r) || "City, ST · phone · email · linkedin"}</p>
         </div>
         {r.summary && (
           <section className="mb-4">
@@ -304,13 +304,13 @@ export const TEMPLATES: TemplateDef[] = [
     name: "Bold",
     blurb: "High-contrast accent bar. For sales, marketing, and anyone who leads with energy.",
     render: (r, ed) => (
-      <div className="text-[#141414] text-[13px] leading-relaxed" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
+      <div className="hc-doc text-[#141414] text-[13px] leading-relaxed" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
         <div className="flex gap-5">
           <div className="w-2 shrink-0 bg-[#B3261E] rounded-full" />
           <div className="flex-1 min-w-0">
             <div className="mb-4">
               {ed(r.name || "Your Name", () => {}, "block text-[24px] font-black tracking-tight uppercase")}
-              <p className="text-[12px] font-semibold text-[#B3261E] mt-1">{contact(r) || "City, ST · phone · email · linkedin"}</p>
+              <p className="text-[12px] font-semibold text-[#B3261E] mt-1 [overflow-wrap:anywhere]">{contact(r) || "City, ST · phone · email · linkedin"}</p>
             </div>
             {r.summary && <p className="mb-4 font-medium text-[14px]">{ed(r.summary, () => {}, "block")}</p>}
             {r.experience.length > 0 && (
@@ -372,11 +372,11 @@ export const TEMPLATES: TemplateDef[] = [
     name: "Slate",
     blurb: "Dark sidebar, light content — modern and memorable, still ATS-clean.",
     render: (r, ed) => (
-      <div className="text-[13px] leading-relaxed text-[#1e293b]" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
+      <div className="hc-doc text-[13px] leading-relaxed text-[#1e293b]" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
         <div className="flex rounded-lg overflow-hidden">
           <div className="w-[34%] bg-[#1e293b] text-white p-5 shrink-0">
             {ed(r.name || "Your Name", () => {}, "block text-[20px] font-extrabold leading-tight")}
-            <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">{contact(r) || "City, ST · phone · email"}</p>
+            <p className="text-[11px] text-slate-300 mt-2 leading-relaxed [overflow-wrap:anywhere]">{contact(r) || "City, ST · phone · email"}</p>
             {r.skills.length > 0 && (
               <div className="mt-5">
                 <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-300 mb-2">Skills</h3>
@@ -404,7 +404,7 @@ export const TEMPLATES: TemplateDef[] = [
               </div>
             )}
           </div>
-          <div className="flex-1 p-5">
+          <div className="flex-1 min-w-0 p-5">
             {r.summary && (
               <section className="mb-4">
                 <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#1e293b] mb-1.5 border-b border-slate-200 pb-1">Summary</h3>
@@ -447,10 +447,10 @@ export const TEMPLATES: TemplateDef[] = [
     name: "Ocean",
     blurb: "Centered header, ocean-blue accents — polished and personable.",
     render: (r, ed) => (
-      <div className="text-[#14324a] text-[13px] leading-relaxed" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
+      <div className="hc-doc text-[#14324a] text-[13px] leading-relaxed" style={{ fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif" }}>
         <div className="text-center mb-4">
           {ed(r.name || "Your Name", () => {}, "block text-[24px] font-extrabold tracking-tight text-[#0A66C2]")}
-          <p className="text-[12px] text-[#5B7a99] mt-1">{contact(r) || "City, ST · phone · email · linkedin"}</p>
+          <p className="text-[12px] text-[#5B7a99] mt-1 [overflow-wrap:anywhere]">{contact(r) || "City, ST · phone · email · linkedin"}</p>
         </div>
         {r.summary && (
           <section className="mb-4">
@@ -520,10 +520,10 @@ export const TEMPLATES: TemplateDef[] = [
     name: "Mono",
     blurb: "Typewriter type, zero decoration — for engineers and purists.",
     render: (r, ed) => (
-      <div className="text-[#1a1a1a] text-[12.5px] leading-relaxed" style={{ fontFamily: "'SF Mono', Menlo, Consolas, monospace" }}>
+      <div className="hc-doc text-[#1a1a1a] text-[12.5px] leading-relaxed" style={{ fontFamily: "'SF Mono', Menlo, Consolas, monospace" }}>
         <div className="mb-4">
           {ed(r.name || "Your Name", () => {}, "block text-[22px] font-bold")}
-          <p className="text-[12px] text-[#555] mt-1">{contact(r) || "City, ST | phone | email | linkedin"}</p>
+          <p className="text-[12px] text-[#555] mt-1 [overflow-wrap:anywhere]">{contact(r) || "City, ST | phone | email | linkedin"}</p>
           <p className="text-[#999] mt-2">{"=".repeat(52)}</p>
         </div>
         {r.summary && (
@@ -672,7 +672,7 @@ export function renderCustom(r: StructuredResume, ed: EdFn, opts: DesignOptions)
   const contactLine = contact(r) || "City, ST · phone · email · linkedin";
   const nameCls = opts.nameSize === "large" ? "text-[30px]" : "text-[24px]";
   return (
-    <div className="text-[#1a1a1a] text-[13px] leading-relaxed" style={{ fontFamily }}>
+    <div className="hc-doc text-[#1a1a1a] text-[13px] leading-relaxed" style={{ fontFamily }}>
       <div className={`mb-4 ${align}`}>
         <span style={{ color: accent }}>
           {ed(r.name || "Your Name", () => {}, `block ${nameCls} font-extrabold tracking-tight`)}
@@ -680,11 +680,11 @@ export function renderCustom(r: StructuredResume, ed: EdFn, opts: DesignOptions)
         {opts.contactStyle === "stacked" ? (
           <div className="text-[12px] text-[#5B6470] mt-1">
             {contactLine.split("·").map((part, i) => (
-              <span key={i} className="block">{part.trim()}</span>
+              <span key={i} className="block [overflow-wrap:anywhere]">{part.trim()}</span>
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-[#5B6470] mt-1">{contactLine}</p>
+          <p className="text-[12px] text-[#5B6470] mt-1 [overflow-wrap:anywhere]">{contactLine}</p>
         )}
       </div>
       {r.summary && (
