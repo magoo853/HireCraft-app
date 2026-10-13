@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { JobPosting } from "@/lib/jobs";
+import { normalizeLocation } from "@/lib/jobs";
 
 /**
  * Job-posting search for alerts. Fans out to free, no-key job APIs
@@ -44,7 +45,7 @@ async function fromArbeitnow(q: string): Promise<JobPosting[]> {
     source: "Arbeitnow",
     title: String(d.title ?? ""),
     company: String(d.company_name ?? ""),
-    location: String(d.location ?? (d.remote ? "Remote" : "")),
+    location: normalizeLocation(String(d.location ?? (d.remote ? "Remote" : ""))),
     url: String(d.url ?? ""),
     postedAt: d.created_at ? new Date(Number(d.created_at) * 1000).toISOString() : "",
     description: stripHtml(String(d.description ?? "")).slice(0, 1500),
@@ -60,7 +61,7 @@ async function fromRemotive(q: string): Promise<JobPosting[]> {
     source: "Remotive",
     title: String(d.title ?? ""),
     company: String(d.company_name ?? ""),
-    location: String(d.candidate_required_location ?? "Remote"),
+    location: normalizeLocation(String(d.candidate_required_location ?? "Remote")),
     url: String(d.url ?? ""),
     postedAt: String(d.publication_date ?? ""),
     description: stripHtml(String(d.description ?? "")).slice(0, 1500),
@@ -78,7 +79,7 @@ async function fromHimalayas(q: string): Promise<JobPosting[]> {
       source: "Himalayas",
       title: String(d.title ?? ""),
       company: String(d.companyName ?? ""),
-      location: locs.length ? locs.slice(0, 2).join(", ") : "Remote",
+      location: normalizeLocation(locs.length ? locs.slice(0, 2).join(", ") : "Remote"),
       url: String(d.applicationLink ?? ""),
       postedAt: String(d.pubDate ?? ""),
       description: stripHtml(String(d.description ?? d.excerpt ?? "")).slice(0, 1500),
@@ -106,7 +107,7 @@ async function fromUsaJobs(q: string, location: string): Promise<JobPosting[]> {
       source: "USAJobs",
       title: String(d.PositionTitle ?? ""),
       company: String(d.OrganizationName ?? ""),
-      location: locs.map((l) => String(l.LocationName ?? "")).filter(Boolean).join("; "),
+      location: normalizeLocation(locs.map((l) => String(l.LocationName ?? "")).filter(Boolean).join("; ")),
       url: String(d.PositionURI ?? ""),
       postedAt: String(d.PublicationStartDate ?? ""),
       description: stripHtml(String((d.UserArea as Record<string, unknown>)?.Details ? String(((d.UserArea as Record<string, unknown>).Details as Record<string, unknown>)?.JobSummary ?? "") : "")).slice(0, 1500),

@@ -15,7 +15,7 @@ import {
   jobSearchLinks,
 } from "@/lib/careers";
 import { AiResponse } from "@/lib/types";
-import { JobPosting, ScoredPosting, scorePosting } from "@/lib/jobs";
+import { JobPosting, ScoredPosting, checkedAgoLabel, dedupeScoredPostings, scorePosting } from "@/lib/jobs";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
 
 interface DiscoverResult {
@@ -340,8 +340,8 @@ function JobAlertsSection() {
     setChecking(true);
     if (manual) setMsg("");
     try {
-      const all: ScoredPosting[] = [];
-      const freshIds: string[] = [];
+      const perAlert = new Map<string, ScoredPosting[]>();
+      const fetchedIds: string[] = [];
       for (const a of alerts) {
         const params = new URLSearchParams({ role: a.role });
         if (a.company) params.set("company", a.company);
@@ -349,20 +349,42 @@ function JobAlertsSection() {
         const res = await fetch(`/api/jobs?${params}`);
         if (!res.ok) continue;
         const j = (await res.json()) as { postings?: JobPosting[] };
+        const scored: ScoredPosting[] = [];
         for (const p of j.postings ?? []) {
           const score = scorePosting(resume, p);
           if (score.match < a.minMatch) continue;
-          const isNew = !seenJobIds.includes(p.id);
-          if (isNew) freshIds.push(p.id);
-          all.push({ ...p, score, isNew, alertRole: a.role });
+          fetchedIds.push(p.id);
+          scored.push({ ...p, score, isNew: !seenJobIds.includes(p.id), alertRole: a.role });
         }
+        // The same posting syndicated to several boards counts once —
+        // per alert here, and again across alerts for the feed below.
+        perAlert.set(a.id, dedupeScoredPostings(scored));
       }
+      if (perAlert.size) {
+        const now = Date.now();
+        setAlerts(
+          alerts.map((a) => {
+            const list = perAlert.get(a.id);
+            return list
+              ? { ...a, lastCheckedAt: now, lastNewCount: list.filter((p) => p.isNew).length }
+              : a;
+          })
+        );
+      }
+      const combined: ScoredPosting[] = [];
+      perAlert.forEach((list) => combined.push(...list));
+      const all = dedupeScoredPostings(combined);
       all.sort((x, y) => y.score.match - x.score.match);
       setFeed(all.slice(0, 30));
-      if (freshIds.length) {
-        setSeenJobIds([...seenJobIds, ...freshIds].slice(-600));
-        setNewJobCount(freshIds.length);
-        setMsg(`${freshIds.length} new posting${freshIds.length === 1 ? "" : "s"} since your last check.`);
+      if (fetchedIds.length) {
+        // Mark every fetched id seen — including merged-away duplicates,
+        // so a syndicated copy never resurfaces as "new" next check.
+        setSeenJobIds([...seenJobIds, ...fetchedIds].slice(-600));
+      }
+      const newCount = all.filter((p) => p.isNew).length;
+      if (newCount) {
+        setNewJobCount(newCount);
+        setMsg(`${newCount} new posting${newCount === 1 ? "" : "s"} since your last check.`);
       } else if (manual) {
         setMsg("No new postings since your last check — showing the latest matches.");
       }
@@ -430,16 +452,23 @@ function JobAlertsSection() {
 
         {alerts.length > 0 && (
           <div className="mt-4">
-            <div className="flex flex-wrap gap-1.5 mb-3">
+            <div className="grid gap-2 mb-3">
               {alerts.map((a) => (
-                <span key={a.id} className="inline-flex items-center gap-1.5 text-xs font-bold bg-mint text-emerald-950 rounded-full pl-3 pr-1.5 py-1.5">
-                  {a.role}{a.company ? ` @ ${a.company}` : ""}{a.location ? ` · ${a.location}` : ""}{a.minMatch ? ` · ≥${a.minMatch}%` : ""}
-                  <button
-                    aria-label={`Delete alert for ${a.role}`}
-                    onClick={() => setAlerts(alerts.filter((x) => x.id !== a.id))}
-                    className="relative w-6 h-6 rounded-full bg-white/70 text-emerald-900 font-extrabold leading-none after:absolute after:-inset-[10px] after:content-['']"
-                  >×</button>
-                </span>
+                <div key={a.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-mint text-emerald-950 rounded-full pl-3 pr-1.5 py-1.5">
+                    {a.role}{a.company ? ` @ ${a.company}` : ""}{a.location ? ` · ${a.location}` : ""}{a.minMatch ? ` · ≥${a.minMatch}%` : ""}
+                    <button
+                      aria-label={`Delete alert for ${a.role}`}
+                      onClick={() => setAlerts(alerts.filter((x) => x.id !== a.id))}
+                      className="relative w-6 h-6 rounded-full bg-white/70 text-emerald-900 font-extrabold leading-none after:absolute after:-inset-[10px] after:content-['']"
+                    >×</button>
+                  </span>
+                  <span className="text-[11px] text-muted">
+                    {a.lastCheckedAt
+                      ? `Checked ${checkedAgoLabel(a.lastCheckedAt, Date.now())} · ${a.lastNewCount ?? 0} new`
+                      : "Not checked yet"}
+                  </span>
+                </div>
               ))}
             </div>
             <Button onClick={() => void check(true)} disabled={checking} className="w-full">
@@ -462,6 +491,7 @@ function JobAlertsSection() {
                   </div>
                   <p className="text-xs text-muted mb-2">
                     {p.company}{p.location ? ` · ${p.location}` : ""} · via {p.source}
+                    {p.alsoOn?.length ? ` · also on ${p.alsoOn.join(", ")}` : ""}
                     {p.isNew && <span className="ml-2 font-extrabold text-white bg-emerald-700 rounded-full px-2 py-0.5 text-[10px] align-middle">NEW</span>}
                   </p>
                   <div className="h-2 rounded-full bg-line overflow-hidden">
