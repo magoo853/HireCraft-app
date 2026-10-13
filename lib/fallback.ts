@@ -712,26 +712,31 @@ function dropReviewSubject(sentence: string): string {
   return sentence;
 }
 
+const EVAL_HEADER_RE =
+  /^(ratee|rater|senior rater|reporting official|reviewer|duty title|unit|organization|grade|rank|afsc|mos|evaluation|epr|opr|ncoer|oer|fitrep|period of report|report period)\b/i;
+
 /**
- * Deterministically mine a civilian performance review for accomplishments
- * that are not already represented in the resume. The `original` is the
- * review's own sentence; the rewrite uses the same deterministic bullet
- * engine as the rest of the fallback. Nothing is sourced from outside the
- * review text.
+ * Shared deterministic mining engine for review/evaluation additions.
+ * The `original` is the source document's own sentence; the rewrite uses
+ * the same deterministic bullet engine as the rest of the fallback.
+ * Nothing is sourced from outside the source text.
  */
-export function extractReviewAdditions(
-  reviewText: string,
+function extractMinedAdditions(
+  sourceText: string,
   resume: StructuredResume,
-  mode: Mode = "general"
+  mode: Mode,
+  source: "review" | "eval",
+  why: string,
+  extraHeaderRe: RegExp | null
 ): RewriteResult[] {
-  if (!reviewText.trim()) return [];
+  if (!sourceText.trim()) return [];
   const resumeText = [resume.rawText, ...resume.experience.flatMap((e) => e.bullets)].join("\n");
   const resumeNorm = normalizeForMatch(resumeText);
   const ranked: { sentence: string; score: number; index: number }[] = [];
 
-  reviewCandidates(reviewText).forEach((sentence, index) => {
+  reviewCandidates(sourceText).forEach((sentence, index) => {
     if (sentence.length < 35 || sentence.length > 340) return;
-    if (REVIEW_HEADER_RE.test(sentence) || /@/.test(sentence) || /\?$/.test(sentence)) return;
+    if (REVIEW_HEADER_RE.test(sentence) || (extraHeaderRe !== null && extraHeaderRe.test(sentence)) || /@/.test(sentence) || /\?$/.test(sentence)) return;
     if (/^(overall|summary|comments?|strengths?|areas? for improvement|goals? for next year)\s*:/i.test(sentence)) return;
 
     const norm = normalizeForMatch(sentence);
@@ -760,11 +765,83 @@ export function extractReviewAdditions(
       return {
         original: sentence,
         rewritten,
-        why: "New — mined from your performance review. This accomplishment is stated in the review and is not in your resume yet.",
+        why,
         gaps: [],
-        source: "review" as const,
+        source,
       };
     });
+}
+
+/**
+ * Deterministically mine a civilian performance review for accomplishments
+ * that are not already represented in the resume.
+ */
+export function extractReviewAdditions(
+  reviewText: string,
+  resume: StructuredResume,
+  mode: Mode = "general"
+): RewriteResult[] {
+  return extractMinedAdditions(
+    reviewText,
+    resume,
+    mode,
+    "review",
+    "New — mined from your performance review. This accomplishment is stated in the review and is not in your resume yet.",
+    null
+  );
+}
+
+/**
+ * Deterministically mine a military evaluation (EPR/OPR/NCOER/OER/FITREP)
+ * for accomplishments that are not already represented in the resume.
+ * Mirrors extractReviewAdditions: verbatim source sentences, achievement-
+ * shaped, nothing already in the resume, capped at 4.
+ */
+export function extractEvalAdditions(
+  evalText: string,
+  resume: StructuredResume,
+  mode: Mode = "veteran"
+): RewriteResult[] {
+  return extractMinedAdditions(
+    evalText,
+    resume,
+    mode,
+    "eval",
+    "New — mined from your evaluation (EPR/appraisal), not yet in your resume. This accomplishment is stated in the evaluation and is not in your resume yet.",
+    EVAL_HEADER_RE
+  );
+}
+
+/** True when two additions describe the same accomplishment: normalized
+ *  original/rewritten text is equal, or one contains the other. */
+function sameAccomplishment(a: RewriteResult, b: RewriteResult): boolean {
+  const texts = (r: RewriteResult) =>
+    [normalizeForMatch(r.original), normalizeForMatch(r.rewritten)].filter(Boolean);
+  for (const x of texts(a)) {
+    for (const y of texts(b)) {
+      if (x === y || x.includes(y) || y.includes(x)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Merge eval + review addition streams, showing an accomplishment that
+ * surfaces from BOTH documents only once. The preferred stream's copy is
+ * kept (callers prefer the eval copy for veterans in veteran mode).
+ */
+export function dedupeAdditions(
+  evalAdditions: RewriteResult[],
+  reviewAdditions: RewriteResult[],
+  preferEval: boolean
+): RewriteResult[] {
+  const primary = preferEval ? evalAdditions : reviewAdditions;
+  const secondary = preferEval ? reviewAdditions : evalAdditions;
+  const kept = [...primary];
+  for (const item of secondary) {
+    if (!kept.some((k) => sameAccomplishment(k, item))) kept.push(item);
+  }
+  return kept;
 }
 
 /** Skills evidenced by the review that the resume does not already list. */

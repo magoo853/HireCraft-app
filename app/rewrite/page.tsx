@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { extractKeywords, scoreResume } from "@/lib/fallback";
+import { applyRewriteToResume } from "@/lib/resume-sync";
 import { AiResponse, RewriteResult, ScoreResult } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJobBanner, inputCls } from "@/components/ui";
 import { SaveVersionForm } from "@/components/versions";
@@ -61,10 +62,11 @@ function ImproveInner() {
     s.toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, "-")
       .replace(/\s+/g, " ").replace(/\.+$/, "").trim();
   const visible = result
-    ? result.data.map((r, i) => ({ r, i })).filter(({ r }) => r.source === "review" || normCmp(r.original) !== normCmp(r.rewritten))
+    ? result.data.map((r, i) => ({ r, i })).filter(({ r }) => r.source === "review" || r.source === "eval" || normCmp(r.original) !== normCmp(r.rewritten))
     : [];
-  const regularVisible = visible.filter(({ r }) => r.source !== "review");
+  const regularVisible = visible.filter(({ r }) => r.source !== "review" && r.source !== "eval");
   const reviewVisible = visible.filter(({ r }) => r.source === "review");
+  const evalVisible = visible.filter(({ r }) => r.source === "eval");
   const hiddenCount = result ? result.data.length - visible.length : 0;
 
   // Score-delta readout. The baseline, the live resume, and the projection
@@ -75,6 +77,7 @@ function ImproveInner() {
   // more than actually accepting would deliver.
   const acceptedCount = visible.filter(({ i }) => accepted.has(i)).length;
   const acceptedReviewCount = reviewVisible.filter(({ i }) => accepted.has(i)).length;
+  const acceptedEvalCount = evalVisible.filter(({ i }) => accepted.has(i)).length;
   const remaining = visible.filter(({ i }) => !accepted.has(i));
   const currentScore = baseline ? scoreResume(resume, baseline.jobText) : null;
   const projectedScore =
@@ -85,7 +88,7 @@ function ImproveInner() {
             rawText: remaining.reduce(
               (txt, { r, i }) => {
                 const text = shown(r, i);
-                return r.source === "review"
+                return r.source === "review" || r.source === "eval"
                   ? txt.includes(text)
                     ? txt
                     : `${txt.trim()}\n• ${text}`
@@ -102,11 +105,11 @@ function ImproveInner() {
   function acceptRewrite(i: number, original: string) {
     const item = result?.data[i];
     const text = item ? shown(item, i) : "";
-    if (item?.source === "review") {
-      // A review addition is new material, not a replacement: append the
-      // accepted bullet to the working resume (raw text + the current role's
-      // structured bullets). Saved versions are snapshots and are never
-      // touched here — the user saves a new version explicitly.
+    if (item?.source === "review" || item?.source === "eval") {
+      // A review/evaluation addition is new material, not a replacement:
+      // append the accepted bullet to the working resume (raw text + the
+      // current role's structured bullets). Saved versions are snapshots
+      // and are never touched here — the user saves a new version explicitly.
       if (text && !resume.rawText.includes(text)) {
         const experience = resume.experience.map((e, idx) =>
           idx === 0 && !e.bullets.includes(text) ? { ...e, bullets: [...e.bullets, text] } : e
@@ -117,7 +120,10 @@ function ImproveInner() {
         });
       }
     } else {
-      updateResume({ rawText: resume.rawText.split(original).join(text) });
+      // Mirror the replacement into the structured bullets as well as
+      // rawText, so Design/PDF/DOCX (structured) and Score (rawText)
+      // never fork into two versions of the truth.
+      updateResume(applyRewriteToResume(resume, original, text));
     }
     setRewriteAccepted(true);
     setAccepted((s) => new Set(s).add(i));
@@ -126,8 +132,8 @@ function ImproveInner() {
 
   const renderRewriteCard = ({ r, i }: { r: RewriteResult; i: number }) => (
     <div key={i} className="bg-white border border-line rounded-[14px] p-3">
-      <p className="text-[10.5px] font-bold text-muted uppercase tracking-wider">{r.source === "review" ? "From your review" : "Original"}</p>
-      <p className={`text-[13px] text-muted mt-1.5 leading-relaxed ${r.source === "review" ? "" : "line-through decoration-red-400"}`}>{r.original}</p>
+      <p className="text-[10.5px] font-bold text-muted uppercase tracking-wider">{r.source === "review" ? "From your review" : r.source === "eval" ? "From your evaluation" : "Original"}</p>
+      <p className={`text-[13px] text-muted mt-1.5 leading-relaxed ${r.source === "review" || r.source === "eval" ? "" : "line-through decoration-red-400"}`}>{r.original}</p>
       <p className="text-[10.5px] font-bold text-muted uppercase tracking-wider mt-2.5">Rewritten</p>
       {editingIdx === i ? (
         <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3}
@@ -280,6 +286,29 @@ function ImproveInner() {
                       <Card className="mt-3 !bg-mint !border-brand/30">
                         <p className="text-sm text-emerald-950 leading-relaxed">
                           <b>{acceptedReviewCount} review addition{acceptedReviewCount === 1 ? "" : "s"} added</b> to your working resume. Saved versions stay untouched — save these as a new version to keep this tailored set.
+                        </p>
+                        <a href="#save-new-version" className="inline-flex items-center text-sm font-bold text-emerald-900 underline underline-offset-2 min-h-[44px]">
+                          Save as a new version ↓
+                        </a>
+                      </Card>
+                    )}
+                  </div>
+                )}
+                {evalVisible.length > 0 && (
+                  <div className="mt-5">
+                    <div className="mb-2.5">
+                      <h3 className="font-extrabold text-navy">From your evaluation</h3>
+                      <p className="text-[13px] text-muted leading-relaxed mt-1">
+                        Accomplishments from your military evaluation (EPR/appraisal) that aren&apos;t in your resume yet. Accept the ones you want added to your working resume.
+                      </p>
+                    </div>
+                    <div className="grid gap-2.5">
+                      {evalVisible.map(renderRewriteCard)}
+                    </div>
+                    {acceptedEvalCount > 0 && (
+                      <Card className="mt-3 !bg-mint !border-brand/30">
+                        <p className="text-sm text-emerald-950 leading-relaxed">
+                          <b>{acceptedEvalCount} evaluation addition{acceptedEvalCount === 1 ? "" : "s"} added</b> to your working resume. Saved versions stay untouched — save these as a new version to keep this tailored set.
                         </p>
                         <a href="#save-new-version" className="inline-flex items-center text-sm font-bold text-emerald-900 underline underline-offset-2 min-h-[44px]">
                           Save as a new version ↓

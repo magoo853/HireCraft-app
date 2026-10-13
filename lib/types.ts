@@ -108,8 +108,9 @@ export interface RewriteResult {
   why: string;
   gaps: string[];
   translationNote?: string;
-  /** Set when this pair is an addition mined from the civilian performance review. */
-  source?: "review";
+  /** Set when this pair is an addition mined from the civilian performance
+   *  review ("review") or from a military evaluation ("eval"). */
+  source?: "review" | "eval";
 }
 
 export interface CoverLetterResult {

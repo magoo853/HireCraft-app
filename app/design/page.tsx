@@ -6,7 +6,7 @@ import {
   TEMPLATES, EdFn, DesignOptions, DEFAULT_DESIGN_OPTIONS,
   DESIGN_ACCENTS, DESIGN_FONTS, DESIGN_HEADERS, renderCustom,
 } from "@/lib/templates";
-import { structuredToText } from "@/lib/parse";
+import { applyTextEditToResume } from "@/lib/resume-sync";
 import { StructuredResume } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle } from "@/components/ui";
 import { SaveVersionForm } from "@/components/versions";
@@ -132,30 +132,11 @@ export default function DesignPage() {
   }
 
   function replaceText(oldText: string, newText: string) {
-    const r = { ...resume };
-    let done = false;
-    const swap = (s: string) => {
-      if (!done && s.includes(oldText)) { done = true; return s.replace(oldText, newText); }
-      return s;
-    };
-    r.summary = swap(r.summary);
-    r.name = swap(r.name);
-    r.experience = r.experience.map((e) => ({
-      ...e,
-      title: swap(e.title), company: swap(e.company), dates: swap(e.dates),
-      bullets: e.bullets.map(swap),
-    }));
-    r.projects = r.projects.map((p) => ({
-      ...p, name: swap(p.name), description: swap(p.description), tech: swap(p.tech),
-      bullets: p.bullets.map(swap),
-    }));
-    r.education = r.education.map((e) => ({
-      ...e, school: swap(e.school), degree: swap(e.degree), dates: swap(e.dates), details: swap(e.details),
-    }));
-    if (done) {
-      r.rawText = structuredToText(r);
-      setResume(r);
-    }
+    // Structured-field update + targeted rawText replacement (never a
+    // structuredToText regeneration, which would wipe accepted rewrites
+    // that live in rawText).
+    const next = applyTextEditToResume(resume, oldText, newText);
+    if (next !== resume) setResume(next);
   }
 
   return (

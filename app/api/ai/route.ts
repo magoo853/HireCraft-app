@@ -10,6 +10,8 @@ import {
   Role,
 } from "@/lib/careers";
 import {
+  dedupeAdditions,
+  extractEvalAdditions,
   extractReviewAdditions,
   generateCoverLetter,
   generateLinkedIn,
@@ -256,7 +258,12 @@ function runFallback(b: AiRequest) {
     // includes summary fragments that aren't bullets at all.
     const structured = resume.experience.flatMap((e) => e.bullets).filter((x) => x.trim().length > 10);
     const rewrites = rewriteBullets(structured.length ? structured.join("\n") : resume.rawText, mode);
-    return [...rewrites, ...extractReviewAdditions(b.perfReview?.text ?? "", resume, mode)];
+    const additions = dedupeAdditions(
+      extractEvalAdditions(b.military?.evalText ?? "", resume, mode),
+      extractReviewAdditions(b.perfReview?.text ?? "", resume, mode),
+      mode === "veteran"
+    );
+    return [...rewrites, ...additions];
   }
   if (task === "cover-letter") return generateCoverLetter(resume, jobText, targetTitle, company, (tone ?? "professional") as "professional" | "confident" | "warm");
   if (task === "summary") return generateSummary(resume);
@@ -325,31 +332,37 @@ async function runAi(b: AiRequest) {
       gaps: Array.isArray(r.gaps) ? r.gaps.map(String) : [],
       translationNote: r.translationNote ? String(r.translationNote) : undefined,
     }));
-    // Eval-only accomplishments ride along as extra pairs — original is the
-    // eval's own wording, rewritten is the resume-ready bullet.
+    // Eval-only accomplishments are additions, not replacements — original
+    // is the evaluation's own wording, rewritten is the resume-ready
+    // bullet. They carry source: "eval" so the Rewrite tab presents them
+    // in a dedicated "From your evaluation" section and accepts them
+    // through the append path.
+    const evalAdditions: RewriteResult[] = [];
     if (Array.isArray(parsed.evalAdditions)) {
       for (const a of parsed.evalAdditions.slice(0, 4)) {
         const original = String(a.original ?? "").trim();
         const rewritten = String(a.rewritten ?? "").trim();
         if (!original || !rewritten) continue;
-        rewrites.push({
+        evalAdditions.push({
           original,
           rewritten,
-          why: `New — mined from your performance review. ${String(a.why ?? "")}`.trim(),
+          why: `New — mined from your evaluation (EPR/appraisal), not yet in your resume. ${String(a.why ?? "")}`.trim(),
           gaps: [],
           translationNote: undefined,
+          source: "eval",
         });
       }
     }
     // Civilian-review-only accomplishments get their own source marker so
     // the Rewrite tab can present them in a dedicated "From your review"
     // section instead of mixing them into the resume-bullet rewrites.
+    const reviewAdditions: RewriteResult[] = [];
     if (Array.isArray(parsed.reviewAdditions)) {
       for (const a of parsed.reviewAdditions.slice(0, 4)) {
         const original = String(a.original ?? "").trim();
         const rewritten = String(a.rewritten ?? "").trim();
         if (!original || !rewritten) continue;
-        rewrites.push({
+        reviewAdditions.push({
           original,
           rewritten,
           why: `New — mined from your performance review. ${String(a.why ?? "")}`.trim(),
@@ -359,6 +372,9 @@ async function runAi(b: AiRequest) {
         });
       }
     }
+    // An accomplishment present in BOTH the evaluation and the civilian
+    // review surfaces once — the eval copy wins for veterans in veteran mode.
+    rewrites.push(...dedupeAdditions(evalAdditions, reviewAdditions, mode === "veteran"));
     return rewrites;
   }
 
