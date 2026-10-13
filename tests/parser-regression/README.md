@@ -32,6 +32,14 @@ fails. No new dependencies; nothing in the app imports this folder.
 | `skills-light.txt` | No SKILLS section — skills must be derived from prose (`deriveSkills`) |
 | `messy-formats.txt` | Colon-suffixed headers, `MM/YYYY` dates, skills one-per-line (known-issue probes) |
 | `linkedin-export.txt` | LinkedIn export shape — routed to `parseLinkedInProfile` |
+| `modern-docx-layout.txt` | Modern DOCX layout — competencies table, education first, two-line job headers, soft hyphens |
+| `two-column-block.txt` | Two-column resume as block-sequenced extraction (whole sidebar, then main column) |
+| `two-column-interleaved.txt` | Two-column resume as row-interleaved extraction (pdf.js Y-grouping) — known-issue probes |
+| `table-jobs.txt` | Table-based jobs: dates-cell + header-cell rows (pass) and a company on its own row (known-issue probes) |
+| `header-variants.txt` | `CAREER OBJECTIVE` + `WORK HISTORY` headers |
+| `professional-profile.txt` | `PROFESSIONAL PROFILE` + `EMPLOYMENT HISTORY` headers |
+| `career-summary.txt` | `CAREER SUMMARY` + `PROFESSIONAL EXPERIENCE` headers |
+| `international-dates.txt` | ISO, day-first, dotted-abbreviation, and open-ended date formats |
 
 ## Known parser issues (expected-failure probes)
 
@@ -63,3 +71,41 @@ ordinary regression assertions):
    returns `"Nair\nTampa, FL"` (literal newline included) instead of
    `"Tampa, FL"`. Discovered by this suite (general-civilian and
    federal-style fixtures).
+
+   *Issues 1–5 above were fixed in the 2026-10-13 hardening pass; their
+   `issue:` tags remain in `run.mjs` as regression guards and the
+   assertions now pass. The issues below are still open.*
+
+6. **Row-interleaved two-column extraction defeats section detection.**
+   When a two-column PDF's text comes out interleaved row-by-row (the
+   pdf.js Y-grouping in `extractPdfText` joins sidebar and main-column
+   text onto shared lines), headers collide — `"SKILLS PROFESSIONAL
+   SUMMARY"` matches no pattern — education lines are consumed as job
+   headers, and bullets are promoted to phantom roles. Summary, listed
+   skills, and education are lost; roles come back mangled. Block-
+   sequenced two-column text (whole sidebar first) parses cleanly
+   (`two-column-block.txt`). A real fix needs column-aware extraction
+   (X-coordinate splitting in `extractPdfText`), not a parser tweak.
+7. **Table jobs with the company on its own row spawn a phantom role.**
+   In a table resume where a job spans two extracted rows —
+   `dates | title`, then an empty dates cell holding the company — the
+   company line is treated as a new job header: the real role keeps an
+   empty company and a phantom role titled with the company name absorbs
+   the bullets. Jobs whose dates and header share one row parse cleanly
+   (`table-jobs.txt`).
+8. **ISO date ranges are dropped.** `DATE_RANGE_RE` has no `YYYY-MM`
+   atom, so `2019-03 – 2021-11` matches nothing: the role is created with
+   the right title and company but its `dates` come back empty.
+9. **Day-first date ranges are dropped.** `DATE_RANGE_RE` has no
+   day-first atom, so `12 March 2016 – 4 June 2018` matches nothing (the
+   end atom cannot start at `4 June…`): the role is created but its
+   `dates` come back empty.
+10. **Open-ended "Since YYYY" dates are dropped.** A single open-ended
+    date has no range separator, so `DATE_RANGE_RE` never matches: the
+    role is created but its `dates` come back empty.
+
+   *Dotted month abbreviations (`Mar. 2014 – Jun. 2016`) parse correctly
+   and are covered by passing assertions in `international-dates.txt`,
+   as are the `CAREER OBJECTIVE`, `WORK HISTORY`, `PROFESSIONAL
+   PROFILE`, and `CAREER SUMMARY` section headers (fixed in Cycle 6 —
+   before the fix, each silently dropped its entire section).* 

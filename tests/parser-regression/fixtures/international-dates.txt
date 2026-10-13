@@ -1,0 +1,22 @@
+Lucas Meyer
+Toronto, ON | 416-555-0134 | lucas.meyer@example.com
+
+PROFESSIONAL SUMMARY
+IT support specialist with experience across systems administration, networking, and front-line help desk work.
+
+EXPERIENCE
+Systems Administrator, Northern Systems Group, Toronto, ON, 2019-03 – 2021-11
+• Administered Windows servers and user accounts for a 300-person office
+• Automated patch reporting and cut manual audit work by half
+Network Technician, Lakefront IT Services, Toronto, ON, 12 March 2016 – 4 June 2018
+• Installed and configured switches and wireless access points for small offices
+• Documented network layouts that cut troubleshooting time for the whole team
+Help Desk Analyst, Citywide Support Services, Toronto, ON, Mar. 2014 – Jun. 2016
+• Resolved password, printer, and software tickets for walk-in customers
+• Wrote the team's first troubleshooting guide for common VPN problems
+IT Intern, University IT Services, Toronto, ON, Since 2021
+• Imaged laptops for incoming students during the fall rush
+• Staffed the service desk on weekends
+
+EDUCATION
+Diploma in Computer Systems, Seneca College, Toronto, ON, Apr 2014

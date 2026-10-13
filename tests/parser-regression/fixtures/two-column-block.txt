@@ -1,0 +1,26 @@
+Maya Chen
+Seattle, WA | 206-555-0183 | maya.chen@example.com
+
+TECHNICAL SKILLS
+Python
+Data Analysis
+Tableau
+SQL
+Project Management
+
+EDUCATION
+Bachelor of Science in Statistics, University of Washington, Seattle, WA, May 2016
+
+CERTIFICATIONS
+Certified Analytics Professional, 2021
+
+PROFESSIONAL SUMMARY
+Data analyst with eight years of experience turning messy operational data into decisions executives actually use.
+
+EXPERIENCE
+Senior Data Analyst, Northwind Retail Group, Seattle, WA, Mar 2019 – Present
+• Built Tableau dashboards used weekly by 40 store managers across the region
+• Cut monthly reporting time from three days to four hours by automating SQL extracts
+Data Analyst, Cascade Health, Bellevue, WA, Jun 2016 – Feb 2019
+• Analyzed patient scheduling data and found a fix that reduced no-shows by 11 percent
+• Presented quarterly findings to clinical leadership in plain language

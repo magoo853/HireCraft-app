@@ -63,6 +63,16 @@ const ISSUES = {
     'The education school finder takes the FIRST comma segment matching /university|college|academy|institute|school|seminary/i. For "High School Diploma, <School>, <year>" that first match is the degree segment itself, so school and degree come back swapped on every diploma-only resume.',
   locationNewline:
     'The location regex runs over the first 8 lines joined with "\\n", and its \\s+ spans the line break: when the name line directly precedes a contact line starting with a one-word city, the surname is captured as part of the city — location comes back as "Nair\\nTampa, FL" (literal newline included) instead of "Tampa, FL".',
+  interleavedColumns:
+    'Two-column PDFs whose extraction interleaves the columns row-by-row (the pdf.js Y-grouping used by this app joins sidebar and main-column text onto shared lines) defeat section detection: "SKILLS PROFESSIONAL SUMMARY" matches no header, education lines are consumed as job headers, and bullets are promoted to phantom roles. Summary, listed skills, and education are lost and the roles come back mangled. A real fix needs column-aware extraction (X-coordinate splitting in extractPdfText), not a parser tweak.',
+  tableCompanyRow:
+    'In a table-based resume where a job spans two extracted rows — "dates | title" then an empty dates cell holding the company — the company line is treated as a new job header: the real role keeps an empty company and a phantom role titled with the company name absorbs the bullets.',
+  isoDates:
+    "DATE_RANGE_RE has no ISO atom (YYYY-MM), so a range like 2019-03 – 2021-11 matches nothing: the role is created with the right title and company but its dates come back empty — the employment dates silently disappear.",
+  dayFirstDates:
+    'DATE_RANGE_RE has no day-first atom, so "12 March 2016 – 4 June 2018" matches nothing (after the separator, the end atom cannot start at "4 June…"): the role is created but its dates come back empty.',
+  sinceDate:
+    'An open-ended single date ("Since 2021") has no range separator, so DATE_RANGE_RE never matches: the role is created but its dates come back empty.',
 };
 
 function collector(results, fixture) {
@@ -361,6 +371,151 @@ CASES.push(
       a.check("certification whitespace is clean", !/[\t]| {2}/.test(r.certifications[0] ?? ""), {
         detail: `got ${JSON.stringify(r.certifications[0])}`,
       });
+    },
+  }
+);
+
+CASES.push(
+  {
+    file: "two-column-block.txt",
+    title: "Two-column resume, block-sequenced extraction — whole sidebar first, then the main column",
+    run(r, a) {
+      a.eq("name", r.name, "Maya Chen");
+      a.eq("location", r.location, "Seattle, WA");
+      a.includes("summary survives arriving after the sidebar", r.summary, "Data analyst");
+      a.minCount("sidebar skills parsed", r.skills, 5);
+      a.hasSkill("skills include Python", r.skills, "Python");
+      a.hasSkill("skills include Tableau", r.skills, "Tableau");
+      a.count("two roles", r.experience, 2);
+      a.eq("role 1 title", r.experience[0]?.title, "Senior Data Analyst");
+      a.includes("role 1 company", r.experience[0]?.company, "Northwind Retail Group");
+      a.jobDates("role 1 is dated", r.experience[0]);
+      a.includes("role 1 runs to Present", r.experience[0]?.dates, "Present");
+      a.eq("role 2 title", r.experience[1]?.title, "Data Analyst");
+      a.jobDates("role 2 is dated", r.experience[1]);
+      a.count("one education entry", r.education, 1);
+      a.includes("education school", r.education[0]?.school, "University of Washington");
+      a.includes("education degree", r.education[0]?.degree, "Statistics");
+      a.count("one certification", r.certifications, 1);
+    },
+  },
+  {
+    file: "two-column-interleaved.txt",
+    title: "Two-column resume, row-interleaved extraction — sidebar and main column share lines (pdf.js Y-grouping)",
+    run(r, a) {
+      a.eq("name survives interleaving", r.name, "Daniel Reyes");
+      a.eq("email survives interleaving", r.email, "daniel.reyes@example.com");
+      a.eq("location survives interleaving", r.location, "Austin, TX");
+      a.includes("summary survives interleaving", r.summary, "Operations manager", {
+        issue: ISSUES.interleavedColumns,
+      });
+      a.count("two roles survive interleaving", r.experience, 2, {
+        issue: ISSUES.interleavedColumns,
+      });
+      a.check(
+        "a role is titled 'Warehouse Manager'",
+        r.experience.some((j) => j.title === "Warehouse Manager"),
+        { issue: ISSUES.interleavedColumns }
+      );
+      a.count("one education entry survives interleaving", r.education, 1, {
+        issue: ISSUES.interleavedColumns,
+      });
+      a.hasSkill("listed skills survive interleaving (Forecasting)", r.skills, "Forecasting", {
+        issue: ISSUES.interleavedColumns,
+      });
+      a.count("certifications block is salvaged", r.certifications, 2);
+      a.includes("certifications include the clean entry", r.certifications.join(" | "), "Forklift Operator License");
+    },
+  },
+  {
+    file: "table-jobs.txt",
+    title: "Table-based jobs — dates cell + header cell rows, and a job whose company sits on its own row",
+    run(r, a) {
+      a.eq("name", r.name, "Samuel Ortiz");
+      a.eq("location", r.location, "Chicago, IL");
+      a.includes("summary mentions operations leader", r.summary, "Operations leader");
+      a.eq("role 1 title (dates cell + header cell row)", r.experience[0]?.title, "Operations Manager");
+      a.includes("role 1 company", r.experience[0]?.company, "Brightline Logistics");
+      a.jobDates("role 1 is dated", r.experience[0]);
+      a.minCount("role 1 bullets", r.experience[0]?.bullets, 2);
+      a.eq("role 2 title", r.experience[1]?.title, "Warehouse Supervisor");
+      a.jobDates("role 2 is dated", r.experience[1]);
+      const lead = r.experience.find((j) => j.title === "Shipping Lead");
+      a.check("third job exists (Shipping Lead)", !!lead);
+      a.jobDates("Shipping Lead is dated", lead);
+      a.count("three roles in total", r.experience, 3, { issue: ISSUES.tableCompanyRow });
+      a.includes("Shipping Lead keeps its company", lead?.company, "Northgate", {
+        issue: ISSUES.tableCompanyRow,
+      });
+      a.check(
+        "no phantom role titled 'Northgate Distribution'",
+        !r.experience.some((j) => j.title === "Northgate Distribution"),
+        { issue: ISSUES.tableCompanyRow }
+      );
+      a.count("one education entry", r.education, 1);
+      a.includes("education school", r.education[0]?.school, "DePaul University");
+    },
+  },
+  {
+    file: "header-variants.txt",
+    title: "Header variants — CAREER OBJECTIVE + WORK HISTORY",
+    run(r, a) {
+      a.eq("name", r.name, "Hannah Kim");
+      a.includes("CAREER OBJECTIVE lands in summary", r.summary, "Customer service professional");
+      a.count("WORK HISTORY yields two roles", r.experience, 2);
+      a.eq("role 1 title", r.experience[0]?.title, "Customer Service Representative");
+      a.jobDates("role 1 is dated", r.experience[0]);
+      a.count("one education entry", r.education, 1);
+      a.includes("education school", r.education[0]?.school, "Community College of Denver");
+      a.minCount("skills parsed", r.skills, 4);
+    },
+  },
+  {
+    file: "professional-profile.txt",
+    title: "Header variants — PROFESSIONAL PROFILE + EMPLOYMENT HISTORY",
+    run(r, a) {
+      a.eq("name", r.name, "Elena Petrova");
+      a.includes("PROFESSIONAL PROFILE lands in summary", r.summary, "Registered nurse");
+      a.count("two roles via EMPLOYMENT HISTORY", r.experience, 2);
+      a.eq("role 1 title", r.experience[0]?.title, "Registered Nurse");
+      a.count("one education entry", r.education, 1);
+      a.includes("education school", r.education[0]?.school, "Northeastern University");
+    },
+  },
+  {
+    file: "career-summary.txt",
+    title: "Header variants — CAREER SUMMARY + PROFESSIONAL EXPERIENCE",
+    run(r, a) {
+      a.eq("name", r.name, "David Osei");
+      a.includes("CAREER SUMMARY lands in summary", r.summary, "Electrician");
+      a.count("two roles via PROFESSIONAL EXPERIENCE", r.experience, 2);
+      a.count("one education entry", r.education, 1);
+      a.includes("education school", r.education[0]?.school, "Atlanta Technical College");
+      a.includes("education degree keeps Certificate", r.education[0]?.degree, "Certificate");
+    },
+  },
+  {
+    file: "international-dates.txt",
+    title: "International / alternate date formats — ISO, day-first, dotted abbreviations, open-ended",
+    run(r, a) {
+      a.eq("name", r.name, "Lucas Meyer");
+      a.eq("location", r.location, "Toronto, ON");
+      a.count("four roles", r.experience, 4);
+      a.eq("role 1 title (ISO range)", r.experience[0]?.title, "Systems Administrator");
+      a.jobDates("ISO range (2019-03 – 2021-11) dates the role", r.experience[0], {
+        issue: ISSUES.isoDates,
+      });
+      a.eq("role 2 title (day-first range)", r.experience[1]?.title, "Network Technician");
+      a.jobDates("day-first range (12 March 2016 – 4 June 2018) dates the role", r.experience[1], {
+        issue: ISSUES.dayFirstDates,
+      });
+      a.jobDates("dotted-abbrev range (Mar. 2014 – Jun. 2016) dates the role", r.experience[2]);
+      a.includes("dotted-abbrev dates are kept verbatim", r.experience[2]?.dates, "Jun. 2016");
+      a.jobDates("open-ended 'Since 2021' dates the role", r.experience[3], {
+        issue: ISSUES.sinceDate,
+      });
+      a.count("one education entry", r.education, 1);
+      a.includes("education school", r.education[0]?.school, "Seneca College");
     },
   }
 );
