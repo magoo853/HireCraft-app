@@ -8,12 +8,13 @@ import { Button } from "@/components/ui";
 
 /**
  * One-time disclosure + consent before any resume data is sent to the
- * third-party AI provider (App Store Guideline 5.1.2(i)). Blocks the app
- * until accepted; the privacy policy itself stays reachable so it can be
- * read first. Consent can be withdrawn in Settings.
+ * third-party AI provider (App Store Guideline 5.1.2(i)). The user can
+ * agree, or continue without AI — declining persists and never blocks
+ * the on-device features; the gate does not re-appear on navigation.
+ * Consent can be withdrawn (or given) later in Settings.
  */
 export function AiConsentGate() {
-  const { aiConsent, setAiConsent } = useApp();
+  const { aiConsent, setAiConsent, aiConsentDeclined, setAiConsentDeclined } = useApp();
   const path = usePathname();
   const [ready, setReady] = useState(false);
 
@@ -21,7 +22,7 @@ export function AiConsentGate() {
     setReady(true);
   }, []);
 
-  if (!ready || aiConsent) return null;
+  if (!ready || aiConsent || aiConsentDeclined) return null;
   if (path === "/privacy") return null; // let them read the policy first
 
   return (
@@ -44,14 +45,33 @@ export function AiConsentGate() {
             Scoring, design templates, and job alerts run without AI and don't send anything.
           </p>
         </div>
-        <Button variant="emerald" className="w-full mt-5 !min-h-[52px]" onClick={() => setAiConsent(true)}>
+        <Button variant="emerald" className="w-full mt-5 !min-h-[52px]" onClick={() => { setAiConsent(true); setAiConsentDeclined(false); }}>
           Agree &amp; continue
+        </Button>
+        <Button variant="secondary" className="w-full mt-2 !min-h-[52px]" onClick={() => setAiConsentDeclined(true)}>
+          Continue without AI
         </Button>
         <p className="text-center text-xs text-muted mt-3">
           <Link href="/privacy" className="underline font-semibold">Read the privacy policy</Link>
-          {" · "}You can withdraw consent any time in Settings.
+          {" · "}You can change this any time in Settings.
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * Inline stand-in for AI action buttons when consent is not granted
+ * (declined, withdrawn, or never given): the action does not fire, and
+ * the user is pointed at Settings instead. Renders nothing when AI is on.
+ */
+export function AiOffNote({ className = "" }: { className?: string }) {
+  const { aiConsent } = useApp();
+  if (aiConsent) return null;
+  return (
+    <p className={`text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 ${className}`}>
+      AI is off — <Link href="/settings" className="underline font-bold">turn it on in Settings</Link> to use this.
+      Everything else in the app works without it.
+    </p>
   );
 }

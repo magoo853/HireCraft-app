@@ -9,7 +9,7 @@ import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
 const MODES: Mode[] = ["veteran", "general", "new"];
 
 export default function SettingsPage() {
-  const { mode, setMode, resetAll, aiConsent, setAiConsent } = useApp();
+  const { mode, setMode, resetAll, aiConsent, setAiConsent, aiConsentDeclined, setAiConsentDeclined } = useApp();
   const [confirmReset, setConfirmReset] = useState(false);
 
   return (
@@ -42,13 +42,18 @@ export default function SettingsPage() {
         {aiConsent ? (
           <>
             <p className="text-xs font-bold text-emerald-900 mb-2">✓ Consent given — AI features are on.</p>
-            <Button variant="secondary" onClick={() => setAiConsent(false)} className="w-full">Withdraw consent</Button>
-            <p className="text-[11px] text-muted mt-2">Withdrawing stops all AI sending; the app will ask again before anything is sent.</p>
+            <Button variant="secondary" onClick={() => { setAiConsent(false); setAiConsentDeclined(true); }} className="w-full">Withdraw consent</Button>
+            <p className="text-[11px] text-muted mt-2">Withdrawing stops all AI sending. The rest of the app keeps working, and you can turn AI back on here any time.</p>
+          </>
+        ) : aiConsentDeclined ? (
+          <>
+            <p className="text-xs font-bold text-amber-900 mb-2">You chose to continue without AI — AI features are off.</p>
+            <Button variant="emerald" onClick={() => { setAiConsent(true); setAiConsentDeclined(false); }} className="w-full">Turn AI on</Button>
           </>
         ) : (
           <>
             <p className="text-xs font-bold text-amber-900 mb-2">Consent not given — AI features are paused.</p>
-            <Button variant="emerald" onClick={() => setAiConsent(true)} className="w-full">Give consent &amp; turn AI on</Button>
+            <Button variant="emerald" onClick={() => { setAiConsent(true); setAiConsentDeclined(false); }} className="w-full">Give consent &amp; turn AI on</Button>
           </>
         )}
       </Card>

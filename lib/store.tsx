@@ -36,6 +36,8 @@ interface AppState {
   setNewJobCount: (n: number) => void;
   aiConsent: boolean;
   setAiConsent: (v: boolean) => void;
+  aiConsentDeclined: boolean;
+  setAiConsentDeclined: (v: boolean) => void;
   scoreViewed: boolean;
   setScoreViewed: (v: boolean) => void;
   rewriteAccepted: boolean;
@@ -85,6 +87,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [seenJobIds, setSeenJobIds] = useState<string[]>([]);
   const [newJobCount, setNewJobCount] = useState(0);
   const [aiConsent, setAiConsent] = useState(false);
+  const [aiConsentDeclined, setAiConsentDeclined] = useState(false);
   const [scoreViewed, setScoreViewed] = useState(false);
   const [rewriteAccepted, setRewriteAccepted] = useState(false);
   const [designChosen, setDesignChosen] = useState(false);
@@ -116,6 +119,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(s.seenJobIds)) setSeenJobIds(s.seenJobIds as string[]);
       if (typeof s.newJobCount === "number") setNewJobCount(s.newJobCount);
       if (typeof s.aiConsent === "boolean") setAiConsent(s.aiConsent);
+      if (typeof s.aiConsentDeclined === "boolean") setAiConsentDeclined(s.aiConsentDeclined);
       if (typeof s.scoreViewed === "boolean") setScoreViewed(s.scoreViewed);
       if (typeof s.rewriteAccepted === "boolean") setRewriteAccepted(s.rewriteAccepted);
       if (typeof s.designChosen === "boolean") setDesignChosen(s.designChosen);
@@ -130,9 +134,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -177,6 +181,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSeenJobIds([]);
     setNewJobCount(0);
     setAiConsent(false);
+    setAiConsentDeclined(false);
     setScoreViewed(false);
     setRewriteAccepted(false);
     setDesignChosen(false);
@@ -196,7 +201,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       military, setMilitary,
       perfReview, setPerfReview,
       alerts, setAlerts, seenJobIds, setSeenJobIds, newJobCount, setNewJobCount,
-      aiConsent, setAiConsent,
+      aiConsent, setAiConsent, aiConsentDeclined, setAiConsentDeclined,
       scoreViewed, setScoreViewed, rewriteAccepted, setRewriteAccepted,
       designChosen, setDesignChosen, exported, setExported,
       onboardingDismissed, setOnboardingDismissed,
