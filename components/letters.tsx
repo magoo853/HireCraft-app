@@ -192,7 +192,7 @@ export function LinkedIn() {
     setUploading(true);
     setUploadMsg("");
     try {
-      const { parseFile } = await import("@/lib/parse");
+      const { parseFile } = await import("@/lib/parse-file");
       const text = await parseFile(f);
       if (text.trim().length < 50) throw new Error("Couldn't read much text from that file — try the LinkedIn PDF export or paste the text below.");
       setLinkedinText(text);

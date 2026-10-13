@@ -1,70 +1,24 @@
 /**
- * Career intelligence engine: RIASEC quiz scoring, job matching, and roadmap
- * pathfinding. Fully client-runnable (fallback path); the /api/ai route can
- * upgrade generation to an LLM when AI_API_KEY is set.
+ * Career intelligence engine: job matching and roadmap pathfinding over
+ * the ROLES ladder. Fully client-runnable (fallback path); the /api/ai
+ * route can upgrade generation to an LLM when AI_API_KEY is set.
  *
  * SALARY BANDS ARE ESTIMATES — rough US national ranges (2026) for illustration.
  * Always labeled as estimates in the UI. Verify against BLS OES or live postings
  * before making decisions.
+ *
+ * The light pieces live in sibling modules so pages don't pay for the
+ * whole engine in First Load JS: quiz data/scoring in ./quiz, MOS
+ * translation in ./mos, shared types/helpers in ./careers-core. All of
+ * them are re-exported here so existing importers (notably /api/ai)
+ * keep working unchanged.
  */
+import { JobMatch, Role, RoadmapGoal, RoadmapNode } from "./careers-core";
+import { RIASEC_NAMES, RiasecScores } from "./quiz";
 
-export type RiasecLetter = "R" | "I" | "A" | "S" | "E" | "C";
-
-export const RIASEC_NAMES: Record<RiasecLetter, string> = {
-  R: "Realistic",
-  I: "Investigative",
-  A: "Artistic",
-  S: "Social",
-  E: "Enterprising",
-  C: "Conventional",
-};
-
-export const RIASEC_BLURBS: Record<RiasecLetter, string> = {
-  R: "hands-on builder — you like practical work with tools, machines, and tangible results",
-  I: "analytical thinker — you like digging into data and solving complex problems",
-  A: "creative original — you like designing, expressing, and unconventional approaches",
-  S: "people helper — you energize from teaching, coaching, and supporting others",
-  E: "driven leader — you like persuading, deciding, and chasing ambitious goals",
-  C: "organized operator — you like structure, accuracy, and well-run processes",
-};
-
-export interface QuizQuestion {
-  text: string;
-  dimension: RiasecLetter;
-}
-
-export const QUIZ_QUESTIONS: QuizQuestion[] = [
-  { text: "I enjoy working with my hands to build or fix things.", dimension: "R" },
-  { text: "I like operating tools, machines, or vehicles.", dimension: "R" },
-  { text: "I prefer practical, hands-on problems over abstract ones.", dimension: "R" },
-  { text: "I enjoy analyzing data to find patterns.", dimension: "I" },
-  { text: "I like solving complex, abstract problems.", dimension: "I" },
-  { text: "I'm curious about how things work and why.", dimension: "I" },
-  { text: "I enjoy expressing myself creatively.", dimension: "A" },
-  { text: "I like designing how things look or feel.", dimension: "A" },
-  { text: "I prefer original, unconventional approaches.", dimension: "A" },
-  { text: "I enjoy helping people work through personal problems.", dimension: "S" },
-  { text: "I like teaching, coaching, or mentoring others.", dimension: "S" },
-  { text: "I get energy from working closely with people.", dimension: "S" },
-  { text: "I enjoy persuading people and leading projects.", dimension: "E" },
-  { text: "I like taking charge and making decisions.", dimension: "E" },
-  { text: "I'm motivated by competition and ambitious goals.", dimension: "E" },
-  { text: "I enjoy organizing information and keeping detailed records.", dimension: "C" },
-  { text: "I like clear rules and structured processes.", dimension: "C" },
-  { text: "I take pride in accuracy and thoroughness.", dimension: "C" },
-];
-
-export const LIKERT_LABELS = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"];
-
-export interface Role {
-  title: string;
-  cluster: RiasecLetter[]; // primary first
-  salaryLow: number; // USD annual, ESTIMATE
-  salaryHigh: number; // USD annual, ESTIMATE
-  skills: string[];
-  next: string[]; // natural next-step titles (must match other titles)
-}
-
+export * from "./careers-core";
+export * from "./mos";
+export * from "./quiz";
 export const ROLES: Role[] = [
   // ---- Tech (I/C) ----
   { title: "Help Desk Technician", cluster: ["C", "I", "S"], salaryLow: 45000, salaryHigh: 65000, skills: ["troubleshooting", "customer service", "Windows", "ticketing systems", "networking basics"], next: ["IT Support Specialist", "Network Administrator"] },
@@ -119,16 +73,13 @@ export const ROLES: Role[] = [
   { title: "Engineering Manager", cluster: ["E", "I"], salaryLow: 140000, salaryHigh: 195000, skills: ["team leadership", "system design", "hiring", "roadmapping", "mentoring"], next: ["Director of Engineering", "VP of Engineering"] },
   { title: "Security Manager", cluster: ["E", "I", "C"], salaryLow: 125000, salaryHigh: 175000, skills: ["security strategy", "team leadership", "incident response", "risk assessment", "compliance"], next: ["CISO", "Director of Security"] },
 ];
-
 const roleByTitle = new Map(ROLES.map((r) => [r.title.toLowerCase(), r]));
-
 export function findRole(title: string): Role | undefined {
   const t = title.toLowerCase().trim();
   if (roleByTitle.has(t)) return roleByTitle.get(t);
   // fuzzy: title contains or is contained by a known title
   return ROLES.find((r) => r.title.toLowerCase().includes(t) || t.includes(r.title.toLowerCase()));
 }
-
 /** Common military titles mapped to their closest civilian ladder rungs. */
 const MILITARY_TITLE_MAP: Record<string, string> = {
   "squad leader": "Warehouse Supervisor",
@@ -141,48 +92,15 @@ const MILITARY_TITLE_MAP: Record<string, string> = {
   "first sergeant": "HR Manager",
   "drill sergeant": "HR Manager",
 };
-
 export function findRoleWithMilitary(title: string): Role | undefined {
   const direct = findRole(title);
   if (direct) return direct;
   const mapped = MILITARY_TITLE_MAP[title.toLowerCase().trim()];
   return mapped ? findRole(mapped) : undefined;
 }
-
-/* ------------------------------------------------------------------ */
-/* Quiz scoring                                                        */
-/* ------------------------------------------------------------------ */
-
-export type RiasecScores = Record<RiasecLetter, number>; // 0..100 normalized
-
-export function scoreQuiz(answers: number[]): { scores: RiasecScores; code: string; top: RiasecLetter[] } {
-  const sums: Record<RiasecLetter, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
-  const counts: Record<RiasecLetter, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
-  QUIZ_QUESTIONS.forEach((q, i) => {
-    sums[q.dimension] += answers[i] ?? 3;
-    counts[q.dimension] += 1;
-  });
-  const scores = {} as RiasecScores;
-  (Object.keys(sums) as RiasecLetter[]).forEach((k) => {
-    const avg = sums[k] / Math.max(1, counts[k]); // 1..5
-    scores[k] = Math.round(((avg - 1) / 4) * 100);
-  });
-  const top = (Object.keys(scores) as RiasecLetter[]).sort((a, b) => scores[b] - scores[a]);
-  return { scores, code: top.slice(0, 3).join(""), top };
-}
-
 /* ------------------------------------------------------------------ */
 /* Job matching                                                        */
 /* ------------------------------------------------------------------ */
-
-export interface JobMatch {
-  role: Role;
-  fit: number; // 0..100
-  why: string;
-  matchedSkills: string[];
-  missingSkills: string[];
-}
-
 function resumeSkillSet(resumeText: string, skills: string[]): Set<string> {
   const set = new Set<string>();
   const lower = resumeText.toLowerCase();
@@ -195,7 +113,6 @@ function resumeSkillSet(resumeText: string, skills: string[]): Set<string> {
   }
   return set;
 }
-
 export function matchJobs(
   scores: RiasecScores,
   resumeText: string,
@@ -229,134 +146,6 @@ export function matchJobs(
   });
   return results.sort((a, b) => b.fit - a.fit).slice(0, limit);
 }
-
-/** Deep links to live job-board searches for a title. No API key needed —
- *  the boards do the searching; we just send the user to the right query. */
-export function jobSearchLinks(title: string, location = "", veteranFirst = false): { name: string; url: string }[] {
-  const q = encodeURIComponent(title);
-  const l = encodeURIComponent(location.trim());
-  const links = [
-    { name: "Indeed", url: `https://www.indeed.com/jobs?q=${q}${l ? `&l=${l}` : ""}` },
-    { name: "LinkedIn", url: `https://www.linkedin.com/jobs/search/?keywords=${q}${l ? `&location=${l}` : ""}` },
-    { name: "Glassdoor", url: `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${q}${l ? `&locT=C&locKeyword=${l}` : ""}` },
-    { name: "USAJobs", url: `https://www.usajobs.gov/Search/Results?k=${q}` },
-  ];
-  if (veteranFirst) {
-    const usajobs = links.pop()!;
-    return [usajobs, ...links];
-  }
-  return links;
-}
-
-/* ------------------------------------------------------------------ */
-/* Military translation (MOS / rating / AFSC -> civilian roles)        */
-/* ------------------------------------------------------------------ */
-
-/**
- * Common military job codes and the civilian roles they translate to.
- * Role titles match ROLES entries so matches carry real salary bands.
- * A starting crosswalk — the AI path covers any code; this keeps the
- * built-in engine useful for the most common codes.
- */
-export const MOS_CROSSWALK: Record<string, { label: string; equivalent: string; about: string; roles: string[] }> = {
-  // Army
-  "11B": { label: "Infantryman", equivalent: "Operations Team Lead", about: "You led and worked as part of a small team carrying out missions on the ground — often under pressure, where the stakes were real. Civilian employers call that front-line operations and team leadership.", roles: ["Operations Manager", "Warehouse Supervisor", "Logistics Coordinator", "Project Manager"] },
-  "11C": { label: "Indirect Fire Infantryman", equivalent: "Operations Team Lead", about: "You operated mortar systems and calculated firing data so rounds landed exactly where they needed to. In civilian terms, that's precision work on a small operations team — planning, math, and coordination under pressure.", roles: ["Operations Manager", "Warehouse Supervisor", "Logistics Coordinator"] },
-  "12B": { label: "Combat Engineer", equivalent: "Construction Project Specialist", about: "You built and cleared the way for the force — construction, demolitions, bridges, and route clearance. Civilian employers call that construction and field engineering work.", roles: ["Construction Manager", "Maintenance Technician", "Project Manager"] },
-  "13F": { label: "Fire Support Specialist", equivalent: "Operations Coordinator", about: "You coordinated artillery, mortar, and air support — pulling together targeting data and making sure every element executed the same plan at the same time. That's operations coordination and data-driven decision support in civilian terms.", roles: ["Operations Manager", "Data Analyst", "Logistics Coordinator"] },
-  "19D": { label: "Cavalry Scout", equivalent: "Field Operations Specialist", about: "You were the commander's eyes and ears — moving ahead of the unit to gather information and report back what you found. Civilian employers call that field operations, reconnaissance, and situational reporting.", roles: ["Operations Manager", "Logistics Coordinator", "Warehouse Supervisor"] },
-  "25B": { label: "Information Technology Specialist", equivalent: "IT Support Specialist", about: "You installed, maintained, and troubleshot the Army's computers, networks, and communications systems. That's the same work civilian companies hire IT support specialists and systems administrators to do.", roles: ["IT Support Specialist", "Systems Administrator", "Network Administrator", "Cybersecurity Analyst"] },
-  "25U": { label: "Signal Support Systems Specialist", equivalent: "IT Support Specialist", about: "You kept radios, networks, and communications gear working for your unit — and helped everyone else use them. In civilian terms, that's IT support and network field service.", roles: ["IT Support Specialist", "Network Administrator", "Help Desk Technician"] },
-  "31B": { label: "Military Police", equivalent: "Security Manager / Law Enforcement Officer", about: "You enforced the law, ran patrols and investigations, and protected people and property. Civilian employers and police departments call that law enforcement and security operations.", roles: ["Security Manager", "Operations Manager", "Logistics Coordinator"] },
-  "35F": { label: "Intelligence Analyst", equivalent: "Intelligence / Data Analyst", about: "You collected, analyzed, and briefed intelligence so commanders could decide what to do next. Civilian employers call that analysis — the same skill set behind data and business analyst roles.", roles: ["Data Analyst", "Business Analyst", "Cybersecurity Analyst"] },
-  "42A": { label: "Human Resources Specialist", equivalent: "HR Specialist", about: "You handled soldiers' pay issues, evaluations, promotions, awards, and personnel records. That's human resources administration — companies hire HR specialists to do exactly that.", roles: ["HR Generalist", "HR Manager", "Executive Assistant"] },
-  "68W": { label: "Combat Medic Specialist", equivalent: "EMT / Paramedic", about: "You were the first medical responder for your unit — treating injuries and illness in the field and in the clinic. Civilian emergency medicine calls that an EMT or paramedic; your training is the same foundation.", roles: ["EMT / Paramedic", "Medical Assistant", "Registered Nurse"] },
-  "88M": { label: "Motor Transport Operator", equivalent: "Commercial Truck Driver (CDL)", about: "You drove trucks and transported cargo and personnel over every kind of road, in every condition. That's commercial driving — your experience maps directly to CDL truck driver roles.", roles: ["CDL Truck Driver", "Logistics Coordinator", "Warehouse Supervisor"] },
-  "89B": { label: "Ammunition Specialist", equivalent: "Inventory & Logistics Specialist", about: "You received, stored, accounted for, and issued ammunition — a job where an inventory error is a serious problem. In civilian terms, that's high-accountability inventory control and warehouse logistics.", roles: ["Logistics Coordinator", "Warehouse Supervisor", "Supply Chain Analyst"] },
-  "91B": { label: "Wheeled Vehicle Mechanic", equivalent: "Automotive / Diesel Mechanic", about: "You diagnosed and repaired the Army's trucks and wheeled vehicles. That's the same trade as a civilian automotive or diesel mechanic — reading diagnostics, turning wrenches, and keeping a fleet running.", roles: ["Maintenance Technician", "HVAC Technician", "Electrician"] },
-  "92A": { label: "Automated Logistical Specialist", equivalent: "Supply Chain / Inventory Specialist", about: "You ran the warehouse systems that tracked, ordered, and issued supplies and repair parts. Civilian companies call that inventory management and supply chain operations.", roles: ["Supply Chain Analyst", "Logistics Coordinator", "Warehouse Supervisor"] },
-  "92Y": { label: "Unit Supply Specialist", equivalent: "Supply / Logistics Specialist", about: "You were your unit's supply room — ordering, receiving, storing, and issuing everything from uniforms to equipment, with signed accountability for all of it. That's supply and logistics work in civilian terms.", roles: ["Supply Chain Analyst", "Logistics Coordinator", "Warehouse Supervisor"] },
-  "94E": { label: "Radio/Communications Security Repairer", equivalent: "Electronics / Communications Technician", about: "You repaired radios and communications-security equipment down to the component level. Civilian employers call that electronics and communications repair technician work.", roles: ["IT Support Specialist", "Network Administrator", "Maintenance Technician"] },
-  // Navy ratings
-  "HM": { label: "Hospital Corpsman", equivalent: "Medical Assistant / EMT", about: "You provided medical care to sailors and Marines — in clinics, in hospitals, and in the field. That clinical experience maps directly to civilian roles like medical assistant and EMT.", roles: ["Medical Assistant", "EMT / Paramedic", "Registered Nurse"] },
-  "IT": { label: "Information Systems Technician", equivalent: "IT / Network Technician", about: "You ran and defended the Navy's computer networks and communications systems, ashore and at sea. That's the same work as a civilian IT or network technician.", roles: ["IT Support Specialist", "Network Administrator", "Cybersecurity Analyst", "Systems Administrator"] },
-  "MA": { label: "Master-at-Arms", equivalent: "Security / Law Enforcement Officer", about: "You were the Navy's police force — patrols, investigations, force protection, and access control. Civilian employers call that law enforcement and security work.", roles: ["Security Manager", "Operations Manager", "Logistics Coordinator"] },
-  "LS": { label: "Logistics Specialist", equivalent: "Logistics / Supply Specialist", about: "You ordered, tracked, stored, and issued the supplies and parts that keep a ship or command running. In civilian terms, that's purchasing support and supply chain logistics.", roles: ["Logistics Coordinator", "Supply Chain Analyst", "Warehouse Supervisor"] },
-  "OS": { label: "Operations Specialist", equivalent: "Operations Center Specialist", about: "You tracked ships and aircraft on radar and kept the command's picture of what was happening up to date. That's operations-center work — monitoring, plotting, and reporting in real time.", roles: ["Operations Manager", "Data Analyst", "Logistics Coordinator"] },
-  "ET": { label: "Electronics Technician", equivalent: "Electronics Technician", about: "You maintained and repaired the Navy's communications, radar, and navigation electronics. Civilian employers hire electronics technicians to do the same work on similar systems.", roles: ["Maintenance Technician", "Electrician", "IT Support Specialist"] },
-  "BM": { label: "Boatswain's Mate", equivalent: "Deck Operations Supervisor", about: "You ran the ship's deck operations — cargo handling, mooring, underway replenishment — and led the sailors doing the work. In civilian terms, that's hands-on operations supervision, including in the maritime industry.", roles: ["Operations Manager", "Warehouse Supervisor", "Logistics Coordinator"] },
-  // Air Force AFSC
-  "3P0X1": { label: "Security Forces", equivalent: "Security Manager / Law Enforcement Officer", about: "You were the Air Force's police and security force — law enforcement, base defense, and protection of people and high-value assets. Civilian employers call that law enforcement and security management.", roles: ["Security Manager", "Operations Manager"] },
-  "3D1X2": { label: "Cyber Transport Systems", equivalent: "Network Administrator", about: "You built and maintained the networks that carry Air Force voice, video, and data. That's a civilian network administrator's job — infrastructure, hardware, and keeping systems online.", roles: ["Network Administrator", "Systems Administrator", "Cybersecurity Analyst"] },
-  "1D7X1": { label: "Cyber Defense Operations", equivalent: "Cybersecurity Analyst", about: "You defended Air Force networks against cyber threats — monitoring, detecting, and responding to attacks. Civilian companies hire cybersecurity analysts to do exactly that.", roles: ["Cybersecurity Analyst", "Network Administrator", "Systems Administrator"] },
-  "2T1X1": { label: "Ground Transportation", equivalent: "Commercial Driver / Transportation Specialist", about: "You operated government vehicles of every size — moving people and cargo safely and on schedule. In civilian terms, that's commercial driving and transportation operations.", roles: ["CDL Truck Driver", "Logistics Coordinator", "Warehouse Supervisor"] },
-  "4N0X1": { label: "Aerospace Medical Service", equivalent: "Medical Assistant / EMT", about: "You provided medical support in Air Force clinics and hospitals — vitals, immunizations, and direct patient care. That maps directly to civilian medical assistant and EMT roles.", roles: ["Medical Assistant", "EMT / Paramedic"] },
-  "3F5X1": { label: "Administration", equivalent: "Administrative / Executive Assistant", about: "You ran the paperwork engine of an Air Force unit — official documents, correspondence, and records. Civilian employers call that administrative and executive assistant work.", roles: ["Executive Assistant", "HR Generalist", "Operations Manager"] },
-  "2S0X1": { label: "Materiel Management", equivalent: "Supply Chain / Inventory Specialist", about: "You managed the Air Force's supply chain — ordering, storing, and issuing parts and equipment with strict accountability. That's civilian inventory and supply chain work.", roles: ["Supply Chain Analyst", "Logistics Coordinator", "Warehouse Supervisor"] },
-  "6C0X1": { label: "Contracting", equivalent: "Contracting Officer", about: "You bought goods and services for the Air Force — negotiating contracts, managing vendors, and making sure every dollar was spent by the book. Companies call that procurement.", roles: ["Supply Chain Analyst", "Project Manager", "Business Analyst", "Operations Manager"] },
-  "6F0X1": { label: "Financial Management & Comptroller", equivalent: "Financial Analyst / Budget Analyst", about: "You managed Air Force budgets, payments, and financial reporting. Civilian employers call that budget and financial analysis — the same rules, spreadsheets, and accountability.", roles: ["Financial Analyst", "Accountant", "Business Analyst"] },
-  "2T2X1": { label: "Air Transportation", equivalent: "Air Cargo / Logistics Specialist", about: "You moved passengers and cargo by air — loading aircraft, processing documentation, and running the aerial port. In civilian terms, that's air cargo and logistics operations.", roles: ["Logistics Coordinator", "Warehouse Supervisor", "Supply Chain Analyst"] },
-  "3F0X1": { label: "Personnel", equivalent: "HR Specialist", about: "You handled the personnel side of the Air Force — assignments, evaluations, promotions, and records. That's human resources, and companies hire HR specialists to run the same programs.", roles: ["HR Generalist", "HR Manager", "Executive Assistant"] },
-  "3E6X1": { label: "Operations Management", equivalent: "Operations Manager", about: "You planned and coordinated the work of a civil engineer squadron — tracking projects, work orders, and resources. That's civilian operations and project coordination.", roles: ["Operations Manager", "Project Manager"] },
-  // Marines
-  "0311": { label: "Rifleman", equivalent: "Operations Team Lead", about: "You were the backbone of a Marine rifle squad — carrying out missions as part of a small team in demanding conditions. Civilian employers call that front-line operations and team leadership.", roles: ["Operations Manager", "Logistics Coordinator", "Warehouse Supervisor"] },
-  "0651": { label: "Cyber Network Operator", equivalent: "Network / IT Support Specialist", about: "You installed, operated, and defended Marine Corps computer networks. That's the same work civilian companies hire network and IT support specialists to do.", roles: ["IT Support Specialist", "Network Administrator", "Systems Administrator"] },
-  "0671": { label: "Data Systems Administrator", equivalent: "Systems Administrator", about: "You administered the servers, accounts, and data systems the Marine Corps runs on. In civilian terms, that's a systems administrator role.", roles: ["Systems Administrator", "IT Support Specialist", "Network Administrator"] },
-  "3531": { label: "Motor Vehicle Operator", equivalent: "Commercial Truck Driver (CDL)", about: "You drove tactical vehicles to move Marines, equipment, and supplies wherever they were needed. That's commercial driving experience that maps to CDL roles.", roles: ["CDL Truck Driver", "Logistics Coordinator"] },
-  "0431": { label: "Logistics/Embarkation Specialist", equivalent: "Logistics Coordinator", about: "You planned and executed the movement of Marines and gear — by air, land, and sea, down to the load plan. Civilian employers call that logistics coordination.", roles: ["Logistics Coordinator", "Supply Chain Analyst", "Operations Manager"] },
-};
-
-/** Parse a free-text MOS entry ("11B, 25B · Army") into known translations. */
-export function mosTranslations(mosCodes: string): { code: string; label: string; equivalent: string; about: string; roles: string[] }[] {
-  if (!mosCodes.trim()) return [];
-  const tokens = mosCodes.toUpperCase().split(/[,;·•\n]+/).map((t) => t.trim()).filter(Boolean);
-  const out: { code: string; label: string; equivalent: string; about: string; roles: string[] }[] = [];
-  const seen = new Set<string>();
-  for (const tok of tokens) {
-    const word = (tok.split(/\s+/)[0] ?? "").replace(/[^A-Z0-9X]/g, "");
-    const hit = MOS_CROSSWALK[word];
-    if (hit && !seen.has(word)) {
-      seen.add(word);
-      out.push({ code: word, label: hit.label, equivalent: hit.equivalent, about: hit.about, roles: hit.roles });
-    }
-  }
-  return out;
-}
-
-/* ------------------------------------------------------------------ */
-/* Roadmap                                                             */
-/* ------------------------------------------------------------------ */
-
-export interface HorizonGoal {
-  text: string;
-  salary: number; // annual USD target, 0 = not set
-}
-
-/** A user-defined checkpoint: N years out, with a goal and salary target. */
-export interface RoadmapGoal {
-  years: number;
-  text: string;
-  salary: number; // annual USD target, 0 = not set
-}
-
-export interface RoadmapNode {
-  horizon: string; // "Now" | "2 years" | "5 years" | custom e.g. "3 years"
-  years: number; // 0 = now
-  titles: {
-    title: string;
-    salaryLow: number;
-    salaryHigh: number;
-    salaryFlag: "hit" | "can-hit" | "below";
-    salaryNote: string;
-    dayInLife?: string; // illustrative preview of the role, derived from its skill profile
-  }[];
-  steppingStones: string[];
-  gaps: string[];
-  goalText: string;
-  /** Every skill the checkpoint's target roles expect, marked against the user's resume. */
-  skillsToHave: { skill: string; have: boolean }[];
-}
-
 function salaryFlag(low: number, high: number, target: number): RoadmapNode["titles"][number] {
   const fmt = (n: number) => `$${Math.round(n / 1000)}K`;
   if (!target || target <= 0) {
@@ -370,7 +159,6 @@ function salaryFlag(low: number, high: number, target: number): RoadmapNode["tit
   }
   return { title: "", salaryLow: low, salaryHigh: high, salaryFlag: "below", salaryNote: `⚠ Below your ${fmt(target)} target (est. ${fmt(low)}–${fmt(high)})` };
 }
-
 /** Find roles matching free-text goal (title/skill keyword overlap). */
 export function rolesForGoal(goalText: string, limit = 2): Role[] {
   const stop = new Set(["the", "and", "for", "with", "from", "into", "that", "this", "have", "want", "become", "going"]);
@@ -396,7 +184,6 @@ export function rolesForGoal(goalText: string, limit = 2): Role[] {
     .sort((a, b) => b.score - a.score);
   return scored.slice(0, limit).map((s) => s.role);
 }
-
 /** BFS path between roles via `next` edges (stepping stones). */
 export function pathBetween(fromTitle: string, toTitle: string, maxDepth = 4): string[] {
   const from = findRole(fromTitle);
@@ -421,7 +208,6 @@ export function pathBetween(fromTitle: string, toTitle: string, maxDepth = 4): s
   }
   return [];
 }
-
 /** Illustrative "what this job looks like" preview, derived from the role's skill profile. */
 export function dayInLife(role: Role): string {
   const s = role.skills;
@@ -429,7 +215,6 @@ export function dayInLife(role: Role): string {
   const tail = s.length > 3 ? `, plus ${s.slice(3, 5).join(" and ")}` : "";
   return `Day to day, expect your time to revolve around ${head}${tail}.`;
 }
-
 /** Best-guess ladder role for a resume whose title matches nothing in ROLES. */
 export function inferRoleFromResume(currentTitle: string, resumeText: string, resumeSkills: string[]): Role | undefined {
   // Probe with titles + skills only — body text is too noisy (it name-drops
@@ -442,7 +227,6 @@ export function inferRoleFromResume(currentTitle: string, resumeText: string, re
     || candidate.skills.some((s) => s.toLowerCase().split(/\s+/).some((w) => probeWords.has(w)));
   return connected ? candidate : undefined;
 }
-
 /** Next rungs when a goal names no recognizable role: climb from where you are. */
 function progressionFrom(prevTitle: string, resumeText: string, resumeSkills: string[], limit: number): Role[] {
   const cur = (prevTitle ? findRoleWithMilitary(prevTitle) : undefined) ?? inferRoleFromResume(prevTitle, resumeText, resumeSkills);
@@ -457,7 +241,6 @@ function progressionFrom(prevTitle: string, resumeText: string, resumeSkills: st
     .sort((a, b) => a.salaryHigh - b.salaryHigh);
   return (sibs.length ? sibs : [cur]).slice(0, limit);
 }
-
 export function buildRoadmap(
   currentTitle: string,
   resumeText: string,
@@ -552,31 +335,3 @@ export function buildRoadmap(
   }
   return nodes;
 }
-
-/** Format a salary number as $120K. */
-export function fmtSalary(n: number): string {
-  if (!n || n <= 0) return "";
-  return n >= 1000 ? `$${Math.round(n / 1000)}K` : `$${n}`;
-}
-
-/** Suggested goal examples per mode (chips on the roadmap form). */
-export const GOAL_EXAMPLES: Record<string, string[]> = {
-  veteran: [
-    "Operations manager at a logistics company",
-    "IT project manager or cybersecurity analyst",
-    "Federal service / law enforcement career",
-    "Start my own business",
-  ],
-  general: [
-    "Senior or lead role in my field",
-    "Move into management",
-    "Switch into tech",
-    "Six-figure remote role",
-  ],
-  new: [
-    "Land my first full-time job",
-    "Become a certified electrician",
-    "Finish my degree while working",
-    "Get promoted to supervisor",
-  ],
-};

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
-import { GOAL_EXAMPLES, RoadmapGoal, RoadmapNode, fmtSalary, jobSearchLinks } from "@/lib/careers";
+import { GOAL_EXAMPLES, RoadmapGoal, RoadmapNode, fmtSalary, jobSearchLinks } from "@/lib/careers-core";
 import { AiResponse } from "@/lib/types";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, Pill, inputCls } from "@/components/ui";
 
