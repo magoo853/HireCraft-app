@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             right={
               <>
                 <Link href="/resume" className="min-h-[44px] flex items-center text-sm font-bold text-pine px-2.5">
-                  Resume
+                  My Resume
                 </Link>
                 <Link href="/paywall" className="min-h-[44px] flex items-center text-sm font-bold text-emerald-700 px-2.5">
                   Premium
