@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useApp } from "@/lib/store";
 import { AiResponse, CoverLetterResult, LinkedInResult } from "@/lib/types";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, TargetJobBanner, inputCls } from "./ui";
+import { AiOffNote } from "./consent";
 
 type Tone = "professional" | "confident" | "warm";
 
 /* ---------------- Cover letter ---------------- */
 
 export function CoverLetter() {
-  const { resume, jobText, setJobText, jobUrl, setJobUrl, targetTitle, company, mode, military } = useApp();
+  const { resume, jobText, setJobText, jobUrl, setJobUrl, targetTitle, company, mode, military, aiConsent } = useApp();
   const [tone, setTone] = useState<Tone>("confident");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<CoverLetterResult> | null>(null);
@@ -38,6 +39,7 @@ export function CoverLetter() {
   }
 
   async function generate() {
+    if (!aiConsent) return; // AI off — no request fires; the CTAs show AiOffNote instead
     setLoading(true);
     setError("");
     try {
@@ -94,9 +96,13 @@ export function CoverLetter() {
           </Field>
         )}
         <div className="flex gap-2 mt-3">
-          <Button onClick={generate} disabled={loading} className="flex-1">
-            {loading ? "…" : "Tailor"}
-          </Button>
+          {aiConsent ? (
+            <Button onClick={generate} disabled={loading} className="flex-1">
+              {loading ? "…" : "Tailor"}
+            </Button>
+          ) : (
+            <AiOffNote className="flex-1" />
+          )}
         </div>
         {error && <p className="text-sm text-red-700 mb-2">{error}</p>}
       </Card>
@@ -118,9 +124,13 @@ export function CoverLetter() {
           <p className="text-sm text-muted mb-5 max-w-xs mx-auto">
             Tailored to your resume{jobText ? " and the posting" : ""}, in your tone. Fully editable before you send it.
           </p>
-          <Button variant="emerald" onClick={generate} className="w-full !min-h-[52px]">
-            ✉ Generate cover letter
-          </Button>
+          {aiConsent ? (
+            <Button variant="emerald" onClick={generate} className="w-full !min-h-[52px]">
+              ✉ Generate cover letter
+            </Button>
+          ) : (
+            <AiOffNote />
+          )}
         </Card>
       )}
       {loading && <p className="text-sm text-muted text-center py-8">Writing your letter…</p>}
@@ -152,7 +162,7 @@ export function CoverLetter() {
 /* ---------------- LinkedIn ---------------- */
 
 export function LinkedIn() {
-  const { resume, jobText, targetTitle, linkedinText, setLinkedinText, mode, military } = useApp();
+  const { resume, jobText, targetTitle, linkedinText, setLinkedinText, mode, military, aiConsent } = useApp();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<LinkedInResult> | null>(null);
   const [error, setError] = useState("");
@@ -167,6 +177,7 @@ export function LinkedIn() {
   const [bullets, setBullets] = useState<{ original: string; polished: string }[]>([]);
 
   async function generate(fb = "") {
+    if (!aiConsent) return; // AI off — no request fires; the CTA shows AiOffNote instead
     setLoading(true);
     setError("");
     try {
@@ -243,9 +254,13 @@ export function LinkedIn() {
             <p className="text-sm text-muted mb-5 max-w-xs mx-auto">
               Headline options, an About rewrite, polished experience bullets, and the skills you're missing vs. the posting.
             </p>
-            <Button variant="emerald" onClick={() => generate()} className="w-full !min-h-[52px]">
-              Build my LinkedIn content
-            </Button>
+            {aiConsent ? (
+              <Button variant="emerald" onClick={() => generate()} className="w-full !min-h-[52px]">
+                Build my LinkedIn content
+              </Button>
+            ) : (
+              <AiOffNote />
+            )}
             {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
           </Card>
         </>

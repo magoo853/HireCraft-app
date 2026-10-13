@@ -14,6 +14,7 @@ import { JobMatch, RiasecLetter, fmtSalary, jobSearchLinks } from "@/lib/careers
 import { AiResponse } from "@/lib/types";
 import { JobPosting, ScoredPosting, checkedAgoLabel, dedupeScoredPostings, scorePosting } from "@/lib/jobs";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
+import { AiOffNote } from "@/components/consent";
 
 interface DiscoverResult {
   scores: RiasecScores;
@@ -26,14 +27,13 @@ type Stage = "intro" | "quiz" | "results";
 const LS_KEY = "hirecraft-quiz";
 
 export default function DiscoverPage() {
-  const { resume, hasResume, mode, military } = useApp();
+  const { resume, hasResume, mode, military, aiConsent } = useApp();
   const [stage, setStage] = useState<Stage>("intro");
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<DiscoverResult> | null>(null);
   const [error, setError] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [location, setLocation] = useState("");
 
@@ -82,6 +82,8 @@ export default function DiscoverPage() {
   }
 
   async function finish(finalAnswers: number[]) {
+    // AI off — no request fires; the results stage shows AiOffNote instead.
+    if (!aiConsent) { setStage("results"); return; }
     setLoading(true);
     setError("");
     setStage("results");
@@ -107,7 +109,6 @@ export default function DiscoverPage() {
     setAnswers([]);
     setQi(0);
     setResult(null);
-    setUnlocked(false);
     setSelected(null);
     try { localStorage.removeItem(LS_KEY); } catch { /* noop */ }
     setStage("quiz");
@@ -131,7 +132,7 @@ export default function DiscoverPage() {
           </p>
           <p className="text-sm text-muted mb-6 max-w-xs mx-auto leading-relaxed">
             We combine your result with your resume to recommend job titles with fit scores.
-            The quiz is free — your top 3 matches are free, the full list is paid.
+            The quiz is free, and so is your full list of matches.
           </p>
           <Button variant="emerald" onClick={() => { setStage("quiz"); setQi(0); setAnswers([]); }} className="w-full !min-h-[52px]">
             Start the quiz →
@@ -175,6 +176,7 @@ export default function DiscoverPage() {
         <>
           {loading && <p className="text-sm text-muted text-center py-8">Analyzing your work style…</p>}
           {error && <p className="text-sm text-red-700 mb-3">{error}</p>}
+          {!result && !loading && !aiConsent && <AiOffNote className="mb-3" />}
 
           {result && (
             <>
@@ -214,32 +216,13 @@ export default function DiscoverPage() {
               </Card>
 
               <MatchList
-                matches={result.data.matches.slice(0, 3)}
+                matches={result.data.matches}
                 selected={selected}
                 onSelect={setSelected}
                 offset={0}
                 location={location}
                 veteran={mode === "veteran"}
               />
-
-              {!unlocked ? (
-                <button onClick={() => setUnlocked(true)} className="w-full mt-3 bg-white border-2 border-dashed border-brand/50 rounded-2xl p-5 text-center min-h-[44px]">
-                  <p className="font-extrabold text-navy text-sm">🔓 Unlock all {result.data.matches.length} matches</p>
-                  <p className="text-xs text-muted mt-1">Paid feature — unlocked in this web build</p>
-                </button>
-              ) : (
-                <>
-                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mt-5 mb-2">More matches</p>
-                  <MatchList
-                    matches={result.data.matches.slice(3)}
-                    selected={selected}
-                    onSelect={setSelected}
-                    offset={3}
-                    location={location}
-                    veteran={mode === "veteran"}
-                  />
-                </>
-              )}
               <SourceNote source={result.source} note={result.note} />
               <p className="text-xs text-muted mt-2">Salary bands are rough US estimates — verify against live postings.</p>
             </>

@@ -12,6 +12,7 @@ import {
 import { GoalIdeas } from "@/components/goal-ideas";
 import { AiResponse } from "@/lib/types";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, Pill, inputCls } from "@/components/ui";
+import { AiOffNote } from "@/components/consent";
 
 const LS_KEY = "hirecraft-roadmap-goals-v2";
 const LS_OLD = "hirecraft-roadmap-goals";
@@ -35,7 +36,7 @@ function parseYears(s: string): number {
 }
 
 export default function RoadmapPage() {
-  const { resume, mode, hasResume, military } = useApp();
+  const { resume, mode, hasResume, military, aiConsent } = useApp();
   const [goals, setGoals] = useState<RoadmapGoal[]>(defaultGoals());
   const [loading, setLoading] = useState(false);
   const [nodes, setNodes] = useState<AiResponse<RoadmapNode[]> | null>(null);
@@ -130,6 +131,7 @@ export default function RoadmapPage() {
   }
 
   async function build() {
+    if (!aiConsent) return; // AI off — no request fires; the CTA shows AiOffNote instead
     const anyGoal = goals.some((g) => g.text.trim());
     if (!anyGoal) {
       setError("Set at least one goal — even a rough one. The roadmap needs a destination.");
@@ -238,9 +240,13 @@ export default function RoadmapPage() {
               + Add another checkpoint
             </button>
           )}
-          <Button variant="emerald" onClick={build} disabled={loading} className="w-full !min-h-[52px]">
-            {loading ? "Mapping your future…" : "🗺 Build my roadmap"}
-          </Button>
+          {aiConsent ? (
+            <Button variant="emerald" onClick={build} disabled={loading} className="w-full !min-h-[52px]">
+              {loading ? "Mapping your future…" : "🗺 Build my roadmap"}
+            </Button>
+          ) : (
+            <AiOffNote />
+          )}
           {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
           <Field label="Location (optional — sharpens the job-board links)">
             <input value={location} onChange={(e) => setLocation(e.target.value)}

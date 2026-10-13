@@ -6,13 +6,14 @@ import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { extractKeywords, scoreResume } from "@/lib/fallback";
 import { applyRewriteToResume } from "@/lib/resume-sync";
-import { AiResponse, RewriteResult, ScoreResult } from "@/lib/types";
+import { AiResponse, RewriteResult, ScoreResult, StructuredResume } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJobBanner, inputCls } from "@/components/ui";
 import { SaveVersionForm } from "@/components/versions";
+import { AiOffNote } from "@/components/consent";
 
 function ImproveInner() {
   const params = useSearchParams();
-  const { resume, jobText, mode, hasResume, updateResume, military, perfReview, setRewriteAccepted } = useApp();
+  const { resume, jobText, mode, hasResume, setResume, military, perfReview, setRewriteAccepted, aiConsent } = useApp();
   const [tab, setTab] = useState<"rewrite" | "tailor">(params.get("tab") === "tailor" ? "tailor" : "rewrite");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<RewriteResult[]> | null>(null);
@@ -32,6 +33,7 @@ function ImproveInner() {
   );
 
   async function runRewrite() {
+    if (!aiConsent) return; // AI off — no request fires; the CTA shows AiOffNote instead
     setLoading(true);
     setError("");
     try {
@@ -102,31 +104,57 @@ function ImproveInner() {
       : null;
   const fmtScore = (s: ScoreResult) => `${s.total} (${s.grade})`;
 
-  function acceptRewrite(i: number, original: string) {
-    const item = result?.data[i];
-    const text = item ? shown(item, i) : "";
-    if (item?.source === "review" || item?.source === "eval") {
+  // Pure accept step against an explicit resume value, so Accept-all can
+  // fold every pending item over the evolving resume (each addition is
+  // appended at most once; replacements mirror into the structure).
+  function applyAccept(current: StructuredResume, item: RewriteResult, text: string): StructuredResume {
+    if (item.source === "review" || item.source === "eval") {
       // A review/evaluation addition is new material, not a replacement:
       // append the accepted bullet to the working resume (raw text + the
       // current role's structured bullets). Saved versions are snapshots
       // and are never touched here — the user saves a new version explicitly.
-      if (text && !resume.rawText.includes(text)) {
-        const experience = resume.experience.map((e, idx) =>
+      if (text && !current.rawText.includes(text)) {
+        const experience = current.experience.map((e, idx) =>
           idx === 0 && !e.bullets.includes(text) ? { ...e, bullets: [...e.bullets, text] } : e
         );
-        updateResume({
-          rawText: `${resume.rawText.trim()}\n• ${text}`,
+        return {
+          ...current,
+          rawText: `${current.rawText.trim()}\n• ${text}`,
           ...(experience.length ? { experience } : {}),
-        });
+        };
       }
-    } else {
-      // Mirror the replacement into the structured bullets as well as
-      // rawText, so Design/PDF/DOCX (structured) and Score (rawText)
-      // never fork into two versions of the truth.
-      updateResume(applyRewriteToResume(resume, original, text));
+      return current;
     }
+    // Mirror the replacement into the structured bullets as well as
+    // rawText, so Design/PDF/DOCX (structured) and Score (rawText)
+    // never fork into two versions of the truth.
+    return applyRewriteToResume(current, item.original, text);
+  }
+
+  function acceptRewrite(i: number, original: string) {
+    const item = result?.data[i];
+    if (!item) return;
+    const text = shown(item, i);
+    setResume(applyAccept(resume, item, text));
     setRewriteAccepted(true);
     setAccepted((s) => new Set(s).add(i));
+    setEditingIdx(null);
+  }
+
+  // One human action that accepts every pending rewrite — the same
+  // per-item operations, folded in list order (the order the delta
+  // projection replays), so the outcome matches the projection.
+  function acceptAll() {
+    if (!result || remaining.length === 0) return;
+    let next = resume;
+    const ids: number[] = [];
+    for (const { r, i } of remaining) {
+      next = applyAccept(next, r, shown(r, i));
+      ids.push(i);
+    }
+    setResume(next);
+    setRewriteAccepted(true);
+    setAccepted((s) => { const n = new Set(s); ids.forEach((id) => n.add(id)); return n; });
     setEditingIdx(null);
   }
 
@@ -204,9 +232,13 @@ function ImproveInner() {
               <p className="text-sm text-muted mb-5 max-w-xs mx-auto">
                 Stronger verbs. Results before tasks. {mode === "veteran" ? "Military terms translated to civilian language." : ""} Gaps flagged — never filled with fiction.
               </p>
-              <Button variant="emerald" onClick={runRewrite} className="w-full !min-h-[52px]">
-                ✎ Rewrite my bullets
-              </Button>
+              {aiConsent ? (
+                <Button variant="emerald" onClick={runRewrite} className="w-full !min-h-[52px]">
+                  ✎ Rewrite my bullets
+                </Button>
+              ) : (
+                <AiOffNote />
+              )}
               {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
             </Card>
           )}
@@ -257,6 +289,11 @@ function ImproveInner() {
                       ? "Scored against your job posting — the same scoring the Score tab uses."
                       : `No job posting set — scored against a generic ${baseline.score.genericTitle} checklist, like the Score tab. Add a posting on the Resume tab for a sharper read.`}
                   </p>
+                  {remaining.length > 0 && (
+                    <Button variant="emerald" onClick={acceptAll} className="w-full mt-3">
+                      Accept all {remaining.length} remaining rewrite{remaining.length > 1 ? "s" : ""}
+                    </Button>
+                  )}
                 </Card>
               )}
               {visible.length === 0 ? (
