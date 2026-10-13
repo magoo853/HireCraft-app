@@ -117,15 +117,35 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
 ];
 
 const MONTHS = "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|Sept|October|November|December";
-/** A full date range anywhere in a line: "Feb 2015 – Present", "Mar 2013 – Mar 2015", "2019 - 2025". */
-const DATE_RANGE_RE = new RegExp(`((?:${MONTHS})\\.?\\s+\\d{4}|\\d{1,2}/\\d{4}|\\d{4})\\s*[-–—]\\s*((?:${MONTHS})\\.?\\s+\\d{4}|\\d{1,2}/\\d{4}|\\d{4}|present|current)`, "i");
+// One date atom. The ISO form (YYYY-MM) must precede the bare year so a
+// range like "2019-03 – 2021-11" is not truncated at the ISO month's dash;
+// the day-first form covers "12 March 2016". A bare atom can never match on
+// its own here — DATE_RANGE_RE always requires two atoms around a dash.
+const DATE_ATOM = `(?:${MONTHS})\\.?\\s+\\d{4}|\\d{1,2}\\s+(?:${MONTHS})\\.?\\s+\\d{4}|\\d{4}-\\d{2}|\\d{1,2}/\\d{4}|\\d{4}`;
+/** A full date range anywhere in a line: "Feb 2015 – Present", "Mar 2013 – Mar 2015", "2019 - 2025", "2019-03 – 2021-11", "12 March 2016 – 4 June 2018". */
+const DATE_RANGE_RE = new RegExp(`(${DATE_ATOM})\\s*[-–—]\\s*(${DATE_ATOM}|present|current)`, "i");
+/** An open-ended start with no end date: "Since 2021", "From Mar 2019".
+ * Kept apart from DATE_RANGE_RE (which requires a separator + end atom)
+ * and consulted only for lines inside the experience section, so summary
+ * prose like "serving customers since 2021" never trips it. The matched
+ * text is kept verbatim — downstream display/scoring only needs the
+ * dates string to be non-empty and carry the year. */
+const DATE_OPEN_RE = new RegExp(`\\b(?:since|from)\\s+(?:(?:${MONTHS})\\.?\\s+\\d{4}|\\d{1,2}/\\d{4}|\\d{4})`, "i");
+
+/** The datelike tail a job-header line carries: a full range, else an open-ended start. */
+function matchJobDates(line: string): string {
+  return line.match(DATE_RANGE_RE)?.[0] ?? line.match(DATE_OPEN_RE)?.[0] ?? "";
+}
+function hasJobDates(line: string): boolean {
+  return DATE_RANGE_RE.test(line) || DATE_OPEN_RE.test(line);
+}
 const ACTION_VERBS = /^(administered|managed|led|developed|provided|directed|supervised|responsible|oversaw|maintained|coordinated|performed|conducted|executed|delivered|supported|assisted|ensured|prepared|operated|served|worked|handled|processed|created|built|implemented|trained|evaluated|reviewed|planned|organized|monitored|advised|negotiated|achieved|improved|increased|reduced|streamlined|established|designed|launched|mentored|briefed)\b/i;
 
 /** "Title, Company, Location; Feb 2015 – Present, Rank, …" → parts. */
 function parseJobHeader(line: string): { title: string; company: string; dates: string } {
-  const dates = line.match(DATE_RANGE_RE)?.[0] ?? "";
+  const dates = matchJobDates(line);
   let head = line.split(";")[0];
-  head = head.replace(DATE_RANGE_RE, "").replace(/[:;,]\s*$/, "").trim();
+  head = head.replace(DATE_RANGE_RE, "").replace(DATE_OPEN_RE, "").replace(/[:;,]\s*$/, "").trim();
   let segs = head.split(/,\s*/).filter(Boolean);
   if (segs.length === 1 && /[|—–]/.test(head)) segs = head.split(/\s*[|—–]\s*/).filter(Boolean);
   return {
@@ -242,7 +262,7 @@ export function textToStructured(text: string): StructuredResume {
         r.experience.push(currentJob);
       }
     } else if (line.length > 3) {
-      const hasDate = DATE_RANGE_RE.test(line);
+      const hasDate = hasJobDates(line);
       // A long sentence opening with an action verb is a bullet that lost
       // its marker, not a job title — don't promote it to a role.
       const sentenceLike = line.split(/\s+/).length > 6 && ACTION_VERBS.test(line);
@@ -256,9 +276,9 @@ export function textToStructured(text: string): StructuredResume {
           let j = idx + 1;
           while (j < expLines.length && !expLines[j]) j++;
           const next = expLines[j];
-          if (next && DATE_RANGE_RE.test(next) && !/^[•\-\*▪◦‣·]/.test(next)) {
-            const nd = next.match(DATE_RANGE_RE)?.[0] ?? "";
-            const nHead = next.split(";")[0].replace(DATE_RANGE_RE, "").replace(/[:;,]\s*$/, "").trim();
+          if (next && hasJobDates(next) && !/^[•\-\*▪◦‣·]/.test(next)) {
+            const nd = matchJobDates(next);
+            const nHead = next.split(";")[0].replace(DATE_RANGE_RE, "").replace(DATE_OPEN_RE, "").replace(/[:;,]\s*$/, "").trim();
             currentJob = { title: line, company: nHead, dates: nd, bullets: [] };
             r.experience.push(currentJob);
             idx = j; // the company/dates line is consumed

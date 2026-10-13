@@ -67,12 +67,6 @@ const ISSUES = {
     'Two-column PDFs whose extraction interleaves the columns row-by-row (the pdf.js Y-grouping used by this app joins sidebar and main-column text onto shared lines) defeat section detection: "SKILLS PROFESSIONAL SUMMARY" matches no header, education lines are consumed as job headers, and bullets are promoted to phantom roles. Summary, listed skills, and education are lost and the roles come back mangled. A real fix needs column-aware extraction (X-coordinate splitting in extractPdfText), not a parser tweak.',
   tableCompanyRow:
     'In a table-based resume where a job spans two extracted rows — "dates | title" then an empty dates cell holding the company — the company line is treated as a new job header: the real role keeps an empty company and a phantom role titled with the company name absorbs the bullets.',
-  isoDates:
-    "DATE_RANGE_RE has no ISO atom (YYYY-MM), so a range like 2019-03 – 2021-11 matches nothing: the role is created with the right title and company but its dates come back empty — the employment dates silently disappear.",
-  dayFirstDates:
-    'DATE_RANGE_RE has no day-first atom, so "12 March 2016 – 4 June 2018" matches nothing (after the separator, the end atom cannot start at "4 June…"): the role is created but its dates come back empty.',
-  sinceDate:
-    'An open-ended single date ("Since 2021") has no range separator, so DATE_RANGE_RE never matches: the role is created but its dates come back empty.',
 };
 
 function collector(results, fixture) {
@@ -500,20 +494,30 @@ CASES.push(
     run(r, a) {
       a.eq("name", r.name, "Lucas Meyer");
       a.eq("location", r.location, "Toronto, ON");
-      a.count("four roles", r.experience, 4);
+      a.count("five roles", r.experience, 5);
       a.eq("role 1 title (ISO range)", r.experience[0]?.title, "Systems Administrator");
-      a.jobDates("ISO range (2019-03 – 2021-11) dates the role", r.experience[0], {
-        issue: ISSUES.isoDates,
-      });
+      a.jobDates("ISO range (2019-03 – 2021-11) dates the role", r.experience[0]);
+      a.eq("ISO dates are kept verbatim", r.experience[0]?.dates, "2019-03 – 2021-11");
+      a.count(
+        "role 1 keeps all four bullets (lone ISO token / phone-like string in bullets spawn no role)",
+        r.experience[0]?.bullets,
+        4
+      );
       a.eq("role 2 title (day-first range)", r.experience[1]?.title, "Network Technician");
-      a.jobDates("day-first range (12 March 2016 – 4 June 2018) dates the role", r.experience[1], {
-        issue: ISSUES.dayFirstDates,
-      });
+      a.jobDates("day-first range (12 March 2016 – 4 June 2018) dates the role", r.experience[1]);
+      a.eq("day-first dates are kept verbatim", r.experience[1]?.dates, "12 March 2016 – 4 June 2018");
       a.jobDates("dotted-abbrev range (Mar. 2014 – Jun. 2016) dates the role", r.experience[2]);
       a.includes("dotted-abbrev dates are kept verbatim", r.experience[2]?.dates, "Jun. 2016");
-      a.jobDates("open-ended 'Since 2021' dates the role", r.experience[3], {
-        issue: ISSUES.sinceDate,
-      });
+      a.jobDates("open-ended 'Since 2021' dates the role", r.experience[3]);
+      a.eq("open-ended dates are kept verbatim", r.experience[3]?.dates, "Since 2021");
+      a.count(
+        "role 4 prose line carrying a lone ISO token stays a bullet (no phantom role, no dates)",
+        r.experience[3]?.bullets,
+        3
+      );
+      a.eq("role 5 title (open-ended From)", r.experience[4]?.title, "Seasonal Support Associate");
+      a.jobDates("open-ended 'From Sep 2022' dates the role", r.experience[4]);
+      a.eq("'From Sep 2022' is kept verbatim", r.experience[4]?.dates, "From Sep 2022");
       a.count("one education entry", r.education, 1);
       a.includes("education school", r.education[0]?.school, "Seneca College");
     },

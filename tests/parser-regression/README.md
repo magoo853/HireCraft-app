@@ -93,16 +93,17 @@ ordinary regression assertions):
    empty company and a phantom role titled with the company name absorbs
    the bullets. Jobs whose dates and header share one row parse cleanly
    (`table-jobs.txt`).
-8. **ISO date ranges are dropped.** `DATE_RANGE_RE` has no `YYYY-MM`
-   atom, so `2019-03 – 2021-11` matches nothing: the role is created with
-   the right title and company but its `dates` come back empty.
-9. **Day-first date ranges are dropped.** `DATE_RANGE_RE` has no
-   day-first atom, so `12 March 2016 – 4 June 2018` matches nothing (the
-   end atom cannot start at `4 June…`): the role is created but its
-   `dates` come back empty.
-10. **Open-ended "Since YYYY" dates are dropped.** A single open-ended
-    date has no range separator, so `DATE_RANGE_RE` never matches: the
-    role is created but its `dates` come back empty.
+   *Issues 8–10 (ISO ranges `2019-03 – 2021-11`, day-first ranges
+   `12 March 2016 – 4 June 2018`, and open-ended `Since 2021` /
+   `From Sep 2022` starts) were fixed in Cycle 7: `DATE_RANGE_RE`
+   gained ISO (`YYYY-MM`) and day-first atoms — the ISO atom ordered
+   before the bare year so a range is never truncated at the ISO
+   month's dash — and a separate `DATE_OPEN_RE` covers open-ended
+   starts, consulted only inside the experience section so summary
+   prose never trips it. Their probes were flipped to ordinary
+   assertions in `international-dates.txt`, which also guards the
+   atoms against misfires (a lone `2019-03` token or a phone-like
+   string inside a bullet spawns no role and no dates).*
 
    *Dotted month abbreviations (`Mar. 2014 – Jun. 2016`) parse correctly
    and are covered by passing assertions in `international-dates.txt`,
