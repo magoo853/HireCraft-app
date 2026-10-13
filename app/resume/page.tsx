@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
-import { structuredToText, textToStructured } from "@/lib/parse";
+import { deriveSkills, structuredToText, textToStructured } from "@/lib/parse";
 import { mosTranslations } from "@/lib/mos";
 import { SAMPLE_MILITARY, SAMPLE_RESUME } from "@/lib/sample";
 import { AiResponse, ExperienceItem, ProjectItem, StructuredResume, SummaryResult, emptyResume } from "@/lib/types";
@@ -182,6 +182,8 @@ export default function ResumePage() {
 
       {resume.rawText ? <SummaryCard /> : null}
 
+      <PerformanceReviewCard />
+
       {mode === "veteran" && (
         <div className="mt-8">
           <SectionTitle sub="Your job codes + yearly evaluation power the civilian translation across Discover, Roadmap, and Rewrites.">
@@ -323,6 +325,145 @@ export default function ResumePage() {
       </div>
 
       <VersionsCard />
+    </div>
+  );
+}
+
+/* General performance-review intake for every mode. This is separate from
+   the veteran record above: the veteran card keeps branch/MOS/EPR context,
+   while this card holds a civilian employer's latest review. The text is
+   stored only on-device; Rewrite mines it, and the strengths below are
+   derived locally from the app's skills dictionary. */
+function PerformanceReviewCard() {
+  const { perfReview, setPerfReview, resume, updateResume, hasResume } = useApp();
+  const [parsing, setParsing] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [paste, setPaste] = useState("");
+  const [showPaste, setShowPaste] = useState(false);
+
+  const reviewText = perfReview.text;
+  const strengths = reviewText
+    ? deriveSkills(reviewText).filter((skill) => {
+        const s = skill.toLowerCase();
+        return !resume.skills.some((existing) => {
+          const e = existing.trim().toLowerCase();
+          return e === s || e.includes(s) || s.includes(e);
+        });
+      })
+    : [];
+  const atSkillCap = resume.skills.length >= 24;
+
+  async function handleReviewFile(f: File | undefined) {
+    if (!f) return;
+    setParsing(true);
+    setMsg("");
+    try {
+      const { parseFile } = await import("@/lib/parse-file");
+      const text = await parseFile(f);
+      if (text.trim().length < 50) throw new Error("Couldn't read much text from that file. Try pasting the review instead.");
+      setPerfReview({ text, updatedAt: Date.now() });
+      setMsg(`Performance review loaded (${text.split(/\s+/).length} words). Find mined accomplishments in Rewrite and strengths below.`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't parse that file.");
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  function savePaste() {
+    if (paste.trim().length < 50) {
+      setMsg("Paste a bit more — at least a few lines of your review.");
+      return;
+    }
+    setPerfReview({ text: paste, updatedAt: Date.now() });
+    setMsg("Performance review saved. Find mined accomplishments in Rewrite and strengths below.");
+  }
+
+  function addSkill(skill: string) {
+    if (atSkillCap) return;
+    if (resume.skills.some((s) => s.toLowerCase() === skill.toLowerCase())) return;
+    updateResume({ skills: [...resume.skills, skill] });
+  }
+
+  return (
+    <div className="mt-8">
+      <SectionTitle sub="Your employer's review documents wins your resume may leave out. Add it once — Rewrite can mine it, and HireCraft can surface strengths from it.">
+        Your latest performance review
+      </SectionTitle>
+      <Card>
+        <Field label="Performance review file (PDF, DOCX, or TXT)">
+          <input
+            type="file" accept=".pdf,.docx,.doc,.txt"
+            aria-label="Upload your latest performance review"
+            onChange={(e) => handleReviewFile(e.target.files?.[0])}
+            className="block w-full text-sm text-muted file:mr-4 file:rounded-xl file:border-0 file:bg-ink file:text-white file:px-5 file:py-3 file:text-sm file:font-bold file:min-h-[44px]"
+          />
+        </Field>
+        {parsing && <p className="text-sm text-muted">Reading your performance review…</p>}
+        {msg && <p className="text-sm text-emerald-900 font-medium">{msg}</p>}
+        {reviewText ? (
+          <div className="flex items-center justify-between mt-1 gap-3">
+            <p className="text-xs text-muted">
+              ✓ Review on file (~{reviewText.split(/\s+/).length} words)
+              {perfReview.updatedAt ? ` · Updated ${new Date(perfReview.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}
+              {" "}— stored only on this device.
+            </p>
+            <button
+              onClick={() => { setPerfReview({ text: "", updatedAt: 0 }); setPaste(""); setMsg(""); }}
+              aria-label="Clear performance review"
+              className="text-xs text-muted underline min-h-[44px] px-2 shrink-0"
+            >
+              clear
+            </button>
+          </div>
+        ) : null}
+        <>
+          <button
+            onClick={() => { if (!paste && reviewText) setPaste(reviewText); setShowPaste(!showPaste); }}
+            aria-expanded={showPaste}
+            className="text-xs font-bold text-emerald-700 underline underline-offset-2 min-h-[44px]"
+          >
+            {showPaste ? "Hide paste box" : reviewText ? "…or replace it by pasting the review text" : "…or paste the review text instead"}
+          </button>
+          {showPaste && (
+            <>
+              <Field label="Paste your performance review">
+                <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={6}
+                  placeholder="Paste your latest performance review here…" className={inputCls}
+                  aria-label="Paste your performance review" />
+              </Field>
+              <Button className="w-full mt-2" onClick={savePaste}>Use this review</Button>
+            </>
+          )}
+        </>
+
+        {reviewText && (
+          <div className="border-t border-line mt-4 pt-4">
+            <p className="font-bold text-ink text-sm mb-1.5">Strengths found in your review</p>
+            {!hasResume ? (
+              <p className="text-[13px] text-muted leading-relaxed">Add your resume to turn the strengths in this review into one-tap skill additions.</p>
+            ) : strengths.length ? (
+              <>
+                <p className="text-[13px] text-muted leading-relaxed mb-2.5">
+                  These skills appear in your review but not in your resume skills. Add the ones you want — Discover and Roadmap will use them right away.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {strengths.map((skill) => (
+                    <button key={skill} onClick={() => addSkill(skill)} disabled={atSkillCap}
+                      aria-label={`Add ${skill} to your resume skills`}
+                      className="text-xs font-bold rounded-full px-3 py-2 border border-brand/40 bg-mint text-emerald-900 min-h-[44px] disabled:opacity-50">
+                      + {skill}
+                    </button>
+                  ))}
+                </div>
+                {atSkillCap && <p className="text-xs text-muted mt-2">Your resume skills list is at the 24-skill cap — remove one before adding more.</p>}
+              </>
+            ) : (
+              <p className="text-[13px] text-muted leading-relaxed">No additional skills from the built-in dictionary — your resume already lists what this review evidences.</p>
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

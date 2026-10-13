@@ -10,12 +10,13 @@ import {
   Role,
 } from "@/lib/careers";
 import {
+  extractReviewAdditions,
   generateCoverLetter,
   generateLinkedIn,
   generateSummary,
   rewriteBullets,
 } from "@/lib/fallback";
-import { MilitaryInfo, Mode, StructuredResume, SummaryResult } from "@/lib/types";
+import { MilitaryInfo, Mode, PerformanceReview, RewriteResult, StructuredResume, SummaryResult } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -33,6 +34,7 @@ interface AiRequest {
   linkedinText?: string;
   feedback?: string;
   military?: MilitaryInfo;
+  perfReview?: PerformanceReview;
 }
 
 const API_KEY = process.env.AI_API_KEY;
@@ -113,6 +115,15 @@ function validateAiRequest(value: unknown): string | null {
   ) {
     return "Field 'military' must be an object with string 'branch', 'mosCodes', and 'evalText' fields when provided.";
   }
+  if (
+    value.perfReview !== undefined &&
+    (!isRecord(value.perfReview) ||
+      typeof value.perfReview.text !== "string" ||
+      typeof value.perfReview.updatedAt !== "number" ||
+      !Number.isFinite(value.perfReview.updatedAt))
+  ) {
+    return "Field 'perfReview' must be an object with a string 'text' and numeric 'updatedAt' when provided.";
+  }
   return null;
 }
 
@@ -190,6 +201,15 @@ function militaryContext(b: AiRequest): string {
   return parts.length ? `\n\n${parts.join("\n\n")}` : "";
 }
 
+/** Civilian performance-review context for the rewrite task. */
+const REVIEW_GROUNDING = "For reviewAdditions, use ONLY accomplishments stated in the CIVILIAN PERFORMANCE REVIEW below; do not infer, embellish, or import facts from the resume, the military evaluation, or general knowledge.";
+
+function reviewContext(b: AiRequest): string {
+  const text = b.perfReview?.text.trim();
+  if (!text) return "";
+  return `\n\nCIVILIAN PERFORMANCE REVIEW (the user's own latest performance review — user-provided facts, on par with the resume as source material. Mine it for accomplishments and scope that the resume may omit):\n${text.slice(0, 4000)}`;
+}
+
 function extractJson(text: string): unknown {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
@@ -235,7 +255,8 @@ function runFallback(b: AiRequest) {
     // Prefer the resume's real experience bullets over raw lines — raw text
     // includes summary fragments that aren't bullets at all.
     const structured = resume.experience.flatMap((e) => e.bullets).filter((x) => x.trim().length > 10);
-    return rewriteBullets(structured.length ? structured.join("\n") : resume.rawText, mode);
+    const rewrites = rewriteBullets(structured.length ? structured.join("\n") : resume.rawText, mode);
+    return [...rewrites, ...extractReviewAdditions(b.perfReview?.text ?? "", resume, mode)];
   }
   if (task === "cover-letter") return generateCoverLetter(resume, jobText, targetTitle, company, (tone ?? "professional") as "professional" | "confident" | "warm");
   if (task === "summary") return generateSummary(resume);
@@ -292,12 +313,12 @@ async function runAi(b: AiRequest) {
 
   if (task === "rewrite") {
     const text = await callLLM(
-      `You are a senior resume coach. Rewrite each resume bullet to be punchier and impact-first. ${HONESTY}${modeContext}\n\nIf a TARGET JOB POSTING is included, tailor word choice to the posting's keywords and lead with the experience it values most. If PERFORMANCE REVIEW EXCERPTS are included, they are the user's own documented accomplishments: when an eval fact (a figure, scope, or rating) strengthens a specific bullet, fold it into that bullet's rewrite and say so in its why; when an eval accomplishment has no matching resume bullet, add it to the closest bullet's gaps as a suggested addition, quoting the exact figure. ALSO return evalAdditions: up to 4 accomplishments that appear ONLY in the performance review (not in the resume), each with the eval's wording as original and a polished, resume-ready bullet as rewritten. evalAdditions must be an empty array when no performance review is provided.\n\nReturn JSON: {"rewrites":[{"original":string,"rewritten":string,"why":string,"gaps":[string],"translationNote":string|null}],"evalAdditions":[{"original":string,"rewritten":string,"why":string}]}`,
-      `${resumeContext}${militaryContext(b)}${jobContext}\n\nRewrite every bullet point found in the resume.`
+      `You are a senior resume coach. Rewrite each resume bullet to be punchier and impact-first. ${HONESTY}${modeContext}\n\nIf a TARGET JOB POSTING is included, tailor word choice to the posting's keywords and lead with the experience it values most. If PERFORMANCE REVIEW EXCERPTS are included, they are the user's own documented accomplishments: when an eval fact (a figure, scope, or rating) strengthens a specific bullet, fold it into that bullet's rewrite and say so in its why; when an eval accomplishment has no matching resume bullet, add it to the closest bullet's gaps as a suggested addition, quoting the exact figure. ALSO return evalAdditions: up to 4 accomplishments that appear ONLY in the performance review (not in the resume), each with the eval's wording as original and a polished, resume-ready bullet as rewritten. evalAdditions must be an empty array when no performance review is provided. ALSO return reviewAdditions: up to 4 accomplishments that appear ONLY in the civilian performance review (not in the resume), each with the review's wording as original and a polished, resume-ready bullet as rewritten. ${REVIEW_GROUNDING} reviewAdditions must be an empty array when no civilian performance review is provided.\n\nReturn JSON: {"rewrites":[{"original":string,"rewritten":string,"why":string,"gaps":[string],"translationNote":string|null}],"evalAdditions":[{"original":string,"rewritten":string,"why":string}],"reviewAdditions":[{"original":string,"rewritten":string,"why":string}]}`,
+      `${resumeContext}${militaryContext(b)}${reviewContext(b)}${jobContext}\n\nRewrite every bullet point found in the resume.`
     );
-    const parsed = extractJson(text) as { rewrites: Record<string, unknown>[]; evalAdditions?: Record<string, unknown>[] };
+    const parsed = extractJson(text) as { rewrites: Record<string, unknown>[]; evalAdditions?: Record<string, unknown>[]; reviewAdditions?: Record<string, unknown>[] };
     if (!Array.isArray(parsed.rewrites)) throw new Error("Malformed AI rewrite response");
-    const rewrites = parsed.rewrites.map((r) => ({
+    const rewrites: RewriteResult[] = parsed.rewrites.map((r) => ({
       original: String(r.original ?? ""),
       rewritten: String(r.rewritten ?? r.original ?? ""),
       why: String(r.why ?? ""),
@@ -317,6 +338,24 @@ async function runAi(b: AiRequest) {
           why: `New — mined from your performance review. ${String(a.why ?? "")}`.trim(),
           gaps: [],
           translationNote: undefined,
+        });
+      }
+    }
+    // Civilian-review-only accomplishments get their own source marker so
+    // the Rewrite tab can present them in a dedicated "From your review"
+    // section instead of mixing them into the resume-bullet rewrites.
+    if (Array.isArray(parsed.reviewAdditions)) {
+      for (const a of parsed.reviewAdditions.slice(0, 4)) {
+        const original = String(a.original ?? "").trim();
+        const rewritten = String(a.rewritten ?? "").trim();
+        if (!original || !rewritten) continue;
+        rewrites.push({
+          original,
+          rewritten,
+          why: `New — mined from your performance review. ${String(a.why ?? "")}`.trim(),
+          gaps: [],
+          translationNote: undefined,
+          source: "review",
         });
       }
     }

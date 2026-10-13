@@ -11,7 +11,7 @@ import { SaveVersionForm } from "@/components/versions";
 
 function ImproveInner() {
   const params = useSearchParams();
-  const { resume, jobText, mode, hasResume, updateResume, military, setRewriteAccepted } = useApp();
+  const { resume, jobText, mode, hasResume, updateResume, military, perfReview, setRewriteAccepted } = useApp();
   const [tab, setTab] = useState<"rewrite" | "tailor">(params.get("tab") === "tailor" ? "tailor" : "rewrite");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResponse<RewriteResult[]> | null>(null);
@@ -37,7 +37,7 @@ function ImproveInner() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "rewrite", mode, resume, jobText, military }),
+        body: JSON.stringify({ task: "rewrite", mode, resume, jobText, military, perfReview }),
       });
       const json = (await res.json()) as AiResponse<RewriteResult[]>;
       if (!Array.isArray(json.data)) throw new Error("Unexpected response");
@@ -61,8 +61,10 @@ function ImproveInner() {
     s.toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, "-")
       .replace(/\s+/g, " ").replace(/\.+$/, "").trim();
   const visible = result
-    ? result.data.map((r, i) => ({ r, i })).filter(({ r }) => normCmp(r.original) !== normCmp(r.rewritten))
+    ? result.data.map((r, i) => ({ r, i })).filter(({ r }) => r.source === "review" || normCmp(r.original) !== normCmp(r.rewritten))
     : [];
+  const regularVisible = visible.filter(({ r }) => r.source !== "review");
+  const reviewVisible = visible.filter(({ r }) => r.source === "review");
   const hiddenCount = result ? result.data.length - visible.length : 0;
 
   // Score-delta readout. The baseline, the live resume, and the projection
@@ -72,6 +74,7 @@ function ImproveInner() {
   // acceptRewrite performs, in list order, so an estimate can never promise
   // more than actually accepting would deliver.
   const acceptedCount = visible.filter(({ i }) => accepted.has(i)).length;
+  const acceptedReviewCount = reviewVisible.filter(({ i }) => accepted.has(i)).length;
   const remaining = visible.filter(({ i }) => !accepted.has(i));
   const currentScore = baseline ? scoreResume(resume, baseline.jobText) : null;
   const projectedScore =
@@ -80,7 +83,14 @@ function ImproveInner() {
           {
             ...resume,
             rawText: remaining.reduce(
-              (txt, { r, i }) => txt.split(r.original).join(shown(r, i)),
+              (txt, { r, i }) => {
+                const text = shown(r, i);
+                return r.source === "review"
+                  ? txt.includes(text)
+                    ? txt
+                    : `${txt.trim()}\n• ${text}`
+                  : txt.split(r.original).join(text);
+              },
               resume.rawText
             ),
           },
@@ -90,12 +100,73 @@ function ImproveInner() {
   const fmtScore = (s: ScoreResult) => `${s.total} (${s.grade})`;
 
   function acceptRewrite(i: number, original: string) {
-    const text = result ? shown(result.data[i], i) : "";
-    updateResume({ rawText: resume.rawText.split(original).join(text) });
+    const item = result?.data[i];
+    const text = item ? shown(item, i) : "";
+    if (item?.source === "review") {
+      // A review addition is new material, not a replacement: append the
+      // accepted bullet to the working resume (raw text + the current role's
+      // structured bullets). Saved versions are snapshots and are never
+      // touched here — the user saves a new version explicitly.
+      if (text && !resume.rawText.includes(text)) {
+        const experience = resume.experience.map((e, idx) =>
+          idx === 0 && !e.bullets.includes(text) ? { ...e, bullets: [...e.bullets, text] } : e
+        );
+        updateResume({
+          rawText: `${resume.rawText.trim()}\n• ${text}`,
+          ...(experience.length ? { experience } : {}),
+        });
+      }
+    } else {
+      updateResume({ rawText: resume.rawText.split(original).join(text) });
+    }
     setRewriteAccepted(true);
     setAccepted((s) => new Set(s).add(i));
     setEditingIdx(null);
   }
+
+  const renderRewriteCard = ({ r, i }: { r: RewriteResult; i: number }) => (
+    <div key={i} className="bg-white border border-line rounded-[14px] p-3">
+      <p className="text-[10.5px] font-bold text-muted uppercase tracking-wider">{r.source === "review" ? "From your review" : "Original"}</p>
+      <p className={`text-[13px] text-muted mt-1.5 leading-relaxed ${r.source === "review" ? "" : "line-through decoration-red-400"}`}>{r.original}</p>
+      <p className="text-[10.5px] font-bold text-muted uppercase tracking-wider mt-2.5">Rewritten</p>
+      {editingIdx === i ? (
+        <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3}
+          className={`${inputCls} !text-[13px] mt-1.5`} aria-label={`Edit rewrite ${i + 1}`} />
+      ) : (
+        <p className="text-[13px] text-navy mt-1.5 leading-relaxed bg-mint rounded-lg p-2.5">{shown(r, i)}</p>
+      )}
+      <div className="text-[12px] text-slate-600 mt-2 bg-slate-100 rounded-lg p-2.5 leading-relaxed">
+        <b className="text-pine">Why it works:</b> {r.why}
+      </div>
+      {r.translationNote && (
+        <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mt-2">🎖 {r.translationNote}</p>
+      )}
+      {r.gaps.map((g, j) => (
+        <p key={j} className="text-xs text-amber-800 mt-1.5">⚠️ {g}</p>
+      ))}
+      <div className="flex gap-2 mt-2.5">
+        {editingIdx === i ? (
+          <>
+            <button onClick={() => { setEdits({ ...edits, [i]: editText }); setEditingIdx(null); }}
+              className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-brand text-white min-h-[44px]">Save edit</button>
+            <button onClick={() => setEditingIdx(null)}
+              className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">Cancel</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => { setEditingIdx(i); setEditText(shown(r, i)); }}
+              aria-label={`Edit rewrite ${i + 1}`}
+              className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">Edit</button>
+            <button onClick={() => acceptRewrite(i, r.original)} disabled={accepted.has(i)}
+              aria-label={`${accepted.has(i) ? "Accepted" : "Accept"} rewrite ${i + 1}`}
+              className={`flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] min-h-[44px] ${accepted.has(i) ? "bg-slate-100 text-muted" : "bg-brand text-white"}`}>
+              {accepted.has(i) ? "✓ Accepted" : "✓ Accept"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   if (!hasResume) {
     return <EmptyState title="No resume yet" body="Add your resume to get bullet-by-bullet rewrites with the reasoning behind each one." cta="Add my resume" href="/resume" />;
@@ -188,52 +259,41 @@ function ImproveInner() {
                   <p className="text-sm text-muted max-w-xs mx-auto">Every bullet came back already strong — the rewrite had no improvements to make.</p>
                 </Card>
               ) : (
-              <div className="grid gap-2.5">
-                {visible.map(({ r, i }) => (
-                  <div key={i} className="bg-white border border-line rounded-[14px] p-3">
-                    <p className="text-[10.5px] font-bold text-muted uppercase tracking-wider">Original</p>
-                    <p className="text-[13px] text-muted mt-1.5 leading-relaxed line-through decoration-red-400">{r.original}</p>
-                    <p className="text-[10.5px] font-bold text-muted uppercase tracking-wider mt-2.5">Rewritten</p>
-                    {editingIdx === i ? (
-                      <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3}
-                        className={`${inputCls} !text-[13px] mt-1.5`} />
-                    ) : (
-                      <p className="text-[13px] text-navy mt-1.5 leading-relaxed bg-mint rounded-lg p-2.5">{shown(r, i)}</p>
-                    )}
-                    <div className="text-[12px] text-slate-600 mt-2 bg-slate-100 rounded-lg p-2.5 leading-relaxed">
-                      <b className="text-pine">Why it works:</b> {r.why}
-                    </div>
-                    {r.translationNote && (
-                      <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 mt-2">🎖 {r.translationNote}</p>
-                    )}
-                    {r.gaps.map((g, j) => (
-                      <p key={j} className="text-xs text-amber-800 mt-1.5">⚠️ {g}</p>
-                    ))}
-                    <div className="flex gap-2 mt-2.5">
-                      {editingIdx === i ? (
-                        <>
-                          <button onClick={() => { setEdits({ ...edits, [i]: editText }); setEditingIdx(null); }}
-                            className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-brand text-white min-h-[44px]">Save edit</button>
-                          <button onClick={() => setEditingIdx(null)}
-                            className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => { setEditingIdx(i); setEditText(shown(r, i)); }}
-                            className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">Edit</button>
-                          <button onClick={() => acceptRewrite(i, r.original)} disabled={accepted.has(i)}
-                            className={`flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] min-h-[44px] ${accepted.has(i) ? "bg-slate-100 text-muted" : "bg-brand text-white"}`}>
-                            {accepted.has(i) ? "✓ Accepted" : "✓ Accept"}
-                          </button>
-                        </>
-                      )}
-                    </div>
+              <>
+                {regularVisible.length > 0 && (
+                  <div className="grid gap-2.5">
+                    {regularVisible.map(renderRewriteCard)}
                   </div>
-                ))}
-              </div>
+                )}
+                {reviewVisible.length > 0 && (
+                  <div className="mt-5">
+                    <div className="mb-2.5">
+                      <h3 className="font-extrabold text-navy">From your review</h3>
+                      <p className="text-[13px] text-muted leading-relaxed mt-1">
+                        Accomplishments from your latest performance review that aren&apos;t in your resume yet. Accept the ones you want added to your working resume.
+                      </p>
+                    </div>
+                    <div className="grid gap-2.5">
+                      {reviewVisible.map(renderRewriteCard)}
+                    </div>
+                    {acceptedReviewCount > 0 && (
+                      <Card className="mt-3 !bg-mint !border-brand/30">
+                        <p className="text-sm text-emerald-950 leading-relaxed">
+                          <b>{acceptedReviewCount} review addition{acceptedReviewCount === 1 ? "" : "s"} added</b> to your working resume. Saved versions stay untouched — save these as a new version to keep this tailored set.
+                        </p>
+                        <a href="#save-new-version" className="inline-flex items-center text-sm font-bold text-emerald-900 underline underline-offset-2 min-h-[44px]">
+                          Save as a new version ↓
+                        </a>
+                      </Card>
+                    )}
+                  </div>
+                )}
+              </>
               )}
               <SourceNote source={result.source} note={result.note} />
-              <SaveVersionForm className="mt-3" />
+              <div id="save-new-version">
+                <SaveVersionForm className="mt-3" />
+              </div>
               <Link href="/design"><Button className="w-full mt-4 !min-h-[52px]">See it in a designed template →</Button></Link>
             </>
           )}
