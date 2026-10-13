@@ -148,7 +148,7 @@ export default function DesignPage() {
             {DESIGN_ACCENTS.map((c) => (
               <button key={c} onClick={() => setDesignOpts({ ...designOpts, accent: c })}
                 aria-label={`Accent ${c}`}
-                className={`w-10 h-10 rounded-full min-h-[40px] border-[3px] transition ${designOpts.accent === c ? "border-ink scale-110" : "border-transparent"}`}
+                className={`w-11 h-11 rounded-full min-h-[44px] border-[3px] transition ${designOpts.accent === c ? "border-ink scale-110" : "border-transparent"}`}
                 style={{ background: c }} />
             ))}
           </div>
@@ -156,7 +156,7 @@ export default function DesignPage() {
           <div className="flex flex-wrap gap-1.5 mb-3">
             {DESIGN_FONTS.map((f) => (
               <button key={f.id} onClick={() => setDesignOpts({ ...designOpts, font: f.id })}
-                className={`text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.font === f.id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}
+                className={`text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[44px] ${designOpts.font === f.id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}
                 style={{ fontFamily: f.stack }}>
                 {f.name}
               </button>
@@ -166,7 +166,7 @@ export default function DesignPage() {
           <div className="flex flex-wrap gap-1.5 mb-3">
             {DESIGN_HEADERS.map((h) => (
               <button key={h.id} onClick={() => setDesignOpts({ ...designOpts, headerStyle: h.id })}
-                className={`text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.headerStyle === h.id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                className={`text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[44px] ${designOpts.headerStyle === h.id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
                 {h.name}
               </button>
             ))}
@@ -175,7 +175,7 @@ export default function DesignPage() {
           <div className="flex gap-1.5 mb-3">
             {(["left", "center"] as const).map((a) => (
               <button key={a} onClick={() => setDesignOpts({ ...designOpts, nameAlign: a })}
-                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] capitalize ${designOpts.nameAlign === a ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[44px] capitalize ${designOpts.nameAlign === a ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
                 {a}
               </button>
             ))}
@@ -184,7 +184,7 @@ export default function DesignPage() {
           <div className="flex gap-1.5 mb-3">
             {([["standard", "Standard"], ["large", "Large"]] as const).map(([id, name]) => (
               <button key={id} onClick={() => setDesignOpts({ ...designOpts, nameSize: id })}
-                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.nameSize === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[44px] ${designOpts.nameSize === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
                 {name}
               </button>
             ))}
@@ -193,7 +193,7 @@ export default function DesignPage() {
           <div className="flex gap-1.5 mb-3">
             {([["relaxed", "Relaxed"], ["standard", "Standard"], ["tight", "Tight"]] as const).map(([id, name]) => (
               <button key={id} onClick={() => setDesignOpts({ ...designOpts, spacing: id })}
-                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.spacing === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[44px] ${designOpts.spacing === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
                 {name}
               </button>
             ))}
@@ -202,7 +202,7 @@ export default function DesignPage() {
           <div className="flex gap-1.5 mb-3">
             {([["pills", "Pills"], ["list", "Inline list"], ["columns", "Columns"]] as const).map(([id, name]) => (
               <button key={id} onClick={() => setDesignOpts({ ...designOpts, skillsStyle: id })}
-                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.skillsStyle === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[44px] ${designOpts.skillsStyle === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
                 {name}
               </button>
             ))}
@@ -211,7 +211,7 @@ export default function DesignPage() {
           <div className="flex gap-1.5 mb-3">
             {([["arrow", "▸ Arrow"], ["dot", "• Dot"], ["dash", "– Dash"], ["none", "None"]] as const).map(([id, name]) => (
               <button key={id} onClick={() => setDesignOpts({ ...designOpts, bulletStyle: id })}
-                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.bulletStyle === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[44px] ${designOpts.bulletStyle === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
                 {name}
               </button>
             ))}
@@ -220,7 +220,7 @@ export default function DesignPage() {
           <div className="flex gap-1.5">
             {([["line", "Single line"], ["stacked", "Stacked"]] as const).map(([id, name]) => (
               <button key={id} onClick={() => setDesignOpts({ ...designOpts, contactStyle: id })}
-                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[40px] ${designOpts.contactStyle === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
+                className={`flex-1 text-[12px] font-bold px-3 py-2 rounded-full border-[1.5px] min-h-[44px] ${designOpts.contactStyle === id ? "border-pine text-pine bg-mint" : "border-line text-muted bg-white"}`}>
                 {name}
               </button>
             ))}
@@ -248,7 +248,7 @@ export default function DesignPage() {
           <div className="flex bg-slate-100 rounded-lg p-0.5 text-[11px] font-bold">
             {(["comfortable", "compact"] as const).map((d) => (
               <button key={d} onClick={() => setDensity(d)}
-                className={`px-2.5 py-1.5 rounded-md min-h-[36px] ${density === d ? "bg-white shadow-sm text-ink" : "text-muted"}`}>
+                className={`px-2.5 py-1.5 rounded-md min-h-[44px] ${density === d ? "bg-white shadow-sm text-ink" : "text-slate-600"}`}>
                 {d === "comfortable" ? "Comfortable" : "Compact"}
               </button>
             ))}

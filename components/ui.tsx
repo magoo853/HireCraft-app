@@ -48,7 +48,7 @@ export function Field({ label, children, hint }: { label: string; children: Reac
   );
 }
 
-export const inputCls = "w-full rounded-xl border border-line bg-white px-4 py-3 text-[15px] text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand min-h-[44px]";
+export const inputCls = "w-full rounded-xl border border-line bg-white px-4 py-3 text-[15px] text-ink placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand min-h-[44px]";
 
 export function ModeBadge({ mode }: { mode: Mode }) {
   const colors: Record<Mode, string> = {
@@ -129,7 +129,7 @@ export function TargetJobBanner() {
         <p className="text-xs text-muted leading-snug">
           🎯 <b className="text-ink">No target job set</b> — judging is generic. Add a posting to tailor everything to a real job.
         </p>
-        <Link href="/resume" className="text-xs font-bold text-brand underline underline-offset-2 shrink-0 min-h-[36px] inline-flex items-center px-1">Add job</Link>
+        <Link href="/resume" className="text-xs font-bold text-emerald-700 underline underline-offset-2 shrink-0 min-h-[44px] inline-flex items-center px-1">Add job</Link>
       </div>
     );
   }
@@ -142,10 +142,10 @@ export function TargetJobBanner() {
         🎯 Judging against: <b>{name}</b>{company ? ` · ${company}` : ""} <span className="opacity-70">({words} words)</span>
       </p>
       <span className="flex gap-2 shrink-0">
-        <Link href="/resume" className="text-xs font-bold underline underline-offset-2 min-h-[36px] inline-flex items-center px-1">Change</Link>
+        <Link href="/resume" className="text-xs font-bold underline underline-offset-2 min-h-[44px] inline-flex items-center px-1">Change</Link>
         <button
           onClick={() => { setJobText(""); setJobUrl(""); }}
-          className="text-xs font-bold underline underline-offset-2 min-h-[36px] inline-flex items-center px-1"
+          className="text-xs font-bold underline underline-offset-2 min-h-[44px] inline-flex items-center px-1"
         >
           Clear
         </button>
@@ -182,7 +182,7 @@ export function BottomNav() {
                 strokeWidth={active ? 2.4 : 2} strokeLinecap="round" strokeLinejoin="round">{n.icon}</svg>
               {n.label}
               {n.href === "/discover" && newJobCount > 0 && (
-                <span className="absolute top-1 right-[18%] bg-red-500 text-white text-[9px] font-extrabold rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center">
+                <span className="absolute top-1 right-[18%] bg-red-600 text-white text-[9px] font-extrabold rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center">
                   {newJobCount > 9 ? "9+" : newJobCount}
                 </span>
               )}
@@ -207,7 +207,7 @@ export function TopBar({ title, right }: { title: string; right?: ReactNode }) {
   return (
     <header className="sticky top-0 z-40 bg-paper/95 backdrop-blur border-b border-line print:hidden">
       <div className="max-w-lg mx-auto px-4 h-[60px] flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 min-h-[44px]">
           <Logo />
           <span className="font-extrabold text-navy tracking-tight">{title}</span>
         </Link>

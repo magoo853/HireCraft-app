@@ -96,7 +96,7 @@ function PaywallInner() {
       <div className="grid gap-3">
         {promoActive && !launchTrial && (
           <Card className="!border-2 !border-brand !bg-mint">
-            <span className="inline-block text-[11px] font-extrabold uppercase tracking-wide bg-brand text-white rounded-full px-3 py-1 mb-2">
+            <span className="inline-block text-[11px] font-extrabold uppercase tracking-wide bg-emerald-700 text-white rounded-full px-3 py-1 mb-2">
               🚀 Launch special
             </span>
             <p className="text-lg font-extrabold text-navy mb-1">Try everything free for 2 weeks</p>
@@ -129,14 +129,14 @@ function PaywallInner() {
           </div>
           <ul className="my-3 space-y-1.5">
             {FREE_FEATURES.map((f) => (
-              <li key={f} className="text-sm text-ink flex gap-2"><span className="text-brand font-bold">✓</span>{f}</li>
+              <li key={f} className="text-sm text-ink flex gap-2"><span className="text-emerald-700 font-bold">✓</span>{f}</li>
             ))}
           </ul>
           <Button variant="secondary" className="w-full" disabled>Current plan</Button>
         </Card>
 
         <Card className="!border-2 !border-brand">
-          <span className="inline-block text-[11px] font-extrabold uppercase tracking-wide bg-brand text-white rounded-full px-3 py-1 mb-2">
+          <span className="inline-block text-[11px] font-extrabold uppercase tracking-wide bg-emerald-700 text-white rounded-full px-3 py-1 mb-2">
             All the bells and whistles
           </span>
           <div className="flex items-baseline justify-between mb-1">
@@ -148,7 +148,7 @@ function PaywallInner() {
           </div>
           <ul className="my-3 space-y-1.5">
             {PAID_FEATURES.map((f) => (
-              <li key={f} className="text-sm text-ink flex gap-2"><span className="text-brand font-bold">✓</span>{f}</li>
+              <li key={f} className="text-sm text-ink flex gap-2"><span className="text-emerald-700 font-bold">✓</span>{f}</li>
             ))}
           </ul>
           <Button variant="emerald" onClick={choosePaid} className="w-full !min-h-[52px]">
@@ -203,8 +203,8 @@ function PaywallInner() {
         </p>
       </Card>
 
-      <Link href="/" className="block text-center mt-4">
-        <span className="text-sm text-brand font-bold underline">← Back to home</span>
+      <Link href="/" className="flex items-center justify-center min-h-[44px] mt-4">
+        <span className="text-sm text-emerald-700 font-bold underline">← Back to home</span>
       </Link>
     </div>
   );

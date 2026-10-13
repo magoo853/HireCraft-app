@@ -40,7 +40,7 @@ export default function SupportPage() {
       <Card className="mb-4">
         <p className="font-bold text-ink text-sm mb-1">Contact us</p>
         <p className="text-sm text-muted leading-relaxed">
-          Email <a href="mailto:privacy@hirecraft.app" className="font-bold text-brand underline">privacy@hirecraft.app</a> —
+          Email <a href="mailto:privacy@hirecraft.app" className="font-bold text-emerald-700 underline">privacy@hirecraft.app</a> —
           a person reads it. Include your device model and what you tapped, and we'll get back to you.
         </p>
         <p className="text-xs text-muted mt-2">

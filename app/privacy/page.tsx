@@ -19,7 +19,7 @@ export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-2xl px-5 py-10">
-        <Link href="/" className="text-[13px] font-semibold text-emerald-700">
+        <Link href="/" className="text-[13px] font-semibold text-emerald-700 inline-flex items-center min-h-[44px]">
           ‹ Back to HireCraft
         </Link>
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">
@@ -160,7 +160,7 @@ export default function PrivacyPage() {
           </P>
         </S>
 
-        <div className="mt-10 border-t border-slate-200 pt-6 text-center text-[12px] text-slate-400">
+        <div className="mt-10 border-t border-slate-200 pt-6 text-center text-[12px] text-slate-500">
           © 2026 HireCraft. Your data is yours.
         </div>
       </div>

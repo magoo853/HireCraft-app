@@ -70,7 +70,7 @@ export default function Home() {
         {TOOLS.map((t) => (
           <Link key={t.title} href={t.href}>
             <Card className="h-full !p-4 active:scale-[0.98] transition">
-              <p className="text-xl mb-1.5 font-extrabold text-brand">{t.icon}</p>
+              <p className="text-xl mb-1.5 font-extrabold text-emerald-700">{t.icon}</p>
               <p className="font-bold text-ink text-sm mb-1">{t.title}</p>
               <p className="text-xs text-muted leading-snug">{t.body}</p>
             </Card>

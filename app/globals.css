@@ -33,6 +33,16 @@ body {
   border-radius: 4px;
 }
 
+/* Keyboard focus must be visible on every interactive element (Cycle 10).
+   Elements with their own focus styling (inputCls ring, contenteditable
+   above) keep it; everything else gets this outline. The four bare
+   textareas in letters.tsx had focus:outline-none with no replacement —
+   that class was removed in the same pass, so nothing suppresses this. */
+:focus-visible {
+  outline: 2px solid #0B6E4F;
+  outline-offset: 2px;
+}
+
 /* Print: only the resume sheet prints, with zero browser chrome */
 @media print {
   body * {

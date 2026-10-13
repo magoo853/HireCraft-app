@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Link href="/resume" className="min-h-[44px] flex items-center text-sm font-bold text-pine px-2.5">
                   Resume
                 </Link>
-                <Link href="/paywall" className="min-h-[44px] flex items-center text-sm font-bold text-brand px-2.5">
+                <Link href="/paywall" className="min-h-[44px] flex items-center text-sm font-bold text-emerald-700 px-2.5">
                   Premium
                 </Link>
                 <Link href="/settings" aria-label="Settings" className="min-h-[44px] min-w-[44px] flex items-center justify-center text-xl text-muted">

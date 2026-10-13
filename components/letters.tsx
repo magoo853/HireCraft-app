@@ -129,7 +129,7 @@ export function CoverLetter() {
         <>
           <div className="bg-white border border-line rounded-xl p-4 text-[13px] leading-[1.7] text-slate-700 mb-3">
             <textarea value={edited} onChange={(e) => setEdited(e.target.value)} rows={14}
-              className="w-full bg-transparent resize-y focus:outline-none" />
+              className="w-full bg-transparent resize-y" />
           </div>
           <div className="flex gap-2 mb-2">
             <button onClick={() => { setResult(null); }} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">
@@ -275,7 +275,7 @@ export function LinkedIn() {
                   <textarea value={h} rows={2}
                     onChange={(e) => setHeadlines(headlines.map((x, j) => (j === i ? e.target.value : x)))}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full bg-transparent text-[13px] mt-1 leading-relaxed text-slate-800 focus:outline-none resize-y" />
+                    className="w-full bg-transparent text-[13px] mt-1 leading-relaxed text-slate-800 resize-y" />
                 ) : (
                   <p className="text-[13px] mt-1 leading-relaxed text-slate-800">{h}</p>
                 )}
@@ -286,9 +286,9 @@ export function LinkedIn() {
           <p className="text-[13px] font-extrabold text-navy mt-5 mb-1">About section — edit freely</p>
           <div className="bg-white border border-line rounded-xl p-3">
             <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={8}
-              className="w-full bg-transparent text-[13px] text-slate-700 leading-relaxed focus:outline-none resize-y" />
+              className="w-full bg-transparent text-[13px] text-slate-700 leading-relaxed resize-y" />
             <button onClick={() => copy(about, "about")}
-              className="text-xs text-linkedin font-bold mt-1 min-h-[36px]">{copied === "about" ? "✓ Copied" : "Tap to copy →"}</button>
+              className="text-xs text-linkedin font-bold mt-1 min-h-[44px] inline-flex items-center">{copied === "about" ? "✓ Copied" : "Tap to copy →"}</button>
           </div>
 
           {bullets.length > 0 && (
@@ -300,7 +300,7 @@ export function LinkedIn() {
                     <p className="text-xs text-muted line-through decoration-red-400 mb-1">{b.original}</p>
                     <textarea value={b.polished} rows={2}
                       onChange={(e) => setBullets(bullets.map((x, j) => (j === i ? { ...x, polished: e.target.value } : x)))}
-                      className="w-full bg-transparent text-[13px] text-ink font-medium focus:outline-none resize-y" />
+                      className="w-full bg-transparent text-[13px] text-ink font-medium resize-y" />
                   </Card>
                 ))}
               </div>

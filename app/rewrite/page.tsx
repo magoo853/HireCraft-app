@@ -82,7 +82,7 @@ function ImproveInner() {
       <div className="grid grid-cols-2 gap-1 bg-slate-200/60 rounded-xl p-1 mb-4">
         {(["rewrite", "tailor"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`rounded-lg py-2.5 text-sm font-bold min-h-[44px] ${tab === t ? "bg-white text-ink shadow-sm" : "text-muted"}`}>
+            className={`rounded-lg py-2.5 text-sm font-bold min-h-[44px] ${tab === t ? "bg-white text-ink shadow-sm" : "text-slate-600"}`}>
             {t === "rewrite" ? "Rewrites" : "Job tailoring"}
           </button>
         ))}
