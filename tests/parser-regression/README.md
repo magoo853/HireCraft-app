@@ -15,8 +15,14 @@ The runner compiles `lib/parse.ts` with the project's own TypeScript
 (`node_modules/typescript`) into a temp directory, loads it in Node, feeds
 each fixture through `textToStructured()`, and asserts the fields users
 check first: name/contact, summary, dated roles, education, skills,
-certifications, and awards. Exit code is 0 unless an unexpected assertion
-fails. No new dependencies; nothing in the app imports this folder.
+certifications, and awards. A second phase feeds synthetic pdf.js item
+streams (positioned text items, hand-built below in `run.mjs`) through
+`extractPdfText()` to pin the column-aware PDF extraction: a
+single-column page and two false-positive layouts (centered headers, a
+jobs table) must come out byte-identical to the pre-Cycle-9 legacy
+algorithm, while a two-column page must come out column-sequenced and
+parse fully. Exit code is 0 unless an unexpected assertion fails. No new
+dependencies; nothing in the app imports this folder.
 
 ## Fixtures
 
@@ -34,7 +40,7 @@ fails. No new dependencies; nothing in the app imports this folder.
 | `linkedin-export.txt` | LinkedIn export shape — routed to `parseLinkedInProfile` |
 | `modern-docx-layout.txt` | Modern DOCX layout — competencies table, education first, two-line job headers, soft hyphens |
 | `two-column-block.txt` | Two-column resume as block-sequenced extraction (whole sidebar, then main column) |
-| `two-column-interleaved.txt` | Two-column resume as row-interleaved extraction (pdf.js Y-grouping) — known-issue probes |
+| `two-column-interleaved.txt` | Two-column resume as row-interleaved extraction (pdf.js Y-grouping) — parser-level salvage only; the fixed extraction path is covered by the synthetic `pdf-two-column-interleaved` case in `run.mjs` |
 | `table-jobs.txt` | Table-based jobs: dates-cell + header-cell rows, and a company on its own row (merged into the role) |
 | `table-company-boundary.txt` | Negative boundary: a dateless header after a role that already has a company is NOT absorbed as a company row |
 | `header-variants.txt` | `CAREER OBJECTIVE` + `WORK HISTORY` headers |
@@ -87,6 +93,27 @@ ordinary regression assertions):
    sequenced two-column text (whole sidebar first) parses cleanly
    (`two-column-block.txt`). A real fix needs column-aware extraction
    (X-coordinate splitting in `extractPdfText`), not a parser tweak.
+   *Issue 6 was fixed in Cycle 9, at the extraction layer:
+   `extractPdfText` is now column-aware when a page shows a strong
+   two-column signal — two item groups separated by a page-wide empty
+   gutter (≥20pt), both substantial (≥4 core items, ≥20% of items) and
+   spanning ≥45% of the page height, with only page-wide lines (a
+   name/contact header) crossing the split, and neither group mostly
+   date ranges (that pattern is a table, whose row pairing is kept).
+   Detected pages emit the left column's lines top-to-bottom, then the
+   right column's; every other page extracts byte-identically to the
+   legacy Y-grouping, which survives verbatim as the fallback. The five
+   probes moved from the text fixture (which still documents the
+   pre-fix extraction output and asserts the parser-level salvage) into
+   the synthetic `pdf-two-column-interleaved` extraction case in
+   `run.mjs`, where the same fictional resume goes items → column-aware
+   extraction → structured parse and all five now pass as ordinary
+   assertions, alongside byte-identity guards for single-column,
+   centered-header, and jobs-table pages. One honest residual: a
+   full-width section banner in the MIDDLE of a two-column page is
+   emitted within the column flow where its X-start places it, not at
+   its visual position between the columns' content — cosmetically
+   imperfect ordering, but sections still parse.*
    *Issue 7 (table jobs with the company on its own row spawning a
    phantom role) was fixed in Cycle 8: in the experience loop, a short,
    dateless, non-sentence line that arrives while the current role is

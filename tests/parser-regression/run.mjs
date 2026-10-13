@@ -5,7 +5,9 @@
  * Exercises lib/parse.ts `textToStructured()` (and the LinkedIn router)
  * against a set of fully synthetic resume fixtures and asserts the parsed
  * fields a user would check first: name/contact, summary, dated roles,
- * education, skills, certifications, and awards.
+ * education, skills, certifications, and awards. A second phase feeds
+ * synthetic pdf.js item streams through `extractPdfText()` to pin the
+ * column-aware PDF extraction (and its false-positive guards).
  *
  * Run:  node tests/parser-regression/run.mjs
  * Exit: 0 when every non-known-issue assertion passes, 1 otherwise.
@@ -63,8 +65,6 @@ const ISSUES = {
     'The education school finder takes the FIRST comma segment matching /university|college|academy|institute|school|seminary/i. For "High School Diploma, <School>, <year>" that first match is the degree segment itself, so school and degree come back swapped on every diploma-only resume.',
   locationNewline:
     'The location regex runs over the first 8 lines joined with "\\n", and its \\s+ spans the line break: when the name line directly precedes a contact line starting with a one-word city, the surname is captured as part of the city — location comes back as "Nair\\nTampa, FL" (literal newline included) instead of "Tampa, FL".',
-  interleavedColumns:
-    'Two-column PDFs whose extraction interleaves the columns row-by-row (the pdf.js Y-grouping used by this app joins sidebar and main-column text onto shared lines) defeat section detection: "SKILLS PROFESSIONAL SUMMARY" matches no header, education lines are consumed as job headers, and bullets are promoted to phantom roles. Summary, listed skills, and education are lost and the roles come back mangled. A real fix needs column-aware extraction (X-coordinate splitting in extractPdfText), not a parser tweak.',
 };
 
 function collector(results, fixture) {
@@ -392,29 +392,19 @@ CASES.push(
     },
   },
   {
+    // This fixture is the PRE-Cycle-9 extraction output for a two-column
+    // PDF (columns interleaved row-by-row): the parser alone can only
+    // salvage name/contact/certifications from it, which is what remains
+    // asserted here. The fixed path — pdf.js items → column-aware
+    // extractPdfText → textToStructured — is covered end-to-end by the
+    // "pdf-two-column-interleaved" extraction case below, which carries
+    // the summary/roles/education/skills assertions for this same resume.
     file: "two-column-interleaved.txt",
-    title: "Two-column resume, row-interleaved extraction — sidebar and main column share lines (pdf.js Y-grouping)",
+    title: "Two-column resume, row-interleaved extraction — parser-level salvage from pre-fix extraction text",
     run(r, a) {
       a.eq("name survives interleaving", r.name, "Daniel Reyes");
       a.eq("email survives interleaving", r.email, "daniel.reyes@example.com");
       a.eq("location survives interleaving", r.location, "Austin, TX");
-      a.includes("summary survives interleaving", r.summary, "Operations manager", {
-        issue: ISSUES.interleavedColumns,
-      });
-      a.count("two roles survive interleaving", r.experience, 2, {
-        issue: ISSUES.interleavedColumns,
-      });
-      a.check(
-        "a role is titled 'Warehouse Manager'",
-        r.experience.some((j) => j.title === "Warehouse Manager"),
-        { issue: ISSUES.interleavedColumns }
-      );
-      a.count("one education entry survives interleaving", r.education, 1, {
-        issue: ISSUES.interleavedColumns,
-      });
-      a.hasSkill("listed skills survive interleaving (Forecasting)", r.skills, "Forecasting", {
-        issue: ISSUES.interleavedColumns,
-      });
       a.count("certifications block is salvaged", r.certifications, 2);
       a.includes("certifications include the clean entry", r.certifications.join(" | "), "Forklift Operator License");
     },
@@ -542,60 +532,289 @@ CASES.push(
   }
 );
 
+/* ---------------- PDF extraction cases (synthetic item streams) -------- */
+
+/**
+ * Verbatim copy of the pre-Cycle-9 page algorithm (group on rounded Y,
+ * join in stream order). It is the reference for the column-mode guards:
+ * any page that does not trigger column detection must come out of
+ * extractPdfText byte-identical to this.
+ */
+function legacyPageText(items) {
+  const lines = new Map();
+  for (const it of items) {
+    const y = Math.round(it.transform[5]);
+    if (!lines.has(y)) lines.set(y, []);
+    lines.get(y).push(it.str);
+  }
+  const sorted = Array.from(lines.entries()).sort((a, b) => b[0] - a[0]);
+  return sorted.map(([, parts]) => parts.join(" ").trim()).filter(Boolean).join("\n");
+}
+
+/** A pdf.js text item in page coordinates (origin bottom-left, y up). */
+const item = (str, x, y, w, size = 11) => ({
+  str,
+  transform: [size, 0, 0, size, x, y],
+  width: w,
+});
+
+/** The pdf-like object extractPdfText consumes, serving `pagesItems`. */
+const fakePdf = (pagesItems) => ({
+  numPages: pagesItems.length,
+  getPage: async (n) => ({
+    getTextContent: async () => ({ items: pagesItems[n - 1] }),
+  }),
+});
+
+/* A standard single-column page (widths are realistic pdf.js user-space
+ * extents). Column detection must NOT fire: extraction must equal the
+ * legacy algorithm byte for byte. */
+const SINGLE_COLUMN_ITEMS = [
+  item("Priya Nair", 72, 750, 105, 20),
+  item("Tampa, FL | 813-555-0142 | priya.nair@example.com", 72, 730, 318),
+  item("SUMMARY", 72, 700, 62),
+  item("Marketing manager with eight years of experience growing pipeline", 72, 682, 452),
+  item("for B2B software teams and leading small creative groups.", 72, 664, 408),
+  item("EXPERIENCE", 72, 628, 78),
+  item("Senior Marketing Manager, Brightpath Software, Tampa, FL, Mar 2021 – Present", 72, 610, 486),
+  item("• Grew qualified pipeline 38 percent year over year", 90, 592, 330),
+  item("• Led a team of four across content and demand programs", 90, 574, 372),
+  item("Marketing Specialist, Suncoast Media, St. Petersburg, FL, Jun 2018 – Feb 2021", 72, 538, 492),
+  item("• Ran paid search campaigns across three product lines", 90, 520, 352),
+  item("• Wrote landing page copy that lifted conversion 12 percent", 90, 502, 386),
+  item("EDUCATION", 72, 466, 72),
+  item("Bachelor of Science in Marketing, University of South Florida, May 2014", 72, 448, 462),
+  item("SKILLS", 72, 412, 42),
+  item("SEO, Content Strategy, Email Marketing, Google Analytics, HubSpot", 72, 394, 438),
+];
+
+/* The Daniel Reyes two-column resume (same content as
+ * two-column-interleaved.txt) as a positioned item stream, ordered
+ * row-major the way a generator painting row-by-row emits it: sidebar at
+ * x=40 (ends by x≈172), main column at x=210, a ~38pt gutter between
+ * them, and a page-wide contact line crossing the gutter. */
+const TWO_COLUMN_ITEMS = [
+  item("Daniel Reyes", 40, 750, 115, 20),
+  item("Austin, TX | 512-555-0119 | daniel.reyes@example.com", 40, 730, 338),
+  item("SKILLS", 40, 700, 38),
+  item("PROFESSIONAL SUMMARY", 210, 700, 150),
+  item("Forecasting", 40, 682, 72),
+  item("Operations manager with nine years of experience leading", 210, 682, 338),
+  item("Inventory Planning", 40, 664, 102),
+  item("warehouse teams and improving on-time delivery across", 210, 664, 320),
+  item("Team Leadership", 40, 646, 92),
+  item("three distribution centers.", 210, 646, 150),
+  item("EDUCATION", 40, 614, 62),
+  item("EXPERIENCE", 210, 614, 72),
+  item("Bachelor of Business", 40, 596, 108),
+  item("Warehouse Manager, Gulf Coast Logistics, Houston, TX,", 210, 596, 286),
+  item("Mar 2018 – Present", 478, 596, 110),
+  item("Administration,", 40, 578, 82),
+  item("• Directed a 24-person warehouse team across two shifts", 210, 578, 320),
+  item("University of Houston,", 40, 560, 118),
+  item("• Raised on-time shipment rate from 91 to 98 percent", 210, 560, 318),
+  item("2014", 40, 542, 26),
+  item("Warehouse Supervisor, Gulf Coast Logistics, Jun 2015 – Mar 2018", 210, 542, 352),
+  item("CERTIFICATIONS", 40, 510, 98),
+  item("• Supervised a team of eight associates on the night shift", 210, 510, 322),
+  item("Six Sigma Green Belt", 40, 492, 108),
+  item("• Trained new hires on safety and scanning procedures", 210, 492, 308),
+  item("Forklift Operator License", 40, 474, 132),
+];
+
+const TWO_COLUMN_EXPECTED = [
+  "Daniel Reyes",
+  "Austin, TX | 512-555-0119 | daniel.reyes@example.com",
+  "SKILLS",
+  "Forecasting",
+  "Inventory Planning",
+  "Team Leadership",
+  "EDUCATION",
+  "Bachelor of Business",
+  "Administration,",
+  "University of Houston,",
+  "2014",
+  "CERTIFICATIONS",
+  "Six Sigma Green Belt",
+  "Forklift Operator License",
+  "PROFESSIONAL SUMMARY",
+  "Operations manager with nine years of experience leading",
+  "warehouse teams and improving on-time delivery across",
+  "three distribution centers.",
+  "EXPERIENCE",
+  "Warehouse Manager, Gulf Coast Logistics, Houston, TX, Mar 2018 – Present",
+  "• Directed a 24-person warehouse team across two shifts",
+  "• Raised on-time shipment rate from 91 to 98 percent",
+  "Warehouse Supervisor, Gulf Coast Logistics, Jun 2015 – Mar 2018",
+  "• Supervised a team of eight associates on the night shift",
+  "• Trained new hires on safety and scanning procedures",
+].join("\n");
+
+/* Centered-header single-column page: section headers and the name sit
+ * mid-page, body text runs full width. No column mode may fire — every
+ * candidate split is crossed by full-width body lines or fails the
+ * vertical-span guard. */
+const CENTERED_ITEMS = [
+  item("Hannah Kim", 251, 750, 110, 20),
+  item("Denver, CO | 303-555-0176 | hannah.kim@example.com", 141, 730, 330),
+  item("SUMMARY", 268, 700, 76),
+  item("Customer service professional with six years of experience helping", 72, 682, 468),
+  item("retail customers resolve billing and shipping problems calmly.", 72, 664, 452),
+  item("EXPERIENCE", 262, 628, 88),
+  item("Customer Service Representative, Mile High Retail, Denver, CO, Apr 2019 – Present", 72, 610, 496),
+  item("• Resolved an average of 45 customer tickets per day", 90, 592, 348),
+  item("• Trained six new hires on the support playbook", 90, 574, 320),
+  item("EDUCATION", 264, 538, 84),
+  item("Associate of Arts, Community College of Denver, May 2016", 72, 520, 392),
+  item("SKILLS", 272, 484, 68),
+  item("Customer Support, Ticketing Systems, De-escalation, Billing Support", 72, 466, 452),
+];
+
+/* A jobs table: a dates cell and a header cell share every row. The
+ * geometry looks column-like, but the left "column" is almost entirely
+ * date ranges — the table guard must keep row pairing intact, so
+ * extraction must equal the legacy algorithm byte for byte. */
+const TABLE_ITEMS = [
+  item("Samuel Ortiz", 72, 750, 120, 20),
+  item("Chicago, IL | 312-555-0128 | samuel.ortiz@example.com", 72, 730, 338),
+  item("Mar 2018 – Present", 72, 690, 105),
+  item("Operations Manager, Brightline Logistics", 215, 690, 265),
+  item("• Directed warehouse operations across two facilities", 215, 668, 320),
+  item("Jun 2015 – Mar 2018", 72, 626, 112),
+  item("Warehouse Supervisor, Brightline Logistics", 215, 626, 272),
+  item("• Supervised a team of eight associates on the night shift", 215, 604, 352),
+  item("Mar 2013 – May 2016", 72, 562, 112),
+  item("Shipping Lead, Northgate Distribution", 215, 562, 238),
+  item("• Coordinated outbound shipments for regional accounts", 215, 540, 338),
+];
+
+const EXTRACTION_CASES = [
+  {
+    id: "pdf-single-column",
+    title: "PDF extraction — single-column page stays byte-identical to the legacy algorithm",
+    async run(mod, a) {
+      const text = await mod.extractPdfText(fakePdf([SINGLE_COLUMN_ITEMS]));
+      a.eq("single-column extraction is byte-identical to legacy", text, legacyPageText(SINGLE_COLUMN_ITEMS));
+      const r = mod.textToStructured(text);
+      a.eq("single-column page still parses its name", r.name, "Priya Nair");
+      a.count("single-column page still parses two roles", r.experience, 2);
+    },
+  },
+  {
+    id: "pdf-two-column-interleaved",
+    title: "PDF extraction — two-column page is column-sequenced, then parses fully (Cycle 9 fix)",
+    async run(mod, a) {
+      a.includes(
+        "the legacy algorithm interleaves this item stream (the original bug)",
+        legacyPageText(TWO_COLUMN_ITEMS),
+        "SKILLS PROFESSIONAL SUMMARY"
+      );
+      const text = await mod.extractPdfText(fakePdf([TWO_COLUMN_ITEMS]));
+      a.eq("column-aware extraction emits sidebar, then main column", text, TWO_COLUMN_EXPECTED);
+      const r = mod.textToStructured(text);
+      a.includes("summary survives interleaving", r.summary, "Operations manager");
+      a.count("two roles survive interleaving", r.experience, 2);
+      a.check(
+        "a role is titled 'Warehouse Manager'",
+        r.experience.some((j) => j.title === "Warehouse Manager")
+      );
+      a.count("one education entry survives interleaving", r.education, 1);
+      a.hasSkill("listed skills survive interleaving (Forecasting)", r.skills, "Forecasting");
+    },
+  },
+  {
+    id: "pdf-centered-layout",
+    title: "PDF extraction — centered-header layout does NOT trigger column mode",
+    async run(mod, a) {
+      const text = await mod.extractPdfText(fakePdf([CENTERED_ITEMS]));
+      a.eq("centered layout extraction is byte-identical to legacy", text, legacyPageText(CENTERED_ITEMS));
+    },
+  },
+  {
+    id: "pdf-table-layout",
+    title: "PDF extraction — jobs table does NOT trigger column mode (dates column guard)",
+    async run(mod, a) {
+      const text = await mod.extractPdfText(fakePdf([TABLE_ITEMS]));
+      a.eq("table layout extraction is byte-identical to legacy", text, legacyPageText(TABLE_ITEMS));
+    },
+  },
+];
+
 /* ---------------- main ---------------- */
 
-const { mod, out } = buildParser();
-try {
-  const results = [];
-  for (const c of CASES) {
-    const text = readFileSync(path.join(fixturesDir, c.file), "utf8");
-    let parsed;
-    try {
-      parsed = mod.textToStructured(text);
-    } catch (err) {
-      results.push({
-        fixture: c.file,
-        label: `parser threw: ${err instanceof Error ? err.message : String(err)}`,
-        pass: false,
-        detail: "exception",
-      });
-      continue;
+async function main() {
+  const { mod, out } = buildParser();
+  try {
+    const results = [];
+    for (const c of CASES) {
+      const text = readFileSync(path.join(fixturesDir, c.file), "utf8");
+      let parsed;
+      try {
+        parsed = mod.textToStructured(text);
+      } catch (err) {
+        results.push({
+          fixture: c.file,
+          label: `parser threw: ${err instanceof Error ? err.message : String(err)}`,
+          pass: false,
+          detail: "exception",
+        });
+        continue;
+      }
+      c.run(parsed, collector(results, c.file));
     }
-    c.run(parsed, collector(results, c.file));
-  }
 
-  let lastFixture = "";
-  for (const res of results) {
-    if (res.fixture !== lastFixture) {
-      const c = CASES.find((x) => x.file === res.fixture);
-      console.log(`\n${res.fixture} — ${c ? c.title : ""}`);
-      lastFixture = res.fixture;
+    for (const c of EXTRACTION_CASES) {
+      try {
+        await c.run(mod, collector(results, c.id));
+      } catch (err) {
+        results.push({
+          fixture: c.id,
+          label: `extraction case threw: ${err instanceof Error ? err.message : String(err)}`,
+          pass: false,
+          detail: "exception",
+        });
+      }
     }
-    if (res.pass) {
-      console.log(`  ✓ ${res.label}`);
-    } else if (res.issue) {
-      console.log(`  ✗ ${res.label}  [KNOWN ISSUE]`);
-      console.log(`      ${res.detail}`);
-      console.log(`      ${res.issue}`);
+
+    const TITLES = [
+      ...CASES.map((c) => ({ file: c.file, title: c.title })),
+      ...EXTRACTION_CASES.map((c) => ({ file: c.id, title: c.title })),
+    ];
+    let lastFixture = "";
+    for (const res of results) {
+      if (res.fixture !== lastFixture) {
+        const c = TITLES.find((x) => x.file === res.fixture);
+        console.log(`\n${res.fixture} — ${c ? c.title : ""}`);
+        lastFixture = res.fixture;
+      }
+      if (res.pass) {
+        console.log(`  ✓ ${res.label}`);
+      } else if (res.issue) {
+        console.log(`  ✗ ${res.label}  [KNOWN ISSUE]`);
+        console.log(`      ${res.detail}`);
+        console.log(`      ${res.issue}`);
+      } else {
+        console.log(`  ✗ ${res.label}`);
+        console.log(`      ${res.detail ?? ""}`);
+      }
+    }
+
+    const total = results.length;
+    const passed = results.filter((r) => r.pass).length;
+    const known = results.filter((r) => !r.pass && r.issue).length;
+    const failed = results.filter((r) => !r.pass && !r.issue).length;
+    console.log(
+      `\nSUMMARY: ${total} assertions · ${passed} passed · ${failed} failed · ${known} known parser issues`
+    );
+    if (failed > 0) {
+      console.log("RESULT: FAIL");
+      process.exitCode = 1;
     } else {
-      console.log(`  ✗ ${res.label}`);
-      console.log(`      ${res.detail ?? ""}`);
+      console.log("RESULT: PASS (with known issues documented above)");
     }
+  } finally {
+    rmSync(out, { recursive: true, force: true });
   }
-
-  const total = results.length;
-  const passed = results.filter((r) => r.pass).length;
-  const known = results.filter((r) => !r.pass && r.issue).length;
-  const failed = results.filter((r) => !r.pass && !r.issue).length;
-  console.log(
-    `\nSUMMARY: ${total} assertions · ${passed} passed · ${failed} failed · ${known} known parser issues`
-  );
-  if (failed > 0) {
-    console.log("RESULT: FAIL");
-    process.exitCode = 1;
-  } else {
-    console.log("RESULT: PASS (with known issues documented above)");
-  }
-} finally {
-  rmSync(out, { recursive: true, force: true });
 }
+
+await main();
