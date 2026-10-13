@@ -35,7 +35,8 @@ fails. No new dependencies; nothing in the app imports this folder.
 | `modern-docx-layout.txt` | Modern DOCX layout — competencies table, education first, two-line job headers, soft hyphens |
 | `two-column-block.txt` | Two-column resume as block-sequenced extraction (whole sidebar, then main column) |
 | `two-column-interleaved.txt` | Two-column resume as row-interleaved extraction (pdf.js Y-grouping) — known-issue probes |
-| `table-jobs.txt` | Table-based jobs: dates-cell + header-cell rows (pass) and a company on its own row (known-issue probes) |
+| `table-jobs.txt` | Table-based jobs: dates-cell + header-cell rows, and a company on its own row (merged into the role) |
+| `table-company-boundary.txt` | Negative boundary: a dateless header after a role that already has a company is NOT absorbed as a company row |
 | `header-variants.txt` | `CAREER OBJECTIVE` + `WORK HISTORY` headers |
 | `professional-profile.txt` | `PROFESSIONAL PROFILE` + `EMPLOYMENT HISTORY` headers |
 | `career-summary.txt` | `CAREER SUMMARY` + `PROFESSIONAL EXPERIENCE` headers |
@@ -86,13 +87,14 @@ ordinary regression assertions):
    sequenced two-column text (whole sidebar first) parses cleanly
    (`two-column-block.txt`). A real fix needs column-aware extraction
    (X-coordinate splitting in `extractPdfText`), not a parser tweak.
-7. **Table jobs with the company on its own row spawn a phantom role.**
-   In a table resume where a job spans two extracted rows —
-   `dates | title`, then an empty dates cell holding the company — the
-   company line is treated as a new job header: the real role keeps an
-   empty company and a phantom role titled with the company name absorbs
-   the bullets. Jobs whose dates and header share one row parse cleanly
-   (`table-jobs.txt`).
+   *Issue 7 (table jobs with the company on its own row spawning a
+   phantom role) was fixed in Cycle 8: in the experience loop, a short,
+   dateless, non-sentence line that arrives while the current role is
+   dated, has no company yet, and has no bullets is absorbed as that
+   role's company instead of spawning a phantom role that steals the
+   bullets. A role that already has a company never absorbs the line —
+   `table-company-boundary.txt` guards that boundary. Jobs whose dates
+   and header share one row parse cleanly (`table-jobs.txt`).*
    *Issues 8–10 (ISO ranges `2019-03 – 2021-11`, day-first ranges
    `12 March 2016 – 4 June 2018`, and open-ended `Since 2021` /
    `From Sep 2022` starts) were fixed in Cycle 7: `DATE_RANGE_RE`

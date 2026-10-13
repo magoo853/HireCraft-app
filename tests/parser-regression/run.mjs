@@ -65,8 +65,6 @@ const ISSUES = {
     'The location regex runs over the first 8 lines joined with "\\n", and its \\s+ spans the line break: when the name line directly precedes a contact line starting with a one-word city, the surname is captured as part of the city — location comes back as "Nair\\nTampa, FL" (literal newline included) instead of "Tampa, FL".',
   interleavedColumns:
     'Two-column PDFs whose extraction interleaves the columns row-by-row (the pdf.js Y-grouping used by this app joins sidebar and main-column text onto shared lines) defeat section detection: "SKILLS PROFESSIONAL SUMMARY" matches no header, education lines are consumed as job headers, and bullets are promoted to phantom roles. Summary, listed skills, and education are lost and the roles come back mangled. A real fix needs column-aware extraction (X-coordinate splitting in extractPdfText), not a parser tweak.',
-  tableCompanyRow:
-    'In a table-based resume where a job spans two extracted rows — "dates | title" then an empty dates cell holding the company — the company line is treated as a new job header: the real role keeps an empty company and a phantom role titled with the company name absorbs the bullets.',
 };
 
 function collector(results, fixture) {
@@ -437,17 +435,37 @@ CASES.push(
       const lead = r.experience.find((j) => j.title === "Shipping Lead");
       a.check("third job exists (Shipping Lead)", !!lead);
       a.jobDates("Shipping Lead is dated", lead);
-      a.count("three roles in total", r.experience, 3, { issue: ISSUES.tableCompanyRow });
-      a.includes("Shipping Lead keeps its company", lead?.company, "Northgate", {
-        issue: ISSUES.tableCompanyRow,
-      });
+      a.count("three roles in total", r.experience, 3);
+      a.includes("Shipping Lead keeps its company", lead?.company, "Northgate");
+      a.count("Shipping Lead keeps its bullets", lead?.bullets, 2);
       a.check(
         "no phantom role titled 'Northgate Distribution'",
-        !r.experience.some((j) => j.title === "Northgate Distribution"),
-        { issue: ISSUES.tableCompanyRow }
+        !r.experience.some((j) => j.title === "Northgate Distribution")
       );
       a.count("one education entry", r.education, 1);
       a.includes("education school", r.education[0]?.school, "DePaul University");
+    },
+  },
+  {
+    file: "table-company-boundary.txt",
+    title: "Table company-row boundary — a dateless header after a role that already has a company is NOT absorbed",
+    run(r, a) {
+      a.eq("name", r.name, "Robin Delgado");
+      a.count(
+        "two roles in total (the dateless line starts its own role)",
+        r.experience,
+        2
+      );
+      a.eq("role 1 title", r.experience[0]?.title, "Store Manager");
+      a.jobDates("role 1 is dated", r.experience[0]);
+      a.includes(
+        "role 1 company is not overwritten by the next dateless line",
+        r.experience[0]?.company,
+        "QuickMart"
+      );
+      a.count("role 1 has no bullets (none were written for it)", r.experience[0]?.bullets, 0);
+      a.eq("role 2 title", r.experience[1]?.title, "Inventory Specialist");
+      a.count("role 2 keeps its bullets", r.experience[1]?.bullets, 2);
     },
   },
   {

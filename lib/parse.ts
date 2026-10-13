@@ -268,6 +268,23 @@ export function textToStructured(text: string): StructuredResume {
       const sentenceLike = line.split(/\s+/).length > 6 && ACTION_VERBS.test(line);
       const looksLikeHeader = hasDate || (line.length < 90 && !sentenceLike);
       if (looksLikeHeader) {
+        // Table-layout split: in table extractions a job's company can
+        // land on its own row right after the dated title row. A dateless
+        // header-looking line that arrives while the current role is a
+        // just-created dated role with no company and no bullets yet is
+        // that role's company row — not a new role. A role that already
+        // has a company (or any bullets) never absorbs the line: it may
+        // be a genuine next header.
+        if (
+          !hasDate &&
+          currentJob &&
+          currentJob.dates &&
+          !currentJob.company &&
+          currentJob.bullets.length === 0
+        ) {
+          currentJob.company = line;
+          continue;
+        }
         // Two-line job header: the title stands alone (blank lines may
         // intervene) and a following line carries "Company, Location;
         // dates". Merge them into one role instead of a title-only role
