@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
-import { parseFile, structuredToText, textToStructured } from "@/lib/parse";
-import { mosTranslations } from "@/lib/careers";
+import { structuredToText, textToStructured } from "@/lib/parse";
+import { mosTranslations } from "@/lib/mos";
 import { SAMPLE_MILITARY, SAMPLE_RESUME } from "@/lib/sample";
 import { ExperienceItem, ProjectItem, StructuredResume, emptyResume } from "@/lib/types";
 import { Button, Card, Field, SectionTitle, inputCls } from "@/components/ui";
@@ -48,6 +48,7 @@ export default function ResumePage() {
     setEvalParsing(true);
     setEvalMsg("");
     try {
+      const { parseFile } = await import("@/lib/parse-file");
       const text = await parseFile(f);
       if (text.trim().length < 50) throw new Error("Couldn't read much text from that file. Try pasting the text instead.");
       setMilitary({ ...military, evalText: text });
@@ -64,6 +65,7 @@ export default function ResumePage() {
     setParsing(true);
     setParseMsg("");
     try {
+      const { parseFile } = await import("@/lib/parse-file");
       const text = await parseFile(f);
       if (text.trim().length < 50) throw new Error("Couldn't read much text from that file. Try pasting the text instead.");
       setResume(textToStructured(text));

@@ -8,12 +8,9 @@ import {
   QUIZ_QUESTIONS,
   RIASEC_BLURBS,
   RIASEC_NAMES,
-  RiasecLetter,
-  JobMatch,
   RiasecScores,
-  fmtSalary,
-  jobSearchLinks,
-} from "@/lib/careers";
+} from "@/lib/quiz";
+import { JobMatch, RiasecLetter, fmtSalary, jobSearchLinks } from "@/lib/careers-core";
 import { AiResponse } from "@/lib/types";
 import { JobPosting, ScoredPosting, checkedAgoLabel, dedupeScoredPostings, scorePosting } from "@/lib/jobs";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
