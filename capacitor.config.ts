@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.hirecraft.app",
-  appName: "HireCraft",
+  appName: "RoadmapResume",
   webDir: "www",
   // v1 native shell loads the hosted production build. This keeps the
   // Next.js API routes (AI, job fetch, verification) working without a
