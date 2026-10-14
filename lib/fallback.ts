@@ -261,8 +261,11 @@ export function extractBullets(text: string): string[] {
   if (marked.length >= 3) return marked;
   // Fallback: pasted/PDF-parsed resumes often lose bullet markers entirely.
   // Treat substantive body lines as bullets so the feature never returns empty.
+  // No length ceiling and no count cap: the scorer must see the WHOLE
+  // resume — a windowed/sliced fallback silently scores only the head
+  // (bullet counts, quantified/verb scoring, ATS bullet count).
   const body = lines.filter((l) => {
-    if (l.length < 40 || l.length > 400) return false;
+    if (l.length < 20) return false;
     if (/^[^a-z]*$/.test(l)) return false; // ALL-CAPS headers
     if (/:$/.test(l)) return false; // section headers
     if (/^[\w.+-]+@[\w-]+\.[\w.]+$/.test(l)) return false;
@@ -271,7 +274,7 @@ export function extractBullets(text: string): string[] {
     if (/^(experience|education|skills|summary|objective|contact|work history|employment|certifications)/i.test(l)) return false;
     return true;
   });
-  return body.slice(0, 12);
+  return body;
 }
 
 function tokenize(text: string): string[] {

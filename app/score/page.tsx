@@ -160,7 +160,7 @@ export default function ScorePage() {
                     <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Your densest bullets</p>
                     <div className="grid gap-1.5">
                       {result.readabilityDetail.longestBullets.map((b, i) => (
-                        <p key={i} className="text-xs text-ink bg-paper border border-line rounded-lg px-2.5 py-2 leading-snug">“{b.length > 140 ? `${b.slice(0, 140)}…` : b}”</p>
+                        <p key={i} className="text-xs text-ink bg-paper border border-line rounded-lg px-2.5 py-2 leading-snug">“{b}”</p>
                       ))}
                     </div>
                     <p className="text-xs text-muted mt-2">Split each into a result + how, or let <Link href="/rewrite" className="font-bold text-emerald-700 underline underline-offset-2">Rewrites</Link> tighten them.</p>
@@ -222,7 +222,7 @@ export default function ScorePage() {
                 </p>
               )}
               <div className="grid gap-1.5">
-                {scoreHistory.slice(-8).map((h, i) => (
+                {scoreHistory.map((h, i) => (
                   <div key={`${h.at}-${i}`} className="flex items-baseline justify-between gap-3 bg-paper border border-line rounded-lg px-2.5 py-2">
                     <span className="text-xs text-muted">
                       {new Date(h.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {h.jobBasis}
@@ -339,7 +339,7 @@ export default function ScorePage() {
           </Card>
           <Card className="mb-3">
             <p className="font-bold text-ink text-sm mb-2">Your resume as the robot reads it</p>
-            <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono bg-paper rounded-xl p-3 max-h-96 overflow-auto border border-line">
+            <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono bg-paper rounded-xl p-3 border border-line">
               {sim.parsedText}
             </pre>
           </Card>
