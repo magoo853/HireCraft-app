@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { MODE_DESCRIPTIONS, MODE_LABELS, Mode } from "@/lib/types";
-import { Button, Card, Logo } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
 import { gettingStartedSteps } from "@/lib/getting-started";
 
 const MODES: { id: Mode; icon: string; tile: string }[] = [
@@ -37,11 +37,6 @@ export default function Home() {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-6">
-        <Logo size={34} />
-        <span className="font-extrabold text-[17px] tracking-tight text-navy">ResumeRoadmap</span>
-      </div>
-
       <h1 className="text-[22px] font-extrabold tracking-tight text-navy mb-1">
         Which best describes you?
       </h1>
