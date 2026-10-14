@@ -356,6 +356,9 @@ function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
   const [checking, setChecking] = useState(false);
   const [msg, setMsg] = useState("");
   const [feed, setFeed] = useState<ScoredPosting[]>([]);
+  // Wave 5: true only once a jobs response reports Adzuna among the
+  // sources that returned data — the footer names it only while live.
+  const [adzunaActive, setAdzunaActive] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const checkedOnce = useRef(false);
   const seedApplied = useRef(false);
@@ -374,26 +377,43 @@ function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
     setChecking(true);
     if (manual) setMsg("");
     try {
+      // Wave 5: alerts are fetched concurrently, not one after another.
+      // Promise.allSettled gives per-alert error isolation — one
+      // alert's failure contributes nothing (same as a non-OK response
+      // did sequentially) and never fails or blanks the others. The
+      // results are folded back in alert order, so the accounting
+      // below (per-alert new counts, seen ids, feed) is unchanged.
+      const settled = await Promise.allSettled(
+        alerts.map(async (a) => {
+          const params = new URLSearchParams({ role: a.role });
+          if (a.company) params.set("company", a.company);
+          if (a.location) params.set("location", a.location);
+          const res = await fetch(`/api/jobs?${params}`);
+          if (!res.ok) return null;
+          const j = (await res.json()) as { postings?: JobPosting[]; sources?: string[] };
+          const scored: ScoredPosting[] = [];
+          const ids: string[] = [];
+          for (const p of j.postings ?? []) {
+            const score = scorePosting(resume, p);
+            if (score.match < a.minMatch) continue;
+            ids.push(p.id);
+            scored.push({ ...p, score, isNew: !seenJobIds.includes(p.id), alertRole: a.role });
+          }
+          // The same posting syndicated to several boards counts once —
+          // per alert here, and again across alerts for the feed below.
+          return { alertId: a.id, scored: dedupeScoredPostings(scored), ids, sources: j.sources ?? [] };
+        })
+      );
       const perAlert = new Map<string, ScoredPosting[]>();
       const fetchedIds: string[] = [];
-      for (const a of alerts) {
-        const params = new URLSearchParams({ role: a.role });
-        if (a.company) params.set("company", a.company);
-        if (a.location) params.set("location", a.location);
-        const res = await fetch(`/api/jobs?${params}`);
-        if (!res.ok) continue;
-        const j = (await res.json()) as { postings?: JobPosting[] };
-        const scored: ScoredPosting[] = [];
-        for (const p of j.postings ?? []) {
-          const score = scorePosting(resume, p);
-          if (score.match < a.minMatch) continue;
-          fetchedIds.push(p.id);
-          scored.push({ ...p, score, isNew: !seenJobIds.includes(p.id), alertRole: a.role });
-        }
-        // The same posting syndicated to several boards counts once —
-        // per alert here, and again across alerts for the feed below.
-        perAlert.set(a.id, dedupeScoredPostings(scored));
+      let adzunaSeen = false;
+      for (const s of settled) {
+        if (s.status !== "fulfilled" || !s.value) continue;
+        perAlert.set(s.value.alertId, s.value.scored);
+        fetchedIds.push(...s.value.ids);
+        if (s.value.sources.includes("Adzuna")) adzunaSeen = true;
       }
+      if (adzunaSeen) setAdzunaActive(true);
       if (perAlert.size) {
         const now = Date.now();
         setAlerts(
@@ -573,7 +593,7 @@ function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
       )}
       <p className="text-[11px] text-muted mt-3 leading-relaxed">
         Alerts are checked when you open this tab or tap Check — matches are scored against the resume on this device.
-        Postings come from Remotive, Himalayas, Arbeitnow{", and USAJobs for federal roles"}; listings change fast, so a posting may close before you apply.
+        Postings come from Remotive, Himalayas, Arbeitnow{", and USAJobs for federal roles"}{adzunaActive ? " and Adzuna" : ""}; listings change fast, so a posting may close before you apply.
       </p>
     </div>
   );

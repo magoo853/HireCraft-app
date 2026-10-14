@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { JobPosting } from "@/lib/jobs";
 import { normalizeLocation } from "@/lib/jobs";
+import { fetchAdzuna } from "@/lib/adzuna";
 
 /**
  * Job-posting search for alerts. Fans out to free, no-key job APIs
- * (Arbeitnow, Remotive) plus USAJobs when the server has credentials.
+ * (Arbeitnow, Remotive) plus USAJobs and Adzuna when the server has
+ * credentials for them (both are dark — no call at all — until then).
  * Each source fails independently — a dead source never breaks the check.
  */
 
@@ -129,6 +131,7 @@ export async function GET(req: NextRequest) {
     fromHimalayas(q),
     fromUsaJobs(q, location),
     fromArbeitnow(q),
+    fetchAdzuna(q, location, fetchJson),
   ]);
   let postings: JobPosting[] = [];
   for (const s of settled) if (s.status === "fulfilled") postings = postings.concat(s.value);
@@ -165,8 +168,14 @@ export async function GET(req: NextRequest) {
     return true;
   });
 
+  postings = postings.slice(0, 40);
+  // Sources that actually returned data in THIS response — the client
+  // names a gated source (Adzuna) in its footer only when it appears
+  // here, so the sources line never claims a source that isn't live.
+  const sources = Array.from(new Set(postings.map((p) => p.source)));
+
   return NextResponse.json(
-    { postings: postings.slice(0, 40) },
+    { postings, sources },
     { headers: { "Cache-Control": "s-maxage=600, stale-while-revalidate=1200" } }
   );
 }
