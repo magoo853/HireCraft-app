@@ -7,7 +7,7 @@ import { useApp } from "@/lib/store";
 import { deriveSkills, structuredToText, textToStructured } from "@/lib/parse";
 import { mosTranslations } from "@/lib/mos";
 import { redactDocumentText } from "@/lib/redact";
-import { SAMPLE_MILITARY, SAMPLE_RESUME } from "@/lib/sample";
+import { sampleForMode } from "@/lib/sample";
 import { AiResponse, ExperienceItem, ProjectItem, StructuredResume, SummaryResult, emptyResume } from "@/lib/types";
 import { Button, Card, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
 import { GettingStartedCard } from "@/components/getting-started";
@@ -34,7 +34,10 @@ function AiStatusPill() {
 
 export default function ResumePage() {
   const router = useRouter();
-  const { mode, setMode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary, hasResume, saveVersion } = useApp();
+  const { mode, setMode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary, setPerfReview, hasResume, saveVersion } = useApp();
+  // The sample offer follows the persona picked on Home (the store's
+  // mode field) — a civilian never gets offered the veteran sample.
+  const sample = sampleForMode(mode);
   const [tab, setTab] = useState<Tab>(mode === "new" ? "builder" : "upload");
   const [paste, setPaste] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -216,17 +219,19 @@ export default function ResumePage() {
         <Card className="mt-4 text-center !bg-mint/60 border-emerald-100">
           <p className="font-extrabold text-navy text-sm mb-1">Just looking around?</p>
           <p className="text-xs text-muted leading-relaxed mb-3">
-            Load a fictional veteran resume (Army supply sergeant) with a sample
-            performance review, and see Score, Rewrite, Design, and the civilian
-            translation working in seconds.
+            {sample.cardText}
           </p>
           <Button variant="emerald" className="w-full" onClick={() => {
-            setMode("veteran");
-            setMilitary(SAMPLE_MILITARY);
-            setResume(SAMPLE_RESUME);
-            setParseMsg("Sample loaded — Marcus Reed, Army 92Y. Explore every tab, then add your own resume whenever you're ready.");
+            // One shared loader for every persona: same store setters,
+            // same result — only the bundle's payloads differ.
+            const s = sampleForMode(mode);
+            setMode(s.mode);
+            if (s.military) setMilitary(s.military);
+            if (s.perfReviewText) setPerfReview({ text: s.perfReviewText, updatedAt: Date.now() });
+            setResume(s.resume);
+            setParseMsg(s.loadedMessage);
           }}>
-            🎖 Try the sample veteran resume
+            {sample.buttonText}
           </Button>
         </Card>
         </>
