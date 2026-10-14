@@ -1,15 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2732 2732">
   <rect width="2732" height="2732" fill="#0B3B2E"/>
-  <g transform="translate(886,886) scale(1)">
-    <rect x="0" y="0" width="1024" height="1024" rx="230" fill="#0B3B2E"/>
-    <g fill="none" stroke="#FFFFFF" stroke-width="92" stroke-linecap="round">
-      <line x1="352" y1="300" x2="352" y2="724"/>
-      <line x1="672" y1="300" x2="672" y2="724"/>
-      <line x1="352" y1="512" x2="672" y2="512"/>
-    </g>
-    <polyline points="596,636 672,560 748,484" fill="none" stroke="#34D399" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
-    <line x1="748" y1="484" x2="748" y2="586" stroke="#34D399" stroke-width="72" stroke-linecap="round"/>
-    <line x1="748" y1="484" x2="646" y2="484" stroke="#34D399" stroke-width="72" stroke-linecap="round"/>
+  <g transform="translate(886,886) scale(8.5333333)">
+    <rect width="120" height="120" fill="#0B3B2E"/><clipPath id="bc2"><rect width="120" height="120"/></clipPath><g clip-path="url(#bc2)"><polygon points="36,120 84,120 64,64 56,64" fill="#10503C"/><polygon points="58.5,100 61.5,100 61.2,114 58.8,114" fill="#0B3B2E"/><polygon points="58.9,84 61.1,84 60.9,95 59.1,95" fill="#0B3B2E"/><polygon points="59.2,71 60.8,71 60.7,79 59.3,79" fill="#0B3B2E"/></g><text x="13.5" y="28" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="0.5" fill="#A7F3D0">AI</text><text x="60" y="81" text-anchor="middle" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="60" font-weight="800" fill="#FFFFFF">RR</text>
   </g>
-  <text x="1366" y="2250" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="120" font-weight="700" fill="#FFFFFF" letter-spacing="8">HireCraft</text>
+  <text x="1366" y="2250" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="120" font-weight="700" fill="#FFFFFF" letter-spacing="8">RoadmapResume</text>
 </svg>

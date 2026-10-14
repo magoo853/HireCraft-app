@@ -1,9 +1,9 @@
 # ios-assets
 
-App icon + splash for the HireCraft iOS shell.
+App icon + splash for the RoadmapResume iOS shell.
 
-- `icon.svg` — master artwork (deep navy `#0B3B2E` → `#065F46` gradient,
-  white "H" pillars, emerald `#34D399` upward tick).
+- `icon.svg` — master artwork (full-bleed pine `#0B3B2E`, white "RR" with
+  tonal `#10503C` perspective road and light-green `#A7F3D0` "AI" tag).
 - `splash.svg` — launch screen artwork (2732×2732).
 - `generate-icons.py` — renders the full AppIcon PNG set from the SVG master.
   Binary PNGs are intentionally **not** committed (the GitHub file API used

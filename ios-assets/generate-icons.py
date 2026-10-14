@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the HireCraft iOS icon set from the SVG master.
+"""Generate the RoadmapResume iOS icon set from the SVG master.
 
 Why a script? The GitHub file API used for pushes stores content as text,
 so binary PNGs can't be pushed through it. The SVG master + this script live

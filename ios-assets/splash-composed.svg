@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2732 2732"><rect width="2732" height="2732" fill="#0B3B2E"/><g transform="translate(854,854)">
+  <!-- RoadmapResume app icon (E1: Perspective Road RR with light-green "AI" tag).
+       Full-bleed pine #0B3B2E — iOS applies the corner mask; do not round here. -->
+  <g transform="scale(8.5333333)">
+    <rect width="120" height="120" fill="#0B3B2E"/><clipPath id="bc"><rect width="120" height="120"/></clipPath><g clip-path="url(#bc)"><polygon points="36,120 84,120 64,64 56,64" fill="#10503C"/><polygon points="58.5,100 61.5,100 61.2,114 58.8,114" fill="#0B3B2E"/><polygon points="58.9,84 61.1,84 60.9,95 59.1,95" fill="#0B3B2E"/><polygon points="59.2,71 60.8,71 60.7,79 59.3,79" fill="#0B3B2E"/></g><text x="13.5" y="28" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="0.5" fill="#A7F3D0">AI</text><text x="60" y="81" text-anchor="middle" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="60" font-weight="800" fill="#FFFFFF">RR</text>
+  </g>
+</g></svg>
