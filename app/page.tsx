@@ -24,7 +24,7 @@ const TOOLS = [
 ];
 
 export default function Home() {
-  const { mode, setMode, hasResume, jobText, scoreViewed, rewriteAccepted, designChosen, exported } = useApp();
+  const { mode, setMode, hasResume, jobText, scoreViewed, rewriteAccepted, designChosen, exported, versions } = useApp();
   // Returning users resume the getting-started journey at its next
   // unfinished step instead of restarting at the Resume tab.
   const nextStep = hasResume
@@ -32,6 +32,7 @@ export default function Home() {
         hasResume,
         hasTargetJob: jobText.trim().length > 0,
         scoreViewed, rewriteAccepted, designChosen, exported,
+        trackedApplication: versions.some((v) => !!v.application),
       }).find((s) => s.state === "next")
     : undefined;
 
