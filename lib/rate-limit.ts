@@ -25,6 +25,13 @@ const windows = new Map<string, WindowState>();
 export const AI_RATE_LIMIT = { limit: 30, windowMs: 10 * 60 * 1000 } as const;
 
 /**
+ * /api/extract throttle (RR-07): document parsing is heavier per request
+ * than an AI call (up to 10 MB uploads), so the limit is tighter than the
+ * AI route's — 20 requests / 10 minutes / IP, same fixed-window idiom.
+ */
+export const EXTRACT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60 * 1000 } as const;
+
+/**
  * Record one hit for `key` and report whether it is within the limit.
  * Fixed window: the window starts at the first hit and resets whole.
  */
