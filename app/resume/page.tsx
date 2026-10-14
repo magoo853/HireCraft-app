@@ -296,7 +296,7 @@ export default function ResumePage() {
                         </Link>
                         <button
                           onClick={() => { setTargetTitle(t.equivalent); router.push("/roadmap"); }}
-                          className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-brand text-white min-h-[44px]">
+                          className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-cta text-white min-h-[44px]">
                           Build my roadmap →
                         </button>
                       </div>

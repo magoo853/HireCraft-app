@@ -303,7 +303,7 @@ function MatchList({ matches, selected, onSelect, offset, location, veteran }: {
                 </div>
                 <div className="flex gap-2 mt-3">
                   <button onClick={() => watchJobs(m, idx)}
-                    className="flex-1 text-[13px] font-bold bg-brand text-white rounded-xl px-3 py-2.5 min-h-[44px]">
+                    className="flex-1 text-[13px] font-bold bg-cta text-white rounded-xl px-3 py-2.5 min-h-[44px]">
                     🔔 Watch jobs like this
                   </button>
                   <button onClick={() => setAsTarget(m, idx)}
@@ -590,7 +590,7 @@ function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
                         View posting ↗
                       </a>
                       <button onClick={() => tailor(p)}
-                        className="flex-1 text-sm font-bold bg-brand text-white rounded-xl px-3 py-3 min-h-[48px]">
+                        className="flex-1 text-sm font-bold bg-cta text-white rounded-xl px-3 py-3 min-h-[48px]">
                         Tailor my resume →
                       </button>
                     </div>

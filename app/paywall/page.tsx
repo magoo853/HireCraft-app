@@ -249,7 +249,7 @@ function PaywallInner() {
               )}
               {providers.sheerid && (
                 <a href="/api/verify/sheerid/start"
-                  className="flex items-center justify-center gap-2 rounded-[14px] bg-brand text-white font-bold min-h-[52px] px-5 text-[15px] active:scale-[0.98] transition">
+                  className="flex items-center justify-center gap-2 rounded-[14px] bg-cta text-white font-bold min-h-[52px] px-5 text-[15px] active:scale-[0.98] transition">
                   ✓ Verify with SheerID
                 </a>
               )}
