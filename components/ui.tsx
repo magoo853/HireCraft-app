@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useId } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MODE_LABELS, Mode } from "../lib/types";
@@ -109,7 +109,7 @@ export function SourceNote({ source, note }: { source: "ai" | "fallback"; note?:
   }
   return source === "fallback" ? (
     <p className="text-xs text-muted mt-3">
-      Running on HireCraft's built-in coach engine. Add an <code className="bg-slate-100 px-1 rounded">AI_API_KEY</code> to enable full AI rewrites.
+      Running on RoadmapResume's built-in coach engine. Add an <code className="bg-slate-100 px-1 rounded">AI_API_KEY</code> to enable full AI rewrites.
     </p>
   ) : (
     <p className="text-xs text-muted mt-3">Generated with AI.</p>
@@ -195,21 +195,32 @@ export function BottomNav() {
 }
 
 export function Logo({ size = 34 }: { size?: number }) {
+  const clipId = `rr-clip-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   return (
-    <span className="rounded-[10px] bg-pine text-white flex items-center justify-center font-extrabold shrink-0"
-      style={{ width: size, height: size, fontSize: size * 0.5 }}>
-      H
+    <span className="rounded-[10px] overflow-hidden flex items-center justify-center shrink-0"
+      style={{ width: size, height: size }} role="img" aria-label="RoadmapResume">
+      <svg viewBox="0 0 120 120" width={size} height={size} aria-hidden="true">
+        <rect width="120" height="120" rx="35" fill="#0B3B2E" />
+        <clipPath id={clipId}><rect width="120" height="120" rx="35" /></clipPath>
+        <g clipPath={`url(#${clipId})`}>
+          <polygon points="36,120 84,120 64,64 56,64" fill="#10503C" />
+          <polygon points="58.5,100 61.5,100 61.2,114 58.8,114" fill="#0B3B2E" />
+          <polygon points="58.9,84 61.1,84 60.9,95 59.1,95" fill="#0B3B2E" />
+          <polygon points="59.2,71 60.8,71 60.7,79 59.3,79" fill="#0B3B2E" />
+        </g>
+        <text x="13.5" y="28" fontFamily="-apple-system, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" fontSize="15" fontWeight="700" letterSpacing="0.5" fill="#A7F3D0">AI</text>
+        <text x="60" y="81" textAnchor="middle" fontFamily="-apple-system, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" fontSize="60" fontWeight="800" fill="#FFFFFF">RR</text>
+      </svg>
     </span>
   );
 }
 
-export function TopBar({ title, right }: { title: string; right?: ReactNode }) {
+export function TopBar({ right }: { right?: ReactNode }) {
   return (
     <header className="sticky top-0 z-40 bg-paper/95 backdrop-blur border-b border-line print:hidden">
       <div className="max-w-lg mx-auto px-4 h-[60px] flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 min-h-[44px]">
+        <Link href="/" className="flex items-center min-h-[44px]" aria-label="RoadmapResume — home">
           <Logo />
-          <span className="font-extrabold text-navy tracking-tight">{title}</span>
         </Link>
         <div className="flex items-center gap-1">{right}</div>
       </div>

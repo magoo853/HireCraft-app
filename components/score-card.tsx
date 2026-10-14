@@ -62,7 +62,7 @@ export function ScoreJumpCard({
   function download(blob: Blob) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "hirecraft-score-jump.png";
+    a.download = "roadmapresume-score-jump.png";
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
@@ -72,10 +72,10 @@ export function ScoreJumpCard({
     try {
       const blob = await toPngBlob();
       if (!blob) throw new Error("render failed");
-      const file = new File([blob], "hirecraft-score-jump.png", { type: "image/png" });
+      const file = new File([blob], "roadmapresume-score-jump.png", { type: "image/png" });
       const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
       if (typeof nav.share === "function" && nav.canShare && nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file], title: "My HireCraft score jump", text: `My resume score went ${beforeTotal} → ${afterTotal} with HireCraft.` });
+        await nav.share({ files: [file], title: "My RoadmapResume score jump", text: `My resume score went ${beforeTotal} → ${afterTotal} with RoadmapResume.` });
       } else {
         download(blob);
         setMsg("Sharing isn't available here — the PNG downloaded instead.");
@@ -110,9 +110,17 @@ export function ScoreJumpCard({
         <rect width="1080" height="1080" fill="#F8FAFC" />
         <g transform="translate(64,64)">
           <rect width="96" height="96" rx="28" fill="#0B3B2E" />
-          <text x="48" y="65" textAnchor="middle" fontFamily={font} fontSize="48" fontWeight="800" fill="#FFFFFF">H</text>
+          <clipPath id="sc-rr-clip"><rect width="96" height="96" rx="28" /></clipPath>
+          <g clipPath="url(#sc-rr-clip)">
+            <polygon points="28.8,96 67.2,96 51.2,51.2 44.8,51.2" fill="#10503C" />
+            <polygon points="46.8,80 49.2,80 49,91.2 47,91.2" fill="#0B3B2E" />
+            <polygon points="47.1,67.2 48.9,67.2 48.7,76 47.3,76" fill="#0B3B2E" />
+            <polygon points="47.4,56.8 48.6,56.8 48.6,63.2 47.4,63.2" fill="#0B3B2E" />
+          </g>
+          <text x="10.8" y="22.4" fontFamily={font} fontSize="12" fontWeight="700" letterSpacing="0.4" fill="#A7F3D0">AI</text>
+          <text x="48" y="64.8" textAnchor="middle" fontFamily={font} fontSize="48" fontWeight="800" fill="#FFFFFF">RR</text>
         </g>
-        <text x="180" y="128" fontFamily={font} fontSize="40" fontWeight="800" letterSpacing="-1" fill="#0B1220">HireCraft</text>
+        <text x="180" y="128" fontFamily={font} fontSize="40" fontWeight="800" letterSpacing="-1" fill="#0B1220">RoadmapResume</text>
         <text x="540" y="260" textAnchor="middle" fontFamily={font} fontSize="44" fontWeight="800" letterSpacing="8" fill="#0B3B2E">ATS SCORE</text>
         <text x="330" y="620" textAnchor="middle" fontFamily={font} fontSize="260" fontWeight="800" fill="#0B1220">{beforeTotal}</text>
         <rect x="275" y="690" width="110" height="110" rx="26" fill={gradeColor(beforeGrade)} />
@@ -122,7 +130,7 @@ export function ScoreJumpCard({
         <rect x="695" y="690" width="110" height="110" rx="26" fill={gradeColor(afterGrade)} />
         <text x="750" y="766" textAnchor="middle" fontFamily={font} fontSize="64" fontWeight="800" fill="#FFFFFF">{afterGrade}</text>
         <text x="540" y="880" textAnchor="middle" fontFamily={font} fontSize="28" fontWeight="500" fill="#64748B">
-          {basis ? `Measured in HireCraft · scored against ${basis}` : "Measured in HireCraft · your score will vary by posting"}
+          {basis ? `Measured in RoadmapResume · scored against ${basis}` : "Measured in RoadmapResume · your score will vary by posting"}
         </text>
         <g transform="translate(260,930)">
           <rect width="560" height="84" rx="42" fill="#0B3B2E" />

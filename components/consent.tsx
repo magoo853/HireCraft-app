@@ -29,7 +29,7 @@ export function AiConsentGate() {
     <div className="fixed inset-0 z-[60] bg-navy/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-4">
       <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl max-h-[88vh] overflow-y-auto">
         <p className="text-3xl mb-2">🤝</p>
-        <p className="font-extrabold text-navy text-lg leading-snug mb-2">How HireCraft uses AI</p>
+        <p className="font-extrabold text-navy text-lg leading-snug mb-2">How RoadmapResume uses AI</p>
         <div className="text-sm text-muted leading-relaxed grid gap-2.5">
           <p>
             When you use the AI features — bullet rewrites, cover letters, LinkedIn polish, career
