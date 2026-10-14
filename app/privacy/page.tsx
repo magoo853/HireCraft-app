@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — RoadmapResume",
-  description: "How RoadmapResume collects, uses, and protects your data.",
+  title: "Privacy Policy — ResumeRoadmap",
+  description: "How ResumeRoadmap collects, uses, and protects your data.",
 };
 
 const S = ({ children }: { children: React.ReactNode }) => (
@@ -20,20 +20,20 @@ export default function PrivacyPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-2xl px-5 py-10">
         <Link href="/" className="text-[13px] font-semibold text-emerald-700 inline-flex items-center min-h-[44px]">
-          ‹ Back to RoadmapResume
+          ‹ Back to ResumeRoadmap
         </Link>
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">
           Privacy Policy
         </h1>
         <p className="mt-2 text-[13px] text-slate-500">
-          Effective: October 13, 2026 · RoadmapResume ("we", "us")
+          Effective: October 13, 2026 · ResumeRoadmap ("we", "us")
         </p>
 
         <S>
           <H>The short version</H>
           <P>
-            Your resume is your business. RoadmapResume stores it on your device,
-            not on our servers. There are no RoadmapResume accounts and no server
+            Your resume is your business. ResumeRoadmap stores it on your device,
+            not on our servers. There are no ResumeRoadmap accounts and no server
             copy of your resume. If you use an AI feature, the relevant text is
             sent to Google Gemini only after you give consent and only to
             generate the result you asked for. <strong>We never sell your data
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
             sent to job-board providers to find matching postings. Your resume
             is not sent for alerts.<br />
             • Subscriptions: Apple handles App Store purchases and payment
-            details. RoadmapResume does not receive or store your payment card
+            details. ResumeRoadmap does not receive or store your payment card
             information.
           </P>
         </S>
@@ -85,11 +85,11 @@ export default function PrivacyPage() {
           <H>Military verification (SheerID / ID.me)</H>
           <P>
             The six-month military Pro offer is not enabled in the current
-            version of RoadmapResume; it is planned as an update using SheerID or
-            ID.me. If that feature launches, those providers — not RoadmapResume —
+            version of ResumeRoadmap; it is planned as an update using SheerID or
+            ID.me. If that feature launches, those providers — not ResumeRoadmap —
             will handle verification documents under their own privacy
             policies, and this policy will be updated before the feature is
-            enabled. RoadmapResume does not ask for or store copies of military ID
+            enabled. ResumeRoadmap does not ask for or store copies of military ID
             cards, DD214s, or other verification documents.
           </P>
         </S>
@@ -111,7 +111,7 @@ export default function PrivacyPage() {
             from Settings → Delete all my data. That removes your resume,
             military record, alerts, generated content, and consent from the
             device. You can also clear the app's or browser's stored site data
-            or delete the app. There is no RoadmapResume server copy for us to
+            or delete the app. There is no ResumeRoadmap server copy for us to
             erase. If you email{" "}
             <a className="font-semibold text-emerald-700" href="mailto:privacy@hirecraft.app">
               privacy@hirecraft.app
@@ -124,7 +124,7 @@ export default function PrivacyPage() {
         <S>
           <H>Children</H>
           <P>
-            RoadmapResume is not directed at children under 13, and the
+            ResumeRoadmap is not directed at children under 13, and the
             new-to-workforce mode is intended for users 16 and older with
             parental involvement where required by law.
           </P>
@@ -133,7 +133,7 @@ export default function PrivacyPage() {
         <S>
           <H>Security</H>
           <P>
-            Content you keep in RoadmapResume is held in your device's local
+            Content you keep in ResumeRoadmap is held in your device's local
             storage, so protect the device and the browser or app profile you
             use. Information sent for an AI feature or job alert travels over
             encrypted connections (TLS). We do not maintain a server database
@@ -161,7 +161,7 @@ export default function PrivacyPage() {
         </S>
 
         <div className="mt-10 border-t border-slate-200 pt-6 text-center text-[12px] text-slate-500">
-          © 2026 RoadmapResume. Your data is yours.
+          © 2026 ResumeRoadmap. Your data is yours.
         </div>
       </div>
     </main>

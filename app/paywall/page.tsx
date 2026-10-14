@@ -71,7 +71,7 @@ function PaywallInner() {
   }, []);
 
   function choosePaid() {
-    setNote("Paid subscriptions will be purchasable here via Apple In-App Purchase when RoadmapResume ships on the App Store. In this web build everything is unlocked — enjoy the full tour.");
+    setNote("Paid subscriptions will be purchasable here via Apple In-App Purchase when ResumeRoadmap ships on the App Store. In this web build everything is unlocked — enjoy the full tour.");
   }
 
   function startPromoTrial() {

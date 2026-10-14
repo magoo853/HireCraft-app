@@ -441,7 +441,7 @@ function PerformanceReviewCard() {
 
   return (
     <div className="mt-8">
-      <SectionTitle sub="Your employer's review documents wins your resume may leave out. Add it once — Rewrite can mine it, and RoadmapResume can surface strengths from it.">
+      <SectionTitle sub="Your employer's review documents wins your resume may leave out. Add it once — Rewrite can mine it, and ResumeRoadmap can surface strengths from it.">
         Your latest performance review
       </SectionTitle>
       <Card>

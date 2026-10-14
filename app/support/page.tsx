@@ -8,11 +8,11 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Where is my resume stored?",
-    a: "On your device, in the app's local storage. There are no RoadmapResume accounts and no server copy of your resume. Deleting the app's data (Settings → Delete all my data) wipes it completely.",
+    a: "On your device, in the app's local storage. There are no ResumeRoadmap accounts and no server copy of your resume. Deleting the app's data (Settings → Delete all my data) wipes it completely.",
   },
   {
     q: "How does the free trial and Pro work?",
-    a: "The ATS score, resume builder, and design templates are free. RoadmapResume Pro ($25/year) unlocks the AI features. New users get a two-week free trial of Pro. Veterans and service members get six months of Pro free once military verification (SheerID / ID.me) is enabled in the app — it's rolling out as an update; the standard trial works today.",
+    a: "The ATS score, resume builder, and design templates are free. ResumeRoadmap Pro ($25/year) unlocks the AI features. New users get a two-week free trial of Pro. Veterans and service members get six months of Pro free once military verification (SheerID / ID.me) is enabled in the app — it's rolling out as an update; the standard trial works today.",
   },
   {
     q: "I bought Pro — how do I restore it?",
@@ -57,7 +57,7 @@ export default function SupportPage() {
         ))}
       </div>
 
-      <p className="text-center text-xs text-muted mt-6">RoadmapResume — built for the transition.</p>
+      <p className="text-center text-xs text-muted mt-6">ResumeRoadmap — built for the transition.</p>
     </div>
   );
 }
