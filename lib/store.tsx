@@ -10,6 +10,7 @@ import {
   removeVersion, renameVersion as renameVersionInList, sanitizeDesignOpts, sanitizeVersions,
   setVersionApplication, versionToContext,
 } from "./versions";
+import { initPurchases, type ProStatus } from "./purchases";
 
 /** The Design tab's own localStorage key for Custom Studio options —
  *  version snapshots capture from it and restore back into it. */
@@ -94,6 +95,12 @@ interface AppState {
    *  capture it and loads can restore it. */
   designDensity: VersionDensity;
   setDesignDensity: (d: VersionDensity) => void;
+  /** RR-01: native StoreKit entitlement, derived live from the purchase
+   *  plugin on every app start (see lib/purchases.ts). Runtime-only —
+   *  deliberately NOT persisted, so it can never be granted by editing
+   *  local storage or survive as a stale flag. Always "unknown" on web. */
+  proStatus: ProStatus;
+  setProStatus: (s: ProStatus) => void;
   versions: SavedVersion[];
   /** Snapshot the current resume + target-job context. Returns an error message to show, or null on success. */
   saveVersion: (name: string) => string | null;
@@ -144,6 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [coverLetterText, setCoverLetterText] = useState("");
   const [linkedinResult, setLinkedinResult] = useState<LinkedInResult | null>(null);
   const [designDensity, setDesignDensity] = useState<VersionDensity>("comfortable");
+  const [proStatus, setProStatus] = useState<ProStatus>("unknown");
   const [versions, setVersions] = useState<SavedVersion[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -183,6 +191,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(s.versions)) setVersions(sanitizeVersions(s.versions));
     }
     setHydrated(true);
+  }, []);
+
+  // RR-01: derive native entitlement once per app start. No-op on web
+  // (the bridge is absent and proStatus stays "unknown").
+  useEffect(() => {
+    let live = true;
+    initPurchases((s) => {
+      if (live) setProStatus(s);
+    }).catch(() => {});
+    return () => {
+      live = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -267,6 +287,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCoverLetterText("");
     setLinkedinResult(null);
     setDesignDensity("comfortable");
+    setProStatus("unknown");
     setVersions([]);
     try {
       for (const k of APP_STORAGE_KEYS) localStorage.removeItem(k);
@@ -291,6 +312,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       coverLetterText, setCoverLetterText,
       linkedinResult, setLinkedinResult,
       designDensity, setDesignDensity,
+      proStatus, setProStatus,
       versions, saveVersion, loadVersion, renameVersion, deleteVersion, updateVersionApplication,
       hasResume, resetAll,
     }}>
