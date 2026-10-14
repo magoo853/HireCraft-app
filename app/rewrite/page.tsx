@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { extractKeywords, scoreResume } from "@/lib/fallback";
 import { applyRewriteToResume } from "@/lib/resume-sync";
+import { postAi } from "@/lib/ai-client";
 import { AiResponse, RewriteResult, ScoreResult, StructuredResume } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJobBanner, inputCls } from "@/components/ui";
 import { SaveVersionForm } from "@/components/versions";
@@ -39,12 +40,7 @@ function ImproveInner() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "rewrite", mode, resume, jobText, military, perfReview }),
-      });
-      const json = (await res.json()) as AiResponse<RewriteResult[]>;
+      const json = await postAi<RewriteResult[]>({ task: "rewrite", mode, resume, jobText, military, perfReview });
       if (!Array.isArray(json.data)) throw new Error("Unexpected response");
       setResult(json);
       setBaseline({ score: scoreResume(resume, jobText), jobText });
