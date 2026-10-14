@@ -1,4 +1,4 @@
-# RoadmapResume
+# ResumeRoadmap
 
 AI resume & LinkedIn optimizer for veterans and civilian job seekers. Next.js 14 web app, live in production; an iOS App Store build wraps the same production site via Capacitor.
 
@@ -32,7 +32,7 @@ The 6-month free military tier is planned as a **post-launch update**. It is **n
 
 - SheerID / ID.me verification is **not configured** in the production build, and there is no working verification flow for users today. The paywall says so in plain language ("Instant verification isn't configured in this build").
 - Stub code exists in the repo (`lib/verification.ts`, routes under `app/api/verify/`) as scaffolding for that future update. Its env vars are listed in `.env.example` under a clearly marked post-launch section — **do not set them for v1**; setting them does not create a supported flow.
-- When the update ships, verification will be handled by SheerID or ID.me; RoadmapResume will receive only a yes/no result, never military records.
+- When the update ships, verification will be handled by SheerID or ID.me; ResumeRoadmap will receive only a yes/no result, never military records.
 
 ## AI layer
 
@@ -77,7 +77,7 @@ plus a manual pass over the main flows (upload → score → rewrite → design 
 
 - The Capacitor iOS project is pre-generated and committed under `ios/` (bundle ID `com.hirecraft.app`); `capacitor.config.ts` points the shell at the production URL above.
 - **Source of truth for the submission:** `MAC_BUILD_RUNBOOK.md` (owner's step-by-step: agreements → Mac build → archive → upload) and `APP_STORE_LISTING.md` (paste-ready listing, privacy answers, review notes). `APP_STORE_CHECKLIST.md` tracks overall status.
-- StoreKit subscription (created in App Store Connect at packaging): group "RoadmapResume Pro", product `hirecraft_pro_yearly`, $25/year, with the 2-week free introductory offer.
+- StoreKit subscription (created in App Store Connect at packaging): group "ResumeRoadmap Pro", product `hirecraft_pro_yearly`, $25/year, with the 2-week free introductory offer.
 - Military verification (SheerID / ID.me) is a post-launch update — it does not gate the v1 submission.
 
 ## Project structure

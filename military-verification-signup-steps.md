@@ -1,4 +1,4 @@
-# RoadmapResume — military verification vendor signup steps
+# ResumeRoadmap — military verification vendor signup steps
 
 Prepared 2026-10-11. James approved SheerID + ID.me as the verification layer for the military 6-month free trial (both offered as primary buttons; attestation + .mil email as dev fallback). He said "yeah I will need all of that."
 
@@ -16,7 +16,7 @@ Docs: https://developer.sheerid.com/api-quickstart · https://github.com/sheerid
 
 1. Register a developer account: https://api.id.me/en/registration/new
 2. Sign in to ID.me Developer Resources for API & SDK → **View My Applications** → **Create new** → enter Name, Display Name, and the app's **Redirect URI** → **Continue** → copy the **Client ID** and **Client Secret**.
-3. Integration is OAuth2: send users to ID.me, they verify their military status once (many already have an ID.me wallet from VA/military use), ID.me returns a token asserting the military attribute back to RoadmapResume — your app grants the trial.
+3. Integration is OAuth2: send users to ID.me, they verify their military status once (many already have an ID.me wallet from VA/military use), ID.me returns a token asserting the military attribute back to ResumeRoadmap — your app grants the trial.
 4. Pricing is partnership-based (reported ~up to $1 per verification response in their partner docs — confirm current rates in the registration flow).
 
 Docs: https://api.id.me/en/registration/new · OAuth Integration Guide (linked from the developer portal after registration)

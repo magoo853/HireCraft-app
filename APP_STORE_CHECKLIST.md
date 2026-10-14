@@ -1,6 +1,6 @@
-# RoadmapResume — App Store Checklist
+# ResumeRoadmap — App Store Checklist
 
-Everything needed to get RoadmapResume from "working web app" to "live on the App Store."
+Everything needed to get ResumeRoadmap from "working web app" to "live on the App Store."
 Items marked **[JAMES]** need James directly. Everything else is buildable by the crew.
 
 ## 0. Current state (2026-10-11)
@@ -52,7 +52,7 @@ npx cap sync ios       # copies www/ + config into the native project
 
 ## 3. App Store Connect listing
 
-- **Name:** RoadmapResume — AI Resume & LinkedIn Optimizer (30 char limit)
+- **Name:** ResumeRoadmap — AI Resume & LinkedIn Optimizer (30 char limit)
 - **Subtitle:** ATS scores, rewrites & cover letters (30 chars)
 - **Bundle ID:** `com.hirecraft.app` — register in Identifiers, enable In-App Purchase capability
 - **Category:** Business (primary), Productivity (secondary)
@@ -74,7 +74,7 @@ npx cap sync ios       # copies www/ + config into the native project
 
 ## 5. In-App Purchase (StoreKit 2) — after TestFlight, before submission
 
-- Create subscription group "RoadmapResume Pro" in App Store Connect
+- Create subscription group "ResumeRoadmap Pro" in App Store Connect
 - Product: `hirecraft_pro_yearly` — $25.00/yr, auto-renewable
 - Free 2-week launch trial and 6-month military trial: implement as
   **introductory offers** on the subscription (2-week free; 6-month free
