@@ -41,18 +41,54 @@ export function applyRewriteToResume(
   return { ...resume, rawText, experience, projects };
 }
 
-/** Apply a Design-tab inline text edit: the first matching structured
- *  field (summary → name → experience → projects → education, the
- *  Design page's historical scan order) plus a targeted replacement of
- *  the same old→new strings in rawText. rawText is NOT regenerated from
- *  the structure, so previously accepted rewrites survive the edit.
- *  Returns the input unchanged (same reference) when nothing matches. */
+/** Scope for a Design-tab inline edit (Wave 4). The templates invoke
+ *  the edit with only the field's text — no section/role/bullet index
+ *  reaches the call site — so the Design page passes the occurrence
+ *  ordinal of the instance the user actually clicked: 0 = first field
+ *  containing the text in scan order, 1 = second, and so on. Two
+ *  identical bullets in different roles are then edited individually
+ *  instead of whichever scans first. */
+export interface TextEditScope {
+  occurrence?: number;
+}
+
+/** Replace the occurrence-th occurrence of oldText in text (0-based);
+ *  falls back to the first occurrence when there are fewer, and
+ *  returns text unchanged when oldText is absent. */
+function replaceOccurrence(text: string, oldText: string, newText: string, occurrence: number): string {
+  let idx = -1;
+  let from = 0;
+  for (let i = 0; i <= occurrence; i++) {
+    idx = text.indexOf(oldText, from);
+    if (idx === -1) break;
+    from = idx + oldText.length;
+  }
+  if (idx === -1) {
+    const first = text.indexOf(oldText);
+    if (first === -1) return text;
+    return text.slice(0, first) + newText + text.slice(first + oldText.length);
+  }
+  return text.slice(0, idx) + newText + text.slice(idx + oldText.length);
+}
+
+/** Apply a Design-tab inline text edit: the matching structured field
+ *  (summary → name → experience → projects → education, the Design
+ *  page's historical scan order) plus a targeted replacement of the
+ *  same old→new strings in rawText. Without a scope this is exactly
+ *  the historical behavior — the first matching field and the first
+ *  rawText occurrence. With `scope.occurrence`, only that instance is
+ *  edited (in both structure and rawText). rawText is NOT regenerated
+ *  from the structure, so previously accepted rewrites survive the
+ *  edit. Returns the input unchanged (same reference) when the scoped
+ *  instance does not exist. */
 export function applyTextEditToResume(
   resume: StructuredResume,
   oldText: string,
-  newText: string
+  newText: string,
+  scope?: TextEditScope
 ): StructuredResume {
   if (!oldText || oldText === newText) return resume;
+  const target = scope?.occurrence ?? 0;
   const r: StructuredResume = {
     ...resume,
     experience: resume.experience.map((e) => ({ ...e, bullets: [...e.bullets] })),
@@ -60,8 +96,11 @@ export function applyTextEditToResume(
     education: resume.education.map((e) => ({ ...e })),
   };
   let done = false;
+  let seen = 0;
   const swap = (s: string) => {
-    if (!done && s.includes(oldText)) { done = true; return s.replace(oldText, newText); }
+    if (done || !s.includes(oldText)) return s;
+    if (seen === target) { done = true; return s.replace(oldText, newText); }
+    seen++;
     return s;
   };
   r.summary = swap(r.summary);
@@ -79,10 +118,8 @@ export function applyTextEditToResume(
     ...e, school: swap(e.school), degree: swap(e.degree), dates: swap(e.dates), details: swap(e.details),
   }));
   if (!done) return resume;
-  // Targeted rawText step: replace the same strings where rawText holds
-  // them; leave rawText untouched otherwise (never regenerate it).
-  r.rawText = resume.rawText.includes(oldText)
-    ? resume.rawText.replace(oldText, newText)
-    : resume.rawText;
+  // Targeted rawText step: replace the same occurrence where rawText
+  // holds it; leave rawText untouched otherwise (never regenerate it).
+  r.rawText = replaceOccurrence(resume.rawText, oldText, newText, target);
   return r;
 }

@@ -6,9 +6,14 @@ import { appendScoreHistory, sanitizeScoreHistory } from "./score-history";
 import { sanitizeLinkedInResult } from "./linkedin-result";
 import type { JobAlert } from "./jobs";
 import {
-  SavedVersion, addVersion, createVersion, findVersion,
-  removeVersion, renameVersion as renameVersionInList, sanitizeVersions, versionToContext,
+  SavedVersion, VersionApplication, VersionDensity, addVersion, createVersion, findVersion,
+  removeVersion, renameVersion as renameVersionInList, sanitizeDesignOpts, sanitizeVersions,
+  setVersionApplication, versionToContext,
 } from "./versions";
+
+/** The Design tab's own localStorage key for Custom Studio options —
+ *  version snapshots capture from it and restore back into it. */
+const DESIGN_OPTS_KEY = "hirecraft-design-opts";
 
 interface AppState {
   mode: Mode;
@@ -62,12 +67,18 @@ interface AppState {
   /** Wave 3: the last generated LinkedIn result — survives navigation. */
   linkedinResult: LinkedInResult | null;
   setLinkedinResult: (r: LinkedInResult | null) => void;
+  /** Wave 4: Design density lives in the store so version snapshots can
+   *  capture it and loads can restore it. */
+  designDensity: VersionDensity;
+  setDesignDensity: (d: VersionDensity) => void;
   versions: SavedVersion[];
   /** Snapshot the current resume + target-job context. Returns an error message to show, or null on success. */
   saveVersion: (name: string) => string | null;
   loadVersion: (id: string) => void;
   renameVersion: (id: string, name: string) => void;
   deleteVersion: (id: string) => void;
+  /** Wave 4 tracker-lite: set or clear a version's application record. */
+  updateVersionApplication: (id: string, application: VersionApplication | undefined) => void;
   hasResume: boolean;
   resetAll: () => void;
 }
@@ -109,6 +120,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [scoreHistory, setScoreHistory] = useState<ScoreHistoryEntry[]>([]);
   const [coverLetterText, setCoverLetterText] = useState("");
   const [linkedinResult, setLinkedinResult] = useState<LinkedInResult | null>(null);
+  const [designDensity, setDesignDensity] = useState<VersionDensity>("comfortable");
   const [versions, setVersions] = useState<SavedVersion[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -144,6 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(s.scoreHistory)) setScoreHistory(sanitizeScoreHistory(s.scoreHistory));
       if (typeof s.coverLetterText === "string") setCoverLetterText(s.coverLetterText);
       setLinkedinResult(sanitizeLinkedInResult(s.linkedinResult));
+      if (s.designDensity === "comfortable" || s.designDensity === "compact") setDesignDensity(s.designDensity);
       if (Array.isArray(s.versions)) setVersions(sanitizeVersions(s.versions));
     }
     setHydrated(true);
@@ -152,9 +165,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity }));
     } catch { /* storage full — non-fatal */ }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult]);
+  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -163,7 +176,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setScoreHistory((list) => appendScoreHistory(list, { at: Date.now(), total, grade, jobBasis }));
 
   const saveVersion = (name: string): string | null => {
-    const v = createVersion({ targetTitle, company, jobText, jobUrl, templateId, resume, coverLetter: coverLetterText }, name);
+    // Wave 4: capture the current design state — density from the store
+    // and designOpts from the Design tab's own localStorage key — so the
+    // snapshot restores the look exactly as saved.
+    let designOpts: ReturnType<typeof sanitizeDesignOpts>;
+    try {
+      const raw = localStorage.getItem(DESIGN_OPTS_KEY);
+      if (raw) designOpts = sanitizeDesignOpts(JSON.parse(raw));
+    } catch { /* no stored design options — snapshot simply omits them */ }
+    const v = createVersion({ targetTitle, company, jobText, jobUrl, templateId, resume, coverLetter: coverLetterText, density: designDensity, designOpts }, name);
     const res = addVersion(versions, v);
     if (!res.ok) return res.error;
     setVersions(res.versions);
@@ -181,6 +202,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setJobUrl(ctx.jobUrl);
     setTemplateId(ctx.templateId);
     setCoverLetterText(ctx.coverLetter ?? "");
+    // Wave 4: restore the saved design state. Legacy versions carry
+    // neither field and leave current settings untouched.
+    if (ctx.density) setDesignDensity(ctx.density);
+    if (ctx.designOpts) {
+      try { localStorage.setItem(DESIGN_OPTS_KEY, JSON.stringify(ctx.designOpts)); } catch { /* noop */ }
+    }
   };
 
   const renameVersion = (id: string, name: string) =>
@@ -188,6 +215,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteVersion = (id: string) =>
     setVersions((list) => removeVersion(list, id));
+
+  const updateVersionApplication = (id: string, application: VersionApplication | undefined) =>
+    setVersions((list) => setVersionApplication(list, id, application));
 
   const resetAll = () => {
     setMode("general");
@@ -213,6 +243,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setScoreHistory([]);
     setCoverLetterText("");
     setLinkedinResult(null);
+    setDesignDensity("comfortable");
     setVersions([]);
     try { localStorage.removeItem(KEY); } catch { /* noop */ }
   };
@@ -234,7 +265,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       scoreHistory, recordScore,
       coverLetterText, setCoverLetterText,
       linkedinResult, setLinkedinResult,
-      versions, saveVersion, loadVersion, renameVersion, deleteVersion,
+      designDensity, setDesignDensity,
+      versions, saveVersion, loadVersion, renameVersion, deleteVersion, updateVersionApplication,
       hasResume, resetAll,
     }}>
       {children}
