@@ -206,7 +206,7 @@ export function CoverLetter() {
             <button onClick={() => requestGenerate(tone)} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">
               ↻ Regenerate
             </button>
-            <button onClick={copy} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-brand text-white min-h-[44px]">
+            <button onClick={copy} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-cta text-white min-h-[44px]">
               {copyFailed ? "Copy failed — select the text to copy" : copied ? "✓ Copied" : "Copy letter"}
             </button>
             <button onClick={download} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">

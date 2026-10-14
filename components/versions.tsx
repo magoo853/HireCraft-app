@@ -221,7 +221,7 @@ export function VersionsCard() {
                 <div className="flex gap-2 mt-2">
                   <button onClick={() => (hasCurrentWork ? setConfirmLoadId(v.id) : doLoad(v.id, v.name))}
                     aria-label={`Load version ${v.name}`}
-                    className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-brand text-white min-h-[44px]">
+                    className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-cta text-white min-h-[44px]">
                     Load
                   </button>
                   <button onClick={() => { setRenameId(v.id); setRenameText(v.name); }}

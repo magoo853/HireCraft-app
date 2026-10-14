@@ -18,7 +18,7 @@ export default function NotFound() {
       <div className="flex flex-col items-center gap-2">
         <Link
           href="/resume"
-          className="inline-flex items-center justify-center min-h-[48px] px-5 rounded-xl bg-brand text-white font-bold text-[15px]"
+          className="inline-flex items-center justify-center min-h-[48px] px-5 rounded-xl bg-cta text-white font-bold text-[15px]"
         >
           Back to my resume
         </Link>

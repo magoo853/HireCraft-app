@@ -192,7 +192,7 @@ function ImproveInner() {
         {editingIdx === i ? (
           <>
             <button onClick={() => { setEdits({ ...edits, [i]: editText }); setEditingIdx(null); }}
-              className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-brand text-white min-h-[44px]">Save edit</button>
+              className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-cta text-white min-h-[44px]">Save edit</button>
             <button onClick={() => setEditingIdx(null)}
               className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">Cancel</button>
           </>
@@ -203,7 +203,7 @@ function ImproveInner() {
               className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">Edit</button>
             <button onClick={() => acceptRewrite(i, r.original)} disabled={accepted.has(i)}
               aria-label={`${accepted.has(i) ? "Accepted" : "Accept"} rewrite ${i + 1}`}
-              className={`flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] min-h-[44px] ${accepted.has(i) ? "bg-slate-100 text-muted" : "bg-brand text-white"}`}>
+              className={`flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] min-h-[44px] ${accepted.has(i) ? "bg-slate-100 text-muted" : "bg-cta text-white"}`}>
               {accepted.has(i) ? "✓ Accepted" : "✓ Accept"}
             </button>
           </>
