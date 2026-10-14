@@ -83,7 +83,7 @@ export default function SettingsPage() {
         <Link href="/support"><Button variant="secondary" className="w-full">Open support &amp; FAQ</Button></Link>
       </Card>
 
-      <p className="text-center text-xs text-muted">HireCraft v0.1.0 · working title</p>
+      <p className="text-center text-xs text-muted">RoadmapResume v0.1.0 · working title</p>
     </div>
   );
 }
