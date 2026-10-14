@@ -34,10 +34,11 @@ function AiStatusPill() {
 
 export default function ResumePage() {
   const router = useRouter();
-  const { mode, setMode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary, setPerfReview, hasResume, saveVersion } = useApp();
-  // The sample offer follows the persona picked on Home (the store's
-  // mode field) — a civilian never gets offered the veteran sample.
-  const sample = sampleForMode(mode);
+  const { mode, modePicked, setMode, resume, setResume, targetTitle, setTargetTitle, company, setCompany, jobText, setJobText, jobUrl, setJobUrl, military, setMilitary, setPerfReview, hasResume, saveVersion } = useApp();
+  // RR-20: the sample offer follows the persona the user actually PICKED
+  // (the store's modePicked flag). Until they pick one, the default is
+  // the veteran sample — sampleForMode(null) returns it (James's spec).
+  const sample = sampleForMode(modePicked ? mode : null);
   const [tab, setTab] = useState<Tab>(mode === "new" ? "builder" : "upload");
   const [paste, setPaste] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -224,7 +225,7 @@ export default function ResumePage() {
           <Button variant="emerald" className="w-full" onClick={() => {
             // One shared loader for every persona: same store setters,
             // same result — only the bundle's payloads differ.
-            const s = sampleForMode(mode);
+            const s = sampleForMode(modePicked ? mode : null);
             setMode(s.mode);
             if (s.military) setMilitary(s.military);
             if (s.perfReviewText) setPerfReview({ text: s.perfReviewText, updatedAt: Date.now() });
