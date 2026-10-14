@@ -101,6 +101,11 @@ interface AppState {
    *  local storage or survive as a stale flag. Always "unknown" on web. */
   proStatus: ProStatus;
   setProStatus: (s: ProStatus) => void;
+  /** RR-14: set when a save to on-device storage fails (quota) — the
+   *  TopBar shows a one-time visible notice instead of the app silently
+   *  "working" only in memory. Runtime-only, like proStatus. */
+  saveFailed: boolean;
+  setSaveFailed: (v: boolean) => void;
   versions: SavedVersion[];
   /** Snapshot the current resume + target-job context. Returns an error message to show, or null on success. */
   saveVersion: (name: string) => string | null;
@@ -152,6 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [linkedinResult, setLinkedinResult] = useState<LinkedInResult | null>(null);
   const [designDensity, setDesignDensity] = useState<VersionDensity>("comfortable");
   const [proStatus, setProStatus] = useState<ProStatus>("unknown");
+  const [saveFailed, setSaveFailed] = useState(false);
   const [versions, setVersions] = useState<SavedVersion[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -209,7 +215,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     try {
       localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity }));
-    } catch { /* storage full — non-fatal */ }
+    } catch {
+      // RR-14: storage full used to fail silently while the UI kept
+      // "working" in memory. Surface it once (the TopBar notice reads
+      // this flag) — the write is still non-fatal for the session.
+      setSaveFailed(true);
+    }
   }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
@@ -249,7 +260,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // neither field and leave current settings untouched.
     if (ctx.density) setDesignDensity(ctx.density);
     if (ctx.designOpts) {
-      try { localStorage.setItem(DESIGN_OPTS_KEY, JSON.stringify(ctx.designOpts)); } catch { /* noop */ }
+      try { localStorage.setItem(DESIGN_OPTS_KEY, JSON.stringify(ctx.designOpts)); } catch { setSaveFailed(true); }
     }
   };
 
@@ -288,6 +299,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLinkedinResult(null);
     setDesignDensity("comfortable");
     setProStatus("unknown");
+    setSaveFailed(false);
     setVersions([]);
     try {
       for (const k of APP_STORAGE_KEYS) localStorage.removeItem(k);
@@ -313,6 +325,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       linkedinResult, setLinkedinResult,
       designDensity, setDesignDensity,
       proStatus, setProStatus,
+      saveFailed, setSaveFailed,
       versions, saveVersion, loadVersion, renameVersion, deleteVersion, updateVersionApplication,
       hasResume, resetAll,
     }}>
