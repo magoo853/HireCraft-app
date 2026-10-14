@@ -39,7 +39,7 @@ export default function Home() {
     <div>
       <div className="flex items-center gap-2 mb-6">
         <Logo size={34} />
-        <span className="font-extrabold text-[17px] tracking-tight text-navy">RoadmapResume</span>
+        <span className="font-extrabold text-[17px] tracking-tight text-navy">ResumeRoadmap</span>
       </div>
 
       <h1 className="text-[22px] font-extrabold tracking-tight text-navy mb-1">
@@ -78,7 +78,7 @@ export default function Home() {
         </Button>
       </Link>
 
-      <h2 className="text-xs font-extrabold text-ink uppercase tracking-widest mb-2">What RoadmapResume does</h2>
+      <h2 className="text-xs font-extrabold text-ink uppercase tracking-widest mb-2">What ResumeRoadmap does</h2>
       <div className="grid grid-cols-2 gap-2">
         {TOOLS.map((t) => (
           <Link key={t.title} href={t.href}>
@@ -94,7 +94,7 @@ export default function Home() {
       <Card className="mt-6 !bg-navy !border-navy text-white">
         <p className="font-bold mb-1">The honest pitch</p>
         <p className="text-sm text-white/70 leading-relaxed">
-          RoadmapResume reads your resume the way screening software does — and shows you every finding, so you can fix what the software would flag before you apply.
+          ResumeRoadmap reads your resume the way screening software does — and shows you every finding, so you can fix what the software would flag before you apply.
         </p>
       </Card>
     </div>

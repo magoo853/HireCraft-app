@@ -6,7 +6,7 @@ import { AiConsentGate } from "@/components/consent";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "RoadmapResume — AI Resume & LinkedIn Optimizer",
+  title: "ResumeRoadmap — AI Resume & LinkedIn Optimizer",
   description: "Beat the ATS. Score your resume, rewrite bullets, tailor to any job posting, and polish your LinkedIn.",
 };
 
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AppProvider>
           <TopBar
-            title="RoadmapResume"
+            title="ResumeRoadmap"
             right={
               <>
                 <Link href="/resume" className="min-h-[44px] flex items-center text-sm font-bold text-pine px-2.5">
