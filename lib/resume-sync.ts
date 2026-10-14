@@ -9,10 +9,27 @@ import { StructuredResume } from "./types";
  * would wipe any accepted rewrite that only exists in rawText.
  */
 
+/** Comparison normalization — the same recipe the Rewrite page uses to
+ *  decide whether a rewrite actually changed a bullet (RR-13): case,
+ *  curly quotes, en/em dashes, whitespace runs, and trailing periods are
+ *  presentation differences, not content differences. An AI echo that
+ *  differs only in these must still mirror into the structure. */
+function normCmp(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/\.+$/, "")
+    .trim();
+}
+
 /** Apply an accepted bullet rewrite: targeted rawText replacement plus
- *  the matching structured bullet (exact bullet text, experience and
- *  projects). If no structured bullet matches exactly, rawText-only is
- *  returned — the structure is never corrupted. Input is not mutated. */
+ *  the matching structured bullet (experience and projects). Matching is
+ *  exact first, then normalized (RR-13 — see normCmp). If neither matches,
+ *  the input is returned unchanged — the structure is never corrupted.
+ *  Input is not mutated. */
 export function applyRewriteToResume(
   resume: StructuredResume,
   original: string,
@@ -23,20 +40,26 @@ export function applyRewriteToResume(
     ? resume.rawText.split(original).join(replacement)
     : resume.rawText;
   let matched = false;
-  const experience = resume.experience.map((e) => ({
-    ...e,
-    bullets: e.bullets.map((b) => {
-      if (b === original) { matched = true; return replacement; }
+  const mapExact = (b: string) => {
+    if (b === original) { matched = true; return replacement; }
+    return b;
+  };
+  let experience = resume.experience.map((e) => ({ ...e, bullets: e.bullets.map(mapExact) }));
+  let projects = resume.projects.map((p) => ({ ...p, bullets: p.bullets.map(mapExact) }));
+  if (!matched) {
+    // RR-13: exact matching missed — retry on the normalized form before
+    // giving up on the mirror. The Score reads rawText (already updated
+    // by the caller's replacement), but Design/PDF/DOCX read the
+    // structure; an inexact AI echo (quote style, spacing, trailing
+    // period) must not leave the export showing the old bullet.
+    const target = normCmp(original);
+    const mapNorm = (b: string) => {
+      if (normCmp(b) === target) { matched = true; return replacement; }
       return b;
-    }),
-  }));
-  const projects = resume.projects.map((p) => ({
-    ...p,
-    bullets: p.bullets.map((b) => {
-      if (b === original) { matched = true; return replacement; }
-      return b;
-    }),
-  }));
+    };
+    experience = experience.map((e) => ({ ...e, bullets: e.bullets.map(mapNorm) }));
+    projects = projects.map((p) => ({ ...p, bullets: p.bullets.map(mapNorm) }));
+  }
   if (rawText === resume.rawText && !matched) return resume;
   return { ...resume, rawText, experience, projects };
 }
