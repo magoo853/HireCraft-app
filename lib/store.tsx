@@ -42,6 +42,12 @@ export const APP_STORAGE_KEYS = [
 interface AppState {
   mode: Mode;
   setMode: (m: Mode) => void;
+  /** RR-20: whether the user has ever explicitly picked a persona.
+   *  James's spec: no pick yet → the sample offer defaults to the
+   *  VETERAN sample; the store's bare `mode` can't express that (it
+   *  inits to "general"), so the pick itself is tracked. Additive +
+   *  persisted; legacy blobs without it restore as unpicked. */
+  modePicked: boolean;
   targetTitle: string;
   setTargetTitle: (t: string) => void;
   company: string;
@@ -132,7 +138,12 @@ function load(): Partial<AppState> | null {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<Mode>("general");
+  const [mode, setModeState] = useState<Mode>("general");
+  const [modePicked, setModePicked] = useState(false);
+  // RR-20: every user-facing mode change is a persona pick (Home picker,
+  // Settings picker, sample loader). Hydration below uses setModeState
+  // directly so restoring a saved session can't fabricate a pick.
+  const setMode = (m: Mode) => { setModeState(m); setModePicked(true); };
   const [targetTitle, setTargetTitle] = useState("");
   const [company, setCompany] = useState("");
   const [resume, setResume] = useState<StructuredResume>(emptyResume());
@@ -164,7 +175,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const s = load();
     if (s) {
-      if (s.mode) setMode(s.mode as Mode);
+      if (s.mode) setModeState(s.mode as Mode);
+      if (typeof s.modePicked === "boolean") setModePicked(s.modePicked);
       if (s.targetTitle) setTargetTitle(s.targetTitle as string);
       if (s.company) setCompany(s.company as string);
       if (s.resume) setResume({ ...emptyResume(), ...(s.resume as StructuredResume) });
@@ -214,14 +226,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, modePicked, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity }));
     } catch {
       // RR-14: storage full used to fail silently while the UI kept
       // "working" in memory. Surface it once (the TopBar notice reads
       // this flag) — the write is still non-fatal for the session.
       setSaveFailed(true);
     }
-  }, [hydrated, mode, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity]);
+  }, [hydrated, mode, modePicked, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -274,7 +286,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setVersions((list) => setVersionApplication(list, id, application));
 
   const resetAll = () => {
-    setMode("general");
+    setModeState("general");
+    setModePicked(false);
     setTargetTitle("");
     setCompany("");
     setResume(emptyResume());
@@ -310,7 +323,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={{
-      mode, setMode, targetTitle, setTargetTitle, company, setCompany,
+      mode, setMode, modePicked, targetTitle, setTargetTitle, company, setCompany,
       resume, setResume, updateResume, jobText, setJobText, jobUrl, setJobUrl, linkedinText, setLinkedinText,
       military, setMilitary,
       perfReview, setPerfReview,
