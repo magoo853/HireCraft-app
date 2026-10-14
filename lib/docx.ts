@@ -371,9 +371,9 @@ export function buildResumeDocument(resume: StructuredResume, identity: DocxTemp
   }
 
   return new Document({
-    creator: "RoadmapResume",
+    creator: "ResumeRoadmap",
     title: `${resume.name || "Resume"} — Resume`,
-    description: `Resume exported from RoadmapResume (${identity.templateName} template).`,
+    description: `Resume exported from ResumeRoadmap (${identity.templateName} template).`,
     styles: {
       default: {
         document: { run: { font: identity.font, size: 22, color: "1A1A1A" } },
@@ -425,9 +425,9 @@ export function buildCoverLetterDocument(text: string): Document {
       })
   );
   return new Document({
-    creator: "RoadmapResume",
+    creator: "ResumeRoadmap",
     title: "Cover Letter",
-    description: "Cover letter exported from RoadmapResume.",
+    description: "Cover letter exported from ResumeRoadmap.",
     styles: {
       default: {
         document: { run: { font: SANS, size: 22, color: "1A1A1A" } },
