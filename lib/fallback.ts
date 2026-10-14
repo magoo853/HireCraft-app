@@ -685,7 +685,14 @@ function reviewCandidates(reviewText: string): string[] {
   for (const rawLine of lines) {
     const line = rawLine.replace(/^[\s•\-*▪◦‣·]+/, "").trim();
     if (!line) continue;
-    const sentences = line.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [];
+    // RR-12: mask decimal points (digit.digit) before sentence splitting —
+    // the split pattern reads the "." in "99.2 percent" as a sentence
+    // boundary and fragments the accomplishment into unusable candidates.
+    // A NUL sentinel (never present in real text) stands in for the dot
+    // and is restored immediately after the split. No lookbehind: older
+    // Safari can't even parse it.
+    const masked = line.replace(/(\d)\.(\d)/g, "$1\u0000$2");
+    const sentences = (masked.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? []).map((s) => s.replace(/\u0000/g, "."));
     for (const rawSentence of sentences) {
       const sentence = rawSentence.replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
       const key = normalizeForMatch(sentence);
