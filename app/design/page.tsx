@@ -33,11 +33,11 @@ function LiveThumb({ id, resume, designOpts }: { id: string; resume: StructuredR
 }
 
 export default function DesignPage() {
-  const { resume, setResume, hasResume, setDesignChosen, setExported, templateId, setTemplateId } = useApp();
+  const { resume, setResume, hasResume, setDesignChosen, setExported, templateId, setTemplateId, designDensity: density, setDesignDensity: setDensity } = useApp();
   const [editing, setEditing] = useState(false);
-  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [pages, setPages] = useState(1);
   const [docxBusy, setDocxBusy] = useState(false);
+  const [docxError, setDocxError] = useState("");
   const [designOpts, setDesignOpts] = useState<DesignOptions>(DEFAULT_DESIGN_OPTIONS);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -89,7 +89,21 @@ export default function DesignPage() {
         className={`${className} cursor-text`}
         onBlur={(e) => {
           const next = e.currentTarget.textContent ?? "";
-          if (next !== value) replaceText(value, next);
+          if (next !== value) {
+            // Wave 4: scope the edit to the instance actually clicked —
+            // its occurrence ordinal among identical editable texts in
+            // the preview (templates pass no index identity to ed()).
+            let occurrence = 0;
+            const root = previewRef.current;
+            if (root) {
+              const spans = root.querySelectorAll("[contenteditable]");
+              for (let i = 0; i < spans.length; i++) {
+                if (spans[i] === e.currentTarget) break;
+                if (spans[i].textContent === value) occurrence++;
+              }
+            }
+            replaceText(value, next, occurrence);
+          }
         }}
       >
         {value}
@@ -100,6 +114,7 @@ export default function DesignPage() {
   async function downloadDocx() {
     if (docxBusy) return;
     setDocxBusy(true);
+    setDocxError("");
     try {
       // Dynamic import: the docx library only loads when the user exports.
       const { buildResumeDocxBlob, resumeDocxFileName } = await import("@/lib/docx");
@@ -117,10 +132,12 @@ export default function DesignPage() {
       a.click();
       a.remove();
       setExported(true);
+      setDocxError("");
       // Give the browser time to start the download before revoking.
       setTimeout(() => URL.revokeObjectURL(url), 4000);
     } catch {
-      // Export is best-effort; the PDF/print path remains available.
+      // No more silent failure: name the PDF path as the fallback.
+      setDocxError("DOCX export failed — try Download PDF instead.");
     } finally {
       setDocxBusy(false);
     }
@@ -131,11 +148,12 @@ export default function DesignPage() {
     window.print();
   }
 
-  function replaceText(oldText: string, newText: string) {
+  function replaceText(oldText: string, newText: string, occurrence = 0) {
     // Structured-field update + targeted rawText replacement (never a
     // structuredToText regeneration, which would wipe accepted rewrites
-    // that live in rawText).
-    const next = applyTextEditToResume(resume, oldText, newText);
+    // that live in rawText). The occurrence scopes the edit to the
+    // instance the user clicked (Wave 4).
+    const next = applyTextEditToResume(resume, oldText, newText, { occurrence });
     if (next !== resume) setResume(next);
   }
 
@@ -288,6 +306,9 @@ export default function DesignPage() {
           {docxBusy ? "Preparing…" : "📄 Download .docx"}
         </Button>
       </div>
+      {docxError && (
+        <p role="alert" className="text-sm text-red-700 font-medium mt-2 print:hidden">{docxError}</p>
+      )}
 
       <Card className="mt-3 print:hidden">
         <p className="text-xs text-muted leading-relaxed">

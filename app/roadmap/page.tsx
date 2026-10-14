@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { RoadmapGoal, RoadmapNode, fmtSalary, jobSearchLinks } from "@/lib/careers-core";
+import { parseRoadmapState, serializeRoadmapState } from "@/lib/roadmap-persist";
 import {
   clearCustomGoalIdeas,
   computeGoalIdeas,
@@ -36,7 +37,7 @@ function parseYears(s: string): number {
 }
 
 export default function RoadmapPage() {
-  const { resume, mode, hasResume, military, aiConsent } = useApp();
+  const { resume, mode, hasResume, military, aiConsent, targetTitle } = useApp();
   const [goals, setGoals] = useState<RoadmapGoal[]>(defaultGoals());
   const [loading, setLoading] = useState(false);
   const [nodes, setNodes] = useState<AiResponse<RoadmapNode[]> | null>(null);
@@ -46,21 +47,25 @@ export default function RoadmapPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length) { setGoals(parsed); return; }
-      }
-      // Migrate the old fixed-horizon shape
-      const old = localStorage.getItem(LS_OLD);
-      if (old) {
-        const o = JSON.parse(old);
-        const migrated = [
-          { years: 2, text: o.h2?.text ?? "", salary: o.h2?.salary ?? 0 },
-          { years: 5, text: o.h5?.text ?? "", salary: o.h5?.salary ?? 0 },
-          { years: 10, text: o.h10?.text ?? "", salary: o.h10?.salary ?? 0 },
-        ].filter((g) => g.text || g.salary);
-        if (migrated.length) setGoals(migrated);
+      // Wave 4: the same key now holds { goals, nodes } so a built
+      // roadmap survives navigation; parseRoadmapState also loads the
+      // legacy bare-array shape unchanged.
+      const persisted = parseRoadmapState(localStorage.getItem(LS_KEY));
+      if (persisted) {
+        if (persisted.goals.length) setGoals(persisted.goals);
+        if (persisted.nodes) { setNodes(persisted.nodes); setOpen(1); }
+      } else {
+        // Migrate the old fixed-horizon shape
+        const old = localStorage.getItem(LS_OLD);
+        if (old) {
+          const o = JSON.parse(old);
+          const migrated = [
+            { years: 2, text: o.h2?.text ?? "", salary: o.h2?.salary ?? 0 },
+            { years: 5, text: o.h5?.text ?? "", salary: o.h5?.salary ?? 0 },
+            { years: 10, text: o.h10?.text ?? "", salary: o.h10?.salary ?? 0 },
+          ].filter((g) => g.text || g.salary);
+          if (migrated.length) setGoals(migrated);
+        }
       }
       try {
         const loc = localStorage.getItem(LS_LOC);
@@ -71,9 +76,25 @@ export default function RoadmapPage() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(goals));
+      localStorage.setItem(LS_KEY, serializeRoadmapState(goals, nodes));
     } catch { /* noop */ }
-  }, [goals]);
+  }, [goals, nodes]);
+
+  /* Wave 4: when no goal has been written yet, seed the first goal
+     from the store's target title (the Resume tab's MOS card sets it
+     and routes here). Fires at most once, and never over user text. */
+  const seededFromTarget = useRef(false);
+  useEffect(() => {
+    if (seededFromTarget.current || !targetTitle) return;
+    if (goals.some((g) => g.text.trim())) return;
+    seededFromTarget.current = true;
+    setGoals((prev) => {
+      if (prev.some((g) => g.text.trim())) return prev;
+      const next = [...prev];
+      if (next.length) next[0] = { ...next[0], text: targetTitle };
+      return next;
+    });
+  }, [targetTitle, goals]);
 
   useEffect(() => {
     try {
@@ -330,13 +351,17 @@ export default function RoadmapPage() {
                             </p>
                             <div className="flex flex-wrap gap-1.5">
                               {n.skillsToHave.map((s, k) => (
-                                <span key={k} className={`text-xs font-semibold rounded-full px-2.5 py-1.5 border ${
-                                  s.have
-                                    ? "bg-mint text-emerald-900 border-brand/30"
-                                    : "bg-white text-slate-600 border-line"
-                                }`}>
-                                  {s.have ? "✓ " : "○ "}{s.skill}
-                                </span>
+                                s.have ? (
+                                  <span key={k} className="text-xs font-semibold rounded-full px-2.5 py-1.5 border bg-mint text-emerald-900 border-brand/30">
+                                    ✓ {s.skill}
+                                  </span>
+                                ) : (
+                                  <a key={k} href={`/discover?q=${encodeURIComponent(s.skill)}`}
+                                    aria-label={`Search jobs for ${s.skill} on Discover`}
+                                    className="text-xs font-semibold rounded-full px-2.5 py-1.5 border bg-white text-slate-600 border-line underline-offset-2 hover:underline min-h-[32px] inline-flex items-center">
+                                    ○ {s.skill} ↗
+                                  </a>
+                                )
                               ))}
                             </div>
                           </div>
@@ -361,11 +386,14 @@ export default function RoadmapPage() {
                             <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Gaps to close</p>
                             <div className="flex flex-wrap gap-1.5">
                               {n.gaps.map((g, k) => (
-                                <span key={k} className="text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 rounded-full px-2.5 py-1.5">
-                                  {g}
-                                </span>
+                                <a key={k} href={`/discover?q=${encodeURIComponent(g)}`}
+                                  aria-label={`Search jobs for ${g} on Discover`}
+                                  className="text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 rounded-full px-2.5 py-1.5 underline-offset-2 hover:underline min-h-[32px] inline-flex items-center">
+                                  {g} ↗
+                                </a>
                               ))}
                             </div>
+                            <p className="text-[11px] text-muted mt-1.5">Tap a gap to search jobs for it on Discover →</p>
                           </div>
                         )}
                       </div>

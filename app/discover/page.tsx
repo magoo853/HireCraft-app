@@ -36,6 +36,16 @@ export default function DiscoverPage() {
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
   const [location, setLocation] = useState("");
+  // Wave 4 seed intake: Roadmap gap/skill chips link here as
+  // /discover?q=<skill>; the value seeds the Job alerts title field.
+  const [seedRole, setSeedRole] = useState("");
+
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("q");
+      if (q && q.trim()) setSeedRole(q.trim());
+    } catch { /* noop */ }
+  }, []);
 
   useEffect(() => {
     try {
@@ -230,7 +240,7 @@ export default function DiscoverPage() {
         </>
       )}
 
-      <JobAlertsSection />
+      <JobAlertsSection seedRole={seedRole} />
     </div>
   );
 }
@@ -239,6 +249,29 @@ function MatchList({ matches, selected, onSelect, offset, location, veteran }: {
   matches: JobMatch[]; selected: number | null; onSelect: (i: number | null) => void; offset: number;
   location: string; veteran: boolean;
 }) {
+  const { alerts, setAlerts, setTargetTitle } = useApp();
+  const [msgs, setMsgs] = useState<Record<number, string>>({});
+
+  // Wave 4: a match can become a job alert (the existing alerts
+  // machinery below) or the app's target title.
+  function watchJobs(m: JobMatch, idx: number) {
+    const title = m.role.title;
+    if (alerts.some((a) => a.role.toLowerCase() === title.toLowerCase())) {
+      setMsgs((s) => ({ ...s, [idx]: `Already watching “${title}” — see Job alerts below.` }));
+      return;
+    }
+    setAlerts([
+      ...alerts,
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: title, company: "", location, minMatch: 0, createdAt: Date.now() },
+    ]);
+    setMsgs((s) => ({ ...s, [idx]: `Watching “${title}” — new postings will appear under Job alerts below.` }));
+  }
+
+  function setAsTarget(m: JobMatch, idx: number) {
+    setTargetTitle(m.role.title);
+    setMsgs((s) => ({ ...s, [idx]: `Target set to “${m.role.title}” — it now drives your Score, Rewrite, and Roadmap.` }));
+  }
+
   return (
     <div className="grid gap-2">
       {matches.map((m, i) => {
@@ -269,6 +302,17 @@ function MatchList({ matches, selected, onSelect, offset, location, veteran }: {
                     </a>
                   ))}
                 </div>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => watchJobs(m, idx)}
+                    className="flex-1 text-[13px] font-bold bg-brand text-white rounded-xl px-3 py-2.5 min-h-[44px]">
+                    🔔 Watch jobs like this
+                  </button>
+                  <button onClick={() => setAsTarget(m, idx)}
+                    className="flex-1 text-[13px] font-bold bg-slate-100 text-slate-700 rounded-xl px-3 py-2.5 min-h-[44px]">
+                    🎯 Set as my target
+                  </button>
+                </div>
+                {msgs[idx] && <p className="text-xs text-emerald-900 font-medium mt-2">{msgs[idx]}</p>}
                 {m.matchedSkills.length > 0 && (
                   <div className="mt-2">
                     <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">You already have</p>
@@ -302,7 +346,7 @@ function MatchList({ matches, selected, onSelect, offset, location, veteran }: {
 /* Job alerts — saved role/company watches with resume match scores    */
 /* ------------------------------------------------------------------ */
 
-function JobAlertsSection() {
+function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
   const { resume, alerts, setAlerts, seenJobIds, setSeenJobIds, setNewJobCount, setJobText, setTargetTitle, setCompany } = useApp();
   const router = useRouter();
   const [role, setRole] = useState("");
@@ -314,6 +358,16 @@ function JobAlertsSection() {
   const [feed, setFeed] = useState<ScoredPosting[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const checkedOnce = useRef(false);
+  const seedApplied = useRef(false);
+
+  // Wave 4: a ?q= seed (from Roadmap gap/skill chips) pre-fills the
+  // alert title once, so the user lands one tap from watching it.
+  useEffect(() => {
+    if (!seedRole || seedApplied.current) return;
+    seedApplied.current = true;
+    setRole(seedRole);
+    setMsg(`From your roadmap — “${seedRole}” is filled in as the job title. Tap “Create alert” to watch postings for it.`);
+  }, [seedRole]);
 
   async function check(manual: boolean) {
     if (!alerts.length || checking) return;
