@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
+import { isBlockedHost } from "@/lib/url-guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -15,6 +16,15 @@ export async function GET(req: NextRequest) {
     if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("bad protocol");
   } catch {
     return NextResponse.json({ error: "That doesn't look like a valid http(s) URL. Paste the job text manually instead." }, { status: 400 });
+  }
+
+  // S-batch (log #17): SSRF guard — never fetch localhost or literal
+  // private/loopback/link-local addresses. (Literal host only; a public
+  // hostname resolving to a private address is not stopped — see
+  // lib/url-guard.ts. Redirects are followed by fetch's defaults, not
+  // manually, so no per-redirect re-check happens here.)
+  if (isBlockedHost(parsed.hostname)) {
+    return NextResponse.json({ error: "That URL points to a local or private address, so it can't be fetched. Paste the job text manually instead." }, { status: 400 });
   }
 
   try {

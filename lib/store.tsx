@@ -15,6 +15,29 @@ import {
  *  version snapshots capture from it and restore back into it. */
 const DESIGN_OPTS_KEY = "hirecraft-design-opts";
 
+/**
+ * EVERY app-owned localStorage key — the single list delete-all wipes.
+ * Enumerated by grepping the whole tree for localStorage get/set/remove
+ * (S-batch, log #16): the main state blob, the Design tab's options key,
+ * the Roadmap goals (current + legacy) and its saved-location key, the
+ * Discover quiz key (its saved location lives inside that same blob),
+ * the trial record, and the customized goal-ideas set. Keep this list
+ * in sync when a new persisted key is added anywhere in the app.
+ * (Not storage: "hirecraft-bullets" in lib/docx.ts is a DOCX style
+ * reference name, and the hirecraft_trial cookie is httpOnly — set by
+ * the verification callback — so it cannot be cleared from the client.)
+ */
+export const APP_STORAGE_KEYS = [
+  "hirecraft-state-v1",
+  "hirecraft-design-opts",
+  "hirecraft-roadmap-goals-v2",
+  "hirecraft-roadmap-goals",
+  "hc_location",
+  "hirecraft-quiz",
+  "hirecraft-trial",
+  "hirecraft-goal-ideas-v1",
+] as const;
+
 interface AppState {
   mode: Mode;
   setMode: (m: Mode) => void;
@@ -245,7 +268,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLinkedinResult(null);
     setDesignDensity("comfortable");
     setVersions([]);
-    try { localStorage.removeItem(KEY); } catch { /* noop */ }
+    try {
+      for (const k of APP_STORAGE_KEYS) localStorage.removeItem(k);
+    } catch { /* noop */ }
   };
 
   const hasResume = !!(resume.rawText || resume.name || resume.experience.length);

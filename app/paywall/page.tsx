@@ -13,7 +13,7 @@ const PAID_FEATURES = [
   "Job posting tailoring",
   "Cover letter generator (3 tones)",
   "LinkedIn profile builder",
-  "All 5 design templates + PDF export",
+  "All 9 design templates + PDF & DOCX export",
 ];
 
 interface ProviderStatus {

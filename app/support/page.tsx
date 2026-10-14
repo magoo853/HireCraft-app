@@ -12,11 +12,11 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "How does the free trial and Pro work?",
-    a: "The ATS score, resume builder, and design templates are free. ResumeRoadmap Pro ($25/year) unlocks the AI features. New users get a two-week free trial of Pro. Veterans and service members get six months of Pro free once military verification (SheerID / ID.me) is enabled in the app — it's rolling out as an update; the standard trial works today.",
+    a: "The ATS score, resume builder, and design templates are free. ResumeRoadmap Pro ($25/year) unlocks the AI features. New users get a two-week free trial of Pro. Veterans and service members get six months of Pro free once military verification (SheerID / ID.me) is enabled in the app — it's rolling out as an update. The two-week trial is a launch offer: it activates at launch, during the launch window.",
   },
   {
     q: "I bought Pro — how do I restore it?",
-    a: "On iPhone/iPad, open Premium inside the app and tap Restore Purchases; your subscription is tied to your Apple ID, so it comes back on any device signed into the same account. If it doesn't, contact us below and we'll sort it out.",
+    a: "In this web build everything is unlocked and there are no purchases, so there's nothing to restore. Purchases and Restore Purchases arrive with the iOS subscription build — there, your subscription is tied to your Apple ID and comes back on any device signed into the same account. Questions in the meantime? Contact us below and we'll sort it out.",
   },
   {
     q: "Do job alerts run while the app is closed?",

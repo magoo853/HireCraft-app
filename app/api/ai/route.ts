@@ -19,6 +19,7 @@ import {
   rewriteBullets,
 } from "@/lib/fallback";
 import { redactDocumentText } from "@/lib/redact";
+import { checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { MilitaryInfo, Mode, PerformanceReview, RewriteResult, StructuredResume, SummaryResult } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -235,6 +236,17 @@ function extractJson(text: string): unknown {
 }
 
 export async function POST(req: NextRequest) {
+  // S-batch (log #17): per-IP throttle — 30 requests / 10 minutes / IP,
+  // per-instance in-memory (see lib/rate-limit.ts). 429 is JSON like
+  // every other response from this route; the client contract is JSON.
+  const throttle = checkRateLimit(`ai:${clientIpFromHeaders((n) => req.headers.get(n))}`);
+  if (!throttle.allowed) {
+    return NextResponse.json(
+      { error: "You've made a lot of AI requests in a short stretch — please wait a few minutes and try again." },
+      { status: 429, headers: { "Retry-After": String(throttle.retryAfterSeconds) } }
+    );
+  }
+
   let rawBody: unknown;
   try {
     rawBody = await req.json();
@@ -265,11 +277,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ source: "ai", data });
   } catch (e) {
     console.error("AI call failed, using fallback:", e);
-    const msg = e instanceof Error ? e.message : "unknown error";
     return NextResponse.json({
       source: "fallback",
       data: runFallback(body),
-      note: `AI key is set, but the live AI call failed (${msg}). Showing built-in results instead.`,
+      note: "Showing built-in results — the AI service was briefly unavailable.",
     });
   }
 }

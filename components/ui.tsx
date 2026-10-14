@@ -109,7 +109,7 @@ export function SourceNote({ source, note }: { source: "ai" | "fallback"; note?:
   }
   return source === "fallback" ? (
     <p className="text-xs text-muted mt-3">
-      Running on ResumeRoadmap's built-in coach engine. Add an <code className="bg-slate-100 px-1 rounded">AI_API_KEY</code> to enable full AI rewrites.
+      Showing built-in results — the AI service was briefly unavailable.
     </p>
   ) : (
     <p className="text-xs text-muted mt-3">Generated with AI.</p>
