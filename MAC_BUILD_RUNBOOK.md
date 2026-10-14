@@ -10,7 +10,10 @@ critical path; Part C is finishing.
 2. **Business** (or Agreements, Tax, and Banking on the home page):
    accept the **Paid Applications Agreement**, add bank account + tax forms.
    Subscriptions cannot be created or sold until this shows "Active."
-3. That's all until the build exists — the app record is created in Part B.
+3. **My Apps → + → New App**: iOS, name **ResumeRoadmap**, primary
+   language English (U.S.), bundle ID `com.hirecraft.app`, SKU
+   `hirecraft-001`. Create the record NOW — the Part B upload needs an
+   existing app record to land in.
 
 ## Part B — Mac session (~30 min)
 
@@ -56,10 +59,9 @@ In Xcode:
 
 ## Part C — After the upload (~20 min, web)
 
-1. App Store Connect → **My Apps** — ResumeRoadmap appears once the build
-   processes (~5–15 min). If there's no app record: **+ → New App** →
-   iOS, name **ResumeRoadmap**, primary language English, bundle ID
-   `com.hirecraft.app`, SKU `hirecraft-001`.
+1. App Store Connect → **My Apps → ResumeRoadmap** (the record from
+   Part A): the uploaded build appears under **TestFlight** once it
+   processes (~5–15 min).
 2. **Monetization → Subscriptions**: create group **ResumeRoadmap Pro**, then
    product `hirecraft_pro_yearly`, $25.00/year, and add the introductory
    offer: **2 weeks free**. (Field-by-field text: `APP_STORE_LISTING.md`.)
@@ -69,7 +71,9 @@ In Xcode:
 4. **TestFlight tab**: add yourself as an internal tester, install the
    TestFlight app on your phone, and run the build: consent gate → resume
    upload (try your .doc) → AI rewrite → job-alert check → one design
-   export.
+   export → **Premium: run the sandbox purchase and Restore** (sign in
+   with a sandbox tester account when the App Store sheet asks — this is
+   the RR-01 end-to-end test).
 5. Tell Jarvis the build is in TestFlight — screenshots and the final
    review submission are a joint pass from there.
 
@@ -80,5 +84,10 @@ In Xcode:
 - **USAJobs API key** (free, developer.usajobs.gov) — lights up federal
   jobs in job alerts. Send Jarvis the key + the email you registered with;
   it goes in as a server setting, never in the app.
+- **Adzuna developer keys** (free, developer.adzuna.com) — an app ID +
+  app key that light up the Adzuna source in job alerts. Send both to
+  Jarvis; they go in as server settings (`ADZUNA_APP_ID` /
+  `ADZUNA_APP_KEY`), never in the app. Until then the alerts run on the
+  keyless sources and the Discover footer honestly omits Adzuna.
 - **privacy@hirecraft.app mailbox** — the privacy policy lists it as the
   contact; make sure the mailbox exists before submission.
