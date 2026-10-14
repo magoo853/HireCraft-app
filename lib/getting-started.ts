@@ -17,6 +17,8 @@ export interface ProgressSignals {
   rewriteAccepted: boolean;
   designChosen: boolean;
   exported: boolean;
+  /** RR-16: any saved version carrying an application record. */
+  trackedApplication: boolean;
 }
 
 export type StepState = "done" | "next" | "upcoming";
@@ -36,6 +38,7 @@ const STEP_DEFS: { key: string; label: string; href: string; signal: keyof Progr
   { key: "rewrite", label: "Improve your bullets", href: "/rewrite", signal: "rewriteAccepted" },
   { key: "design", label: "Pick a design", href: "/design", signal: "designChosen" },
   { key: "export", label: "Export your resume", href: "/design", signal: "exported" },
+  { key: "track", label: "Track your applications", href: "/resume", signal: "trackedApplication" },
 ];
 
 export function gettingStartedSteps(s: ProgressSignals): GettingStartedStep[] {
