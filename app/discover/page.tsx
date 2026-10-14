@@ -12,6 +12,7 @@ import {
 } from "@/lib/quiz";
 import { JobMatch, RiasecLetter, fmtSalary, jobSearchLinks } from "@/lib/careers-core";
 import { AiResponse } from "@/lib/types";
+import { postAi, readJson } from "@/lib/ai-client";
 import { JobPosting, ScoredPosting, checkedAgoLabel, dedupeScoredPostings, scorePosting } from "@/lib/jobs";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
 import { AiOffNote } from "@/components/consent";
@@ -27,7 +28,7 @@ type Stage = "intro" | "quiz" | "results";
 const LS_KEY = "hirecraft-quiz";
 
 export default function DiscoverPage() {
-  const { resume, hasResume, mode, military, aiConsent } = useApp();
+  const { resume, hasResume, mode, military, aiConsent, setSaveFailed } = useApp();
   const [stage, setStage] = useState<Stage>("intro");
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -63,11 +64,14 @@ export default function DiscoverPage() {
   }, []);
 
   useEffect(() => {
+    let saved: Record<string, unknown> = {};
     try {
       const raw = localStorage.getItem(LS_KEY);
-      const saved = raw ? JSON.parse(raw) : {};
+      saved = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    } catch { /* unreadable saved state — start fresh below */ }
+    try {
       localStorage.setItem(LS_KEY, JSON.stringify({ ...saved, location }));
-    } catch { /* noop */ }
+    } catch { setSaveFailed(true); }
   }, [location]);
 
   if (!hasResume) {
@@ -98,16 +102,11 @@ export default function DiscoverPage() {
     setError("");
     setStage("results");
     try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "discover", mode, resume, answers: finalAnswers, military }),
-      });
-      const json = (await res.json()) as AiResponse<DiscoverResult>;
+      const json = await postAi<DiscoverResult>({ task: "discover", mode, resume, answers: finalAnswers, military });
       setResult(json);
       try {
         localStorage.setItem(LS_KEY, JSON.stringify({ answers: finalAnswers, result: json }));
-      } catch { /* noop */ }
+      } catch { setSaveFailed(true); }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -390,7 +389,10 @@ function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
           if (a.location) params.set("location", a.location);
           const res = await fetch(`/api/jobs?${params}`);
           if (!res.ok) return null;
-          const j = (await res.json()) as { postings?: JobPosting[]; sources?: string[] };
+          // Guarded parse (RR-11): a non-JSON body degrades to "no new
+          // jobs for this alert", never a thrown raw exception.
+          const j = (await readJson(res)) as { postings?: JobPosting[]; sources?: string[] } | null;
+          if (!j) return null;
           const scored: ScoredPosting[] = [];
           const ids: string[] = [];
           for (const p of j.postings ?? []) {
