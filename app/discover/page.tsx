@@ -358,6 +358,11 @@ function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
   // Wave 5: true only once a jobs response reports Adzuna among the
   // sources that returned data — the footer names it only while live.
   const [adzunaActive, setAdzunaActive] = useState(false);
+  // RR-08 (code part): same for USAJobs — it was named in the footer
+  // unconditionally while its API keys are unset, so the footer claimed
+  // a source that cannot return data. Named only once a response
+  // actually reports it, exactly like Adzuna.
+  const [usajobsActive, setUsajobsActive] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const checkedOnce = useRef(false);
   const seedApplied = useRef(false);
@@ -409,13 +414,16 @@ function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
       const perAlert = new Map<string, ScoredPosting[]>();
       const fetchedIds: string[] = [];
       let adzunaSeen = false;
+      let usajobsSeen = false;
       for (const s of settled) {
         if (s.status !== "fulfilled" || !s.value) continue;
         perAlert.set(s.value.alertId, s.value.scored);
         fetchedIds.push(...s.value.ids);
         if (s.value.sources.includes("Adzuna")) adzunaSeen = true;
+        if (s.value.sources.includes("USAJobs")) usajobsSeen = true;
       }
       if (adzunaSeen) setAdzunaActive(true);
+      if (usajobsSeen) setUsajobsActive(true);
       if (perAlert.size) {
         const now = Date.now();
         setAlerts(
@@ -595,7 +603,7 @@ function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
       )}
       <p className="text-[11px] text-muted mt-3 leading-relaxed">
         Alerts are checked when you open this tab or tap Check — matches are scored against the resume on this device.
-        Postings come from Remotive, Himalayas, Arbeitnow{", and USAJobs for federal roles"}{adzunaActive ? " and Adzuna" : ""}; listings change fast, so a posting may close before you apply.
+        Postings come from Remotive, Himalayas, Arbeitnow{usajobsActive ? ", and USAJobs for federal roles" : ""}{adzunaActive ? " and Adzuna" : ""}; listings change fast, so a posting may close before you apply.
       </p>
     </div>
   );
