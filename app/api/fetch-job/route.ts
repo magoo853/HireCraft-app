@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
+import { BlockedHostError, FetchLikeResponse, fetchWithGuardedRedirects } from "@/lib/fetch-guarded";
 import { isBlockedHost } from "@/lib/url-guard";
 
 export const runtime = "nodejs";
@@ -18,11 +19,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "That doesn't look like a valid http(s) URL. Paste the job text manually instead." }, { status: 400 });
   }
 
-  // S-batch (log #17): SSRF guard — never fetch localhost or literal
-  // private/loopback/link-local addresses. (Literal host only; a public
-  // hostname resolving to a private address is not stopped — see
-  // lib/url-guard.ts. Redirects are followed by fetch's defaults, not
-  // manually, so no per-redirect re-check happens here.)
+  // S-batch (log #17) + RR-07: SSRF guard — never fetch localhost or
+  // literal private/loopback/link-local addresses. Redirects are now
+  // followed manually (lib/fetch-guarded.ts) with this same guard
+  // re-checked on EVERY hop, so a public URL cannot bounce the server
+  // to a private address. (Literal host only; a public hostname
+  // resolving to a private address is not stopped — see lib/url-guard.ts.)
   if (isBlockedHost(parsed.hostname)) {
     return NextResponse.json({ error: "That URL points to a local or private address, so it can't be fetched. Paste the job text manually instead." }, { status: 400 });
   }
@@ -30,14 +32,23 @@ export async function GET(req: NextRequest) {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 9000);
-    const res = await fetch(parsed.toString(), {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-    clearTimeout(timer);
+    let res: FetchLikeResponse;
+    try {
+      ({ response: res } = await fetchWithGuardedRedirects(parsed, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+          Accept: "text/html,application/xhtml+xml",
+        },
+      }));
+    } catch (e) {
+      if (e instanceof BlockedHostError) {
+        return NextResponse.json({ error: "That URL points to a local or private address, so it can't be fetched. Paste the job text manually instead." }, { status: 400 });
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const html = await res.text();
