@@ -3,5 +3,5 @@
   <g transform="translate(886,886) scale(8.5333333)">
     <rect width="120" height="120" fill="#0B3B2E"/><clipPath id="bc2"><rect width="120" height="120"/></clipPath><g clip-path="url(#bc2)"><polygon points="36,120 84,120 64,64 56,64" fill="#10503C"/><polygon points="58.5,100 61.5,100 61.2,114 58.8,114" fill="#0B3B2E"/><polygon points="58.9,84 61.1,84 60.9,95 59.1,95" fill="#0B3B2E"/><polygon points="59.2,71 60.8,71 60.7,79 59.3,79" fill="#0B3B2E"/></g><text x="13.5" y="28" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="0.5" fill="#A7F3D0">AI</text><text x="60" y="81" text-anchor="middle" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="60" font-weight="800" fill="#FFFFFF">RR</text>
   </g>
-  <text x="1366" y="2250" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="120" font-weight="700" fill="#FFFFFF" letter-spacing="8">RoadmapResume</text>
+  <text x="1366" y="2250" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="120" font-weight="700" fill="#FFFFFF" letter-spacing="8">ResumeRoadmap</text>
 </svg>

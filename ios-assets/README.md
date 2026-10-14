@@ -1,6 +1,6 @@
 # ios-assets
 
-App icon + splash for the RoadmapResume iOS shell.
+App icon + splash for the ResumeRoadmap iOS shell.
 
 - `icon.svg` — master artwork (full-bleed pine `#0B3B2E`, white "RR" with
   tonal `#10503C` perspective road and light-green `#A7F3D0` "AI" tag).
