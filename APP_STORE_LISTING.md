@@ -5,7 +5,7 @@ Production URL: https://hirecraft-app-steel.vercel.app
 ## App information
 
 - **Name (30 ch):** ResumeRoadmap — Resume Builder
-- **Subtitle (30 ch):** ATS Score, Rewrites & Jobs
+- **Subtitle (26 ch):** ATS Score, Rewrites & Jobs
 - **Bundle ID:** com.hirecraft.app
 - **Primary category:** Business — **Secondary:** Productivity
 - **Privacy policy URL:** https://hirecraft-app-steel.vercel.app/privacy
@@ -89,11 +89,13 @@ notes if asked).
 
 ## Review notes (paste into App Review Information)
 
-ResumeRoadmap is a resume-coaching app. No account or login is required; all
-features are reachable from the tab bar. On first launch a consent dialog
-explains that AI features send the user's resume text to our AI provider
-(Google Gemini) — no data is sent before consent, and consent can be
-withdrawn in Settings (gear icon, top right).
+ResumeRoadmap is a resume-coaching app. No account or login is required.
+The main features live on the tab bar (Score, Rewrite, Design, Cover,
+LinkedIn, Roadmap, Discover); My Resume, Premium, and Settings are in the
+top bar. On first launch a consent dialog explains that AI features send
+the user's resume text to our AI provider (Google Gemini) — no data is
+sent before consent, and consent can be withdrawn in Settings (gear icon,
+top right).
 
 To evaluate Pro features without purchasing: the web build at the support
 URL runs with all features unlocked for demonstration. In the iOS build,
@@ -107,12 +109,16 @@ in an update — the subscription itself is fully functional at submission.
 
 ## Screenshots (capture after the TestFlight build)
 
-6.7" iPhone, in this order:
-1. Score tab with drill-down open (shows findings, not just a number)
-2. Rewrite before/after pair
-3. Design tab — live template thumbnails
-4. Cover letter
-5. LinkedIn builder
-6. Discover — job alerts with a match %
-7. Roadmap checkpoints
+6.9" iPhone (1320×2868) — the required size; it scales down to the
+smaller displays automatically. In this order:
+1. Home — the persona picker ("Which best describes you?")
+2. Score tab with drill-down open (shows findings, not just a number)
+3. Rewrite before/after pair
+4. Design tab — live template thumbnails
+5. Cover letter
+6. LinkedIn builder
+7. Discover — job alerts with a match %
+8. Roadmap checkpoints
 Seed the demo resume first (use a fictional resume, never a real user's).
+The subscription's separate review screenshot is covered in the
+Subscription section above.
