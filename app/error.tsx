@@ -6,7 +6,7 @@ import { Button, Card } from "@/components/ui";
 /**
  * Route-level error boundary. Catches render/runtime errors in any page
  * below the root layout (the TopBar/BottomNav chrome stays in place).
- * Deliberately reports nothing anywhere — HireCraft has no telemetry or
+ * Deliberately reports nothing anywhere — ResumeRoadmap has no telemetry or
  * crash reporting (see the privacy policy); recovery is entirely local.
  */
 export default function ErrorBoundary({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
