@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button, Card, SectionTitle } from "@/components/ui";
 import { getPromoState, loadTrial, startLaunchTrial, TrialRecord } from "@/lib/promo";
+import { useApp } from "@/lib/store";
+import {
+  currentProductInfo, isNativeShell, purchasePro, restorePro, type ProProductInfo,
+} from "@/lib/purchases";
 
 const FREE_FEATURES = ["Full ATS score + breakdown", "ATS simulator (see what the robot reads)", "Keyword match preview"];
 const PAID_FEATURES = [
@@ -26,6 +30,14 @@ function PaywallInner() {
   const params = useSearchParams();
   const [note, setNote] = useState("");
   const [providers, setProviders] = useState<ProviderStatus | null>(null);
+  // RR-01: in the native (iOS) shell this page sells the real subscription
+  // via StoreKit; on web it keeps the honest unlocked placeholder below.
+  const { proStatus } = useApp();
+  const [native, setNative] = useState(false);
+  const [prodInfo, setProdInfo] = useState<ProProductInfo | null>(null);
+  const [buying, setBuying] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [shopNote, setShopNote] = useState("");
 
   // Military verification is NOT available in v1 (post-launch update, once
   // SheerID/ID.me are really integrated). This page never grants a military
@@ -74,6 +86,35 @@ function PaywallInner() {
     setNote("Paid subscriptions will be purchasable here via Apple In-App Purchase when ResumeRoadmap ships on the App Store. In this web build everything is unlocked — enjoy the full tour.");
   }
 
+  // RR-01: detect the native shell once, then keep the store product's
+  // display info fresh as entitlement events arrive.
+  useEffect(() => {
+    if (isNativeShell()) {
+      setNative(true);
+      setProdInfo(currentProductInfo());
+    }
+  }, []);
+
+  useEffect(() => {
+    if (native) setProdInfo(currentProductInfo());
+  }, [native, proStatus]);
+
+  async function buyPro() {
+    setBuying(true);
+    setShopNote("");
+    const r = await purchasePro();
+    setBuying(false);
+    if (!r.ok) setShopNote(r.message);
+  }
+
+  async function doRestore() {
+    setRestoring(true);
+    setShopNote("");
+    const r = await restorePro();
+    setRestoring(false);
+    setShopNote(r.message);
+  }
+
   function startPromoTrial() {
     const t = startLaunchTrial();
     setLaunchTrial(t);
@@ -94,7 +135,7 @@ function PaywallInner() {
       )}
 
       <div className="grid gap-3">
-        {promoActive && !launchTrial && (
+        {!native && promoActive && !launchTrial && (
           <Card className="!border-2 !border-brand !bg-mint">
             <span className="inline-block text-[11px] font-extrabold uppercase tracking-wide bg-emerald-700 text-white rounded-full px-3 py-1 mb-2">
               🚀 Launch special
@@ -109,7 +150,7 @@ function PaywallInner() {
             </Button>
           </Card>
         )}
-        {promoActive && launchTrial && (
+        {!native && promoActive && launchTrial && (
           <Card className="!border-2 !border-brand !bg-mint">
             <p className="font-extrabold text-navy mb-1">✓ Launch trial active</p>
             <p className="text-sm text-ink/70 leading-relaxed">
@@ -142,7 +183,7 @@ function PaywallInner() {
           <div className="flex items-baseline justify-between mb-1">
             <p className="text-lg font-extrabold text-navy">Paid</p>
             <p className="text-right">
-              <span className="text-2xl font-extrabold text-navy">$25</span>
+              <span className="text-2xl font-extrabold text-navy">{native && prodInfo?.price ? prodInfo.price : "$25"}</span>
               <span className="block text-[11px] text-muted">per year</span>
             </p>
           </div>
@@ -151,9 +192,38 @@ function PaywallInner() {
               <li key={f} className="text-sm text-ink flex gap-2"><span className="text-emerald-700 font-bold">✓</span>{f}</li>
             ))}
           </ul>
-          <Button variant="emerald" onClick={choosePaid} className="w-full !min-h-[52px]">
-            Unlock everything — $25/yr
-          </Button>
+          {!native ? (
+            <Button variant="emerald" onClick={choosePaid} className="w-full !min-h-[52px]">
+              Unlock everything — $25/yr
+            </Button>
+          ) : proStatus === "pro" ? (
+            <div>
+              <div className="rounded-xl bg-mint border border-brand/40 p-4 mb-2">
+                <p className="font-extrabold text-navy">✓ Pro is active</p>
+                <p className="text-sm text-ink/70 leading-relaxed">
+                  Thanks for subscribing. Manage or cancel anytime in Settings → Apple ID → Subscriptions.
+                </p>
+              </div>
+              <Button variant="secondary" onClick={doRestore} disabled={restoring} className="w-full">
+                {restoring ? "Restoring…" : "Restore purchases"}
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <Button variant="emerald" onClick={buyPro} disabled={buying} className="w-full !min-h-[52px]">
+                {buying ? "Processing…" : `Unlock everything — ${prodInfo?.price || "$25"}/yr`}
+              </Button>
+              {prodInfo?.trialNote && (
+                <p className="text-xs text-muted leading-relaxed mt-2">{prodInfo.trialNote}</p>
+              )}
+              <Button variant="secondary" onClick={doRestore} disabled={restoring} className="w-full mt-2">
+                {restoring ? "Restoring…" : "Restore purchases"}
+              </Button>
+            </div>
+          )}
+          {native && shopNote && (
+            <p className="text-sm text-ink/80 leading-relaxed mt-3">{shopNote}</p>
+          )}
         </Card>
 
         <Card className="!bg-navy !border-navy text-white">
@@ -198,9 +268,18 @@ function PaywallInner() {
       </div>
 
       <Card className="mt-4">
-        <p className="text-xs text-muted leading-relaxed">
-          <b className="text-ink">Web build note:</b> payments aren't wired up here — Apple In-App Purchase lands at the App Store packaging step (see README). Nothing is gated in this build.
-        </p>
+        {native ? (
+          <p className="text-xs text-muted leading-relaxed">
+            <b className="text-ink">iOS build:</b> Pro is an auto-renewable subscription billed by Apple
+            through your Apple ID. Restore Purchases re-activates it on any device signed into the same
+            Apple ID. The 2-week launch trial is the subscription&apos;s introductory offer in App Store Connect.
+          </p>
+        ) : (
+          <p className="text-xs text-muted leading-relaxed">
+            <b className="text-ink">Web build note:</b> payments aren&apos;t wired up here — in the iOS build,
+            Pro is purchased through Apple In-App Purchase on this same page. Nothing is gated in this build.
+          </p>
+        )}
       </Card>
 
       <Link href="/" className="flex items-center justify-center min-h-[44px] mt-4">
