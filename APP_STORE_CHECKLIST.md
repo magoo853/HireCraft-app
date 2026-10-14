@@ -45,14 +45,16 @@ npx cap sync ios       # copies www/ + config into the native project
 
 > Note for review: v1 loads the hosted production URL in the shell. This is a
 > common pattern, but Apple sometimes pushes back on "app is just a website."
-> Mitigations already in place: native-feel UI, offline-tolerant screens, and
-> real StoreKit IAP (step 5). If review flags it, the fallback is a
+> Mitigations already in place: native-feel UI and the native shell
+> features that exist today (app icon, splash screen, device share and
+> open-in-browser handoffs). StoreKit IAP wiring is NOT in place yet — it
+> lands in the pre-submission Mac session (step 5). If review flags it, the fallback is a
 > static-export refactor (`output: "export"`) with API routes moved to the
 > Vercel backend.
 
 ## 3. App Store Connect listing
 
-- **Name:** ResumeRoadmap — AI Resume & LinkedIn Optimizer (30 char limit)
+- **Name:** ResumeRoadmap — Resume Builder (30 chars)
 - **Subtitle:** ATS scores, rewrites & cover letters (30 chars)
 - **Bundle ID:** `com.hirecraft.app` — register in Identifiers, enable In-App Purchase capability
 - **Category:** Business (primary), Productivity (secondary)
@@ -76,10 +78,12 @@ npx cap sync ios       # copies www/ + config into the native project
 
 - Create subscription group "ResumeRoadmap Pro" in App Store Connect
 - Product: `hirecraft_pro_yearly` — $25.00/yr, auto-renewable
-- Free 2-week launch trial and 6-month military trial: implement as
-  **introductory offers** on the subscription (2-week free; 6-month free
-  requires verification *before* purchase — gate the offer behind the
-  SheerID/ID.me check in-app, then present the IAP)
+- Free 2-week launch trial: implement as an **introductory offer** on
+  the subscription (2-week free, available to all new subscribers).
+- 6-month military trial: implement as a **promotional offer**, NOT an
+  introductory offer — introductory offers can't be gated per-user. The
+  promotional offer requires verification *before* purchase — gate it
+  behind the SheerID/ID.me check in-app, then present the IAP.
 - Fill in the subscription's review notes: explain the military trial and
   how reviewers can test it (provide a sandbox test path)
 - Paid Applications agreement must be active (step 1.3) or IAP stays
@@ -99,15 +103,21 @@ npx cap sync ios       # copies www/ + config into the native project
 - **5.1.1 Data collection:** privacy policy declares no training on user data,
   no sale of data, delete-on-request. Privacy Nutrition Labels in App Store
   Connect must match: "Data Not Collected" is wrong (we collect resume text)
-  → declare *Contact Info, User Content* linked to user, not used for tracking.
+  → declare *User Content + Contact Info*, **neither linked to the user's
+  identity, not used for tracking, purpose: App Functionality** — the parser
+  extracts email/phone into the resume object that AI features send, so
+  Contact Info is declared alongside User Content (matches the listing pack).
 - **3.1.1 IAP:** all digital unlocks go through StoreKit — no Stripe/web
   paywalls linked from the app.
 - **2.3.1 Performance:** no placeholder buttons — every control works
   (template fallback covers no-API-key state).
 - **4.2 Minimum functionality:** see the webview note in step 2.
-- **Military trial:** reviewers will ask how to test it — provide a sandbox
-  bypass code documented in review notes (implement `MILITARY_REVIEW_CODE`
-  env-gated test path before submission).
+- **Military trial:** CLOSED — not in v1 by design. The product deliberately
+  has no reviewer bypass: there is no `MILITARY_REVIEW_CODE` test path to
+  implement before submission (a pre-submission implementation requirement
+  for it previously stood here and is formally closed by this note).
+  Military verification is fail-closed in v1 and the 6-month offer ships in
+  a post-launch update; the review notes in the listing pack say exactly that.
 
 ## 8. Launch-day sequence
 

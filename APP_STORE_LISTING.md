@@ -13,9 +13,7 @@ Production URL: https://hirecraft-app-steel.vercel.app
 
 ## Promotional text (170 ch)
 
-Veteran-built resume coach: ATS score with real fixes, AI bullet rewrites that
-translate military experience, cover letters, LinkedIn polish, and job alerts
-scored against your resume.
+Veteran-built resume coach: ATS score with real fixes, AI rewrites translating military experience, cover letters, LinkedIn polish, and job alerts scored to your resume.
 
 ## Description
 
@@ -42,7 +40,7 @@ BUILT FOR VETERANS
   civilian — in rewrites, matches, and roadmaps
 • Upload your performance reviews (EPR/NCOER/OER/FITREP) and ResumeRoadmap mines
   them for accomplishments your resume forgot
-• Six months of Pro free with military verification
+• Six months of Pro free with military verification (coming in a free update)
 
 PRIVACY, PLAINLY
 Your resume is stored on your device. AI features send your resume text to
@@ -64,11 +62,14 @@ notes if asked).
 ## App Privacy ("nutrition label") answers
 
 - **Data collected:** User Content (resume text, job codes, performance-review
-  text) — collected ONLY when the user runs an AI feature, with consent.
+  text) and Contact Info (the email address and phone number the parser
+  extracts into the resume object) — collected ONLY when the user runs an
+  AI feature, with consent (the resume object the AI features send includes
+  that contact info).
   - Linked to identity: **No** (no accounts, no identifiers).
   - Used for tracking: **No.**
   - Purposes: **App Functionality** only.
-- **Data NOT collected:** no contact info, no location, no identifiers, no
+- **Data NOT collected:** no location, no identifiers, no
   usage analytics, no diagnostics sharing, no financial info (Apple handles
   the subscription).
 - Job alerts send only the user's search terms (role/company/location text)
