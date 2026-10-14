@@ -18,6 +18,7 @@ import {
   generateSummary,
   rewriteBullets,
 } from "@/lib/fallback";
+import { normalizeResume } from "@/lib/normalize-resume";
 import { redactDocumentText } from "@/lib/redact";
 import { checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { MilitaryInfo, Mode, PerformanceReview, RewriteResult, StructuredResume, SummaryResult } from "@/lib/types";
@@ -236,6 +237,21 @@ function extractJson(text: string): unknown {
 }
 
 export async function POST(req: NextRequest) {
+  // RR-05 belt-and-braces: the client's contract is JSON everywhere, so
+  // an unexpected throw anywhere in the handler must still return a JSON
+  // 500 — never the platform's empty/non-JSON body.
+  try {
+    return await handlePost(req);
+  } catch (e) {
+    console.error("Unexpected /api/ai error:", e);
+    return NextResponse.json(
+      { error: "Something went wrong generating that. Please try again." },
+      { status: 500 }
+    );
+  }
+}
+
+async function handlePost(req: NextRequest) {
   // S-batch (log #17): per-IP throttle — 30 requests / 10 minutes / IP,
   // per-instance in-memory (see lib/rate-limit.ts). 429 is JSON like
   // every other response from this route; the client contract is JSON.
@@ -258,6 +274,13 @@ export async function POST(req: NextRequest) {
   if (validationError) return badRequest(validationError);
 
   const body = rawBody as AiRequest;
+  // RR-05: normalize the resume ONCE at ingestion, after validation (so
+  // a resume that is invalid on arrival stays invalid). The validator
+  // requires only a subset of fields, but every downstream consumer —
+  // AI prompts and the fallback composers — reads the full shape; fill
+  // the missing arrays/strings with the emptyResume() defaults here so
+  // no consumer ever dereferences an omitted field.
+  body.resume = normalizeResume(body.resume);
   // B1: filter eval/review identifiers at the ingestion point, before ANY
   // downstream use — militaryContext(), reviewContext(), and the fallback
   // miners (extractEvalAdditions/extractReviewAdditions) all read from
