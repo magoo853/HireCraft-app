@@ -34,10 +34,11 @@ export default function SettingsPage() {
         <p className="font-bold text-ink text-sm mb-1">AI data sharing</p>
         <p className="text-xs text-muted leading-relaxed mb-3">
           AI features (rewrites, cover letters, LinkedIn polish, roadmaps, matching) send your resume
-          text to our AI provider, Google (Gemini), to generate results — with your consent. In Veteran
-          mode, job codes and performance-review text are included. The content is processed only to
-          answer your request: never sold, never used for advertising. Scoring, templates, and job
-          alerts run on-device without AI.
+          text to our AI provider, Google (Gemini), to generate results — with your consent. A
+          performance review you've added is included in any mode; in Veteran mode, job codes are
+          included too. The content is processed only to answer your request: never sold, never used
+          for advertising. Scoring and templates run on-device without AI; job alerts run without
+          AI and send only your search terms to the job boards.
         </p>
         {aiConsent ? (
           <>
