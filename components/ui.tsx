@@ -215,12 +215,13 @@ export function Logo({ size = 34 }: { size?: number }) {
   );
 }
 
-export function TopBar({ right }: { right?: ReactNode }) {
+export function TopBar({ title, right }: { title: string; right?: ReactNode }) {
   return (
     <header className="sticky top-0 z-40 bg-paper/95 backdrop-blur border-b border-line print:hidden">
       <div className="max-w-lg mx-auto px-4 h-[60px] flex items-center justify-between">
-        <Link href="/" className="flex items-center min-h-[44px]" aria-label="RoadmapResume — home">
+        <Link href="/" className="flex items-center gap-2 min-h-[44px]" aria-label="RoadmapResume — home">
           <Logo />
+          <span className="font-extrabold text-navy tracking-tight">{title}</span>
         </Link>
         <div className="flex items-center gap-1">{right}</div>
       </div>

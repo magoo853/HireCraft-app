@@ -23,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AppProvider>
           <TopBar
+            title="RoadmapResume"
             right={
               <>
                 <Link href="/resume" className="min-h-[44px] flex items-center text-sm font-bold text-pine px-2.5">

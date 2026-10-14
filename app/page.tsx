@@ -39,6 +39,7 @@ export default function Home() {
     <div>
       <div className="flex items-center gap-2 mb-6">
         <Logo size={34} />
+        <span className="font-extrabold text-[17px] tracking-tight text-navy">RoadmapResume</span>
       </div>
 
       <h1 className="text-[22px] font-extrabold tracking-tight text-navy mb-1">
