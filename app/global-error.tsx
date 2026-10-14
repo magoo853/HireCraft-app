@@ -5,7 +5,7 @@
  * itself fails. It replaces the layout, so it must render its own
  * <html>/<body> and cannot rely on globals.css or Tailwind having loaded;
  * all styling is inline and self-contained. Like app/error.tsx it reports
- * nothing anywhere: HireCraft has no telemetry or crash reporting (see the
+ * nothing anywhere: ResumeRoadmap has no telemetry or crash reporting (see the
  * privacy policy); recovery is entirely local.
  */
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
