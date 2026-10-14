@@ -2,8 +2,97 @@
 
 import { useState } from "react";
 import { useApp } from "../lib/store";
-import { MAX_VERSIONS, defaultVersionName } from "../lib/versions";
+import {
+  MAX_VERSIONS, defaultVersionName,
+  type ApplicationStatus, type SavedVersion, type VersionApplication,
+} from "../lib/versions";
 import { Button, Card, Field, SectionTitle, inputCls } from "./ui";
+
+const APPLICATION_STATUS_LABELS: { value: ApplicationStatus; label: string }[] = [
+  { value: "saved", label: "Saved" },
+  { value: "applied", label: "Applied" },
+  { value: "interviewing", label: "Interviewing" },
+  { value: "offer", label: "Offer" },
+  { value: "closed", label: "Closed" },
+];
+
+function epochToDateInput(ts: number): string {
+  const d = new Date(ts);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/**
+ * Tracker-lite editor (Wave 4): status + applied date + a short note,
+ * pinned to this saved version. Lite by design — no kanban, contacts,
+ * or reminders. Selects/date commit immediately; the note commits on
+ * blur. Choosing "Not tracked" clears the record.
+ */
+function VersionApplicationEditor({ v }: { v: SavedVersion }) {
+  const { updateVersionApplication } = useApp();
+  const app = v.application;
+  const [note, setNote] = useState(app?.note ?? "");
+
+  function apply(patch: Partial<VersionApplication>) {
+    if (!app) return;
+    const next: VersionApplication = {
+      status: patch.status ?? app.status,
+      appliedAt: "appliedAt" in patch ? patch.appliedAt : app.appliedAt,
+      note: "note" in patch ? patch.note : app.note,
+    };
+    if (!next.appliedAt) delete next.appliedAt;
+    if (!next.note) delete next.note;
+    updateVersionApplication(v.id, next);
+  }
+
+  return (
+    <div className="mt-2.5 border-t border-line pt-2.5">
+      <div className="flex flex-wrap gap-2">
+        <label className="flex-1 min-w-[150px]">
+          <span className="block text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1">Application status</span>
+          <select
+            value={app?.status ?? ""}
+            aria-label={`Application status for version ${v.name}`}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) { updateVersionApplication(v.id, undefined); setNote(""); return; }
+              if (app) apply({ status: val as ApplicationStatus });
+              else updateVersionApplication(v.id, { status: val as ApplicationStatus });
+            }}
+            className={`${inputCls} !py-2 !min-h-[44px] text-sm`}
+          >
+            <option value="">Not tracked</option>
+            {APPLICATION_STATUS_LABELS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+        {app && (
+          <label>
+            <span className="block text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1">Date applied</span>
+            <input
+              type="date"
+              value={app.appliedAt ? epochToDateInput(app.appliedAt) : ""}
+              aria-label={`Date applied for version ${v.name}`}
+              onChange={(e) => apply({ appliedAt: e.target.value ? new Date(`${e.target.value}T00:00:00`).getTime() : undefined })}
+              className={`${inputCls} !py-2 !min-h-[44px] text-sm !w-auto`}
+            />
+          </label>
+        )}
+      </div>
+      {app && (
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={() => { if (note !== (app.note ?? "")) apply({ note: note.trim() || undefined }); }}
+          placeholder="Note — e.g. Recruiter screen Tue 10am"
+          aria-label={`Application note for version ${v.name}`}
+          className={`${inputCls} !py-2 !min-h-[44px] text-sm mt-2`}
+        />
+      )}
+    </div>
+  );
+}
 
 /**
  * "Save as a version" form (Cycle 16 — see the schema design in the
@@ -100,6 +189,8 @@ export function VersionsCard() {
                   </p>
                 </div>
               </div>
+
+              <VersionApplicationEditor key={v.id} v={v} />
 
               {renameId === v.id ? (
                 <div className="flex gap-2 mt-2">
