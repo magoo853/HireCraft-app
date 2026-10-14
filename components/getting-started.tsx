@@ -17,7 +17,7 @@ export function GettingStartedCard() {
   const {
     hasResume, jobText,
     scoreViewed, rewriteAccepted, designChosen, exported,
-    onboardingDismissed, setOnboardingDismissed,
+    onboardingDismissed, setOnboardingDismissed, versions,
   } = useApp();
 
   if (onboardingDismissed) return null;
@@ -29,6 +29,7 @@ export function GettingStartedCard() {
     rewriteAccepted,
     designChosen,
     exported,
+    trackedApplication: versions.some((v) => !!v.application),
   });
   const doneCount = steps.filter((s) => s.done).length;
 
