@@ -22,11 +22,18 @@ cd ~/Documents
 git clone https://github.com/magoo853/HireCraft-app.git
 cd HireCraft-app
 npm install
-npm install @capacitor-community/in-app-purchases
 npx cap sync ios
 bash ios-assets/install-assets.sh
 open ios/App/App.xcworkspace
 ```
+
+(The StoreKit bridge — `cordova-plugin-purchase` — is already a declared
+dependency, so `npm install` + `cap sync` wire it; do NOT install
+`@capacitor-community/in-app-purchases`, which no longer exists on npm.
+The paywall's purchase/restore flow is already coded against it — RR-01.
+What remains here is the Xcode capability toggle below, creating the
+`hirecraft_pro_yearly` product in App Store Connect, and the sandbox
+purchase test.)
 
 Notes:
 - `cap sync` printing a warning about a "www directory" is expected — the
