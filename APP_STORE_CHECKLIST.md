@@ -3,16 +3,16 @@
 Everything needed to get ResumeRoadmap from "working web app" to "live on the App Store."
 Items marked **[JAMES]** need James directly. Everything else is buildable by the crew.
 
-## 0. Current state (2026-10-11)
+## 0. Current state (2026-10-14)
 
 - [x] Next.js 14 app builds green (`npm run build`)
-- [x] Private GitHub repo `magoo853/hirecraft-app`
+- [x] Private GitHub repo `magoo853/HireCraft-app`
 - [x] Vercel project `hirecraft-app` (separate for-profit team), production: https://hirecraft-app-steel.vercel.app
 - [x] Privacy policy live at `/privacy`
 - [x] Capacitor config (`com.hirecraft.app`) + icon/splash assets
 - [ ] **[JAMES]** Apple Developer Program enrollment ($99/yr) — <https://developer.apple.com/programs/enroll/>
-- [ ] **[JAMES]** SheerID account + API key (military verification)
-- [ ] **[JAMES]** ID.me developer app registration (military verification)
+- [ ] **[JAMES]** SheerID account + API key (military verification — post-launch update, NOT needed for v1)
+- [ ] **[JAMES]** ID.me developer app registration (military verification — post-launch update, NOT needed for v1)
 - [x] AI API key (`AI_API_KEY`) live in Vercel; all AI tasks production-verified 2026-10-12
 - [x] **[JAMES]** Apple Developer enrollment submitted 2026-10-12 (approval pending)
 - [x] AI data-sharing consent gate shipped (Guideline 5.1.2)
@@ -35,11 +35,10 @@ npx cap add ios        # generates ios/ (commit it)
 npx cap sync ios       # copies www/ + config into the native project
 ```
 
-- Icons: run `python3 ios-assets/generate-icons.py` — produces the full
-  AppIcon set (1024 master + 180/167/152/120/87/80/60/58/40/29/20). Drop the
-  output into `ios/App/App/Assets.xcassets/AppIcon.appiconset/`.
-- Splash: `ios-assets/splash.svg` → export 2732×2732 PNG, set as launch
-  storyboard image (or rely on the Capacitor SplashScreen plugin config).
+- Icon + splash: run `bash ios-assets/install-assets.sh` — it decodes the
+  shipped assets (1024 icon, 2732×2732 splash) into the native asset
+  catalog. The native imageset does the splash work; there is no
+  splash-screen plugin config (removed as inert — RR-18).
 - Open `ios/App/App.xcworkspace` in Xcode, set the Team (James's Apple ID),
   bump version/build numbers, Archive → Distribute → App Store Connect.
 
@@ -47,32 +46,44 @@ npx cap sync ios       # copies www/ + config into the native project
 > common pattern, but Apple sometimes pushes back on "app is just a website."
 > Mitigations already in place: native-feel UI and the native shell
 > features that exist today (app icon, splash screen, device share and
-> open-in-browser handoffs). StoreKit IAP wiring is NOT in place yet — it
-> lands in the pre-submission Mac session (step 5). If review flags it, the fallback is a
+> open-in-browser handoffs). StoreKit IAP wiring IS in place (RR-01,
+> code-done 2026-10-14: `cordova-plugin-purchase` + `lib/purchases.ts` +
+> the native paywall branch). What remains for the Mac session is only
+> the Xcode In-App Purchase capability toggle and the sandbox purchase
+> test; the product itself is created in App Store Connect (step 5). If review flags it, the fallback is a
 > static-export refactor (`output: "export"`) with API routes moved to the
 > Vercel backend.
 
 ## 3. App Store Connect listing
 
+(The app record itself is created first — App Store Connect → My Apps →
++ → New App; see the runbook, Part A. The listing pack
+`APP_STORE_LISTING.md` is the source of truth for every string below.)
+
 - **Name:** ResumeRoadmap — Resume Builder (30 chars)
-- **Subtitle:** ATS scores, rewrites & cover letters (30 chars)
+- **Subtitle:** ATS Score, Rewrites & Jobs (26 chars)
 - **Bundle ID:** `com.hirecraft.app` — register in Identifiers, enable In-App Purchase capability
 - **Category:** Business (primary), Productivity (secondary)
 - **Age rating:** 4+ (no objectionable content; questionnaire will confirm)
 - **Privacy policy URL:** `https://<production-url>/privacy`
 - **Support URL:** repo or landing page URL
-- **Keywords:** resume builder,ats checker,resume score,cover letter,linkedin optimizer,job search,veteran jobs (100 chars max, comma-separated, no spaces)
-- **Description:** lead with the veteran wedge + free scan; mention $25/yr, free tier, military 6-month trial, launch 2-week trial
+- **Keywords:** resume builder,ats checker,resume score,cover letter,linkedin,veteran jobs,job search,career (100 chars max, comma-separated, no spaces — string identical to the listing pack)
+- **Description:** lead with the veteran wedge + free scan; mention $25/yr, free tier, the launch 2-week trial, and the military 6-month offer **in future tense only** ("coming in a free update" — it is NOT in v1; do not promise it at launch)
 
 ## 4. Screenshots (required sizes)
 
-- **6.7"** (1290×2796): 3–10 screenshots — iPhone 15 Pro Max simulator
-- **6.5"** (1242×2688): required if 6.7" not provided — just do 6.7"
+- **6.9"** (1320×2868): the required set — 8 screenshots, iPhone 16 Pro
+  Max class simulator (or the largest available); it scales down to the
+  smaller displays automatically
+- **6.7"** (1290×2796): optional additional set — skip unless asked
 - **5.5"** (1242×2208): legacy — optional in 2026, skip unless asked
-- **iPad 13"** (2048×2732): only if shipping iPad — v1 is iPhone-only, set
-  device family accordingly
-- Capture: home/onboarding, ATS score, rewrite diffs, templates, cover
-  letter, LinkedIn builder, paywall (7 total — matches the QA set)
+- **iPad:** none — v1 is iPhone-only and the device family is already
+  set to iPhone ("1") in the Xcode project (RR-10)
+- Capture, in the listing pack's order: home/persona picker, ATS score
+  with drill-down open, rewrite before/after, design templates, cover
+  letter, LinkedIn builder, Discover job alerts, roadmap checkpoints
+  (8 total — identical to `APP_STORE_LISTING.md` § Screenshots; the
+  paywall shot belongs to the subscription's review materials, §5)
 
 ## 5. In-App Purchase (StoreKit 2) — after TestFlight, before submission
 
