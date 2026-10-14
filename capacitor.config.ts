@@ -16,13 +16,11 @@ const config: CapacitorConfig = {
     // Capacitor auto-generates the Xcode project on `npx cap add ios`
     // (run on a Mac; the project is committed under ios/ afterwards).
   },
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 1500,
-      backgroundColor: "#0B3B2E",
-      showSpinner: false,
-    },
-  },
+  // No plugins block: the splash screen is the native LaunchScreen
+  // storyboard/imageset (installed by ios-assets/install-assets.sh).
+  // A former plugins.SplashScreen block was removed (RR-18) — no
+  // @capacitor/splash-screen package is installed, so it configured
+  // nothing and only misled future readers.
 };
 
 export default config;
