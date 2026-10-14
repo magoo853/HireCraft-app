@@ -34,15 +34,17 @@ export function AiConsentGate() {
           <p>
             When you use the AI features — bullet rewrites, cover letters, LinkedIn polish, career
             roadmaps, and job matching — <b className="text-ink">your resume text is sent to our AI
-            provider, Google (Gemini)</b>, to generate your result. In Veteran mode, your job codes
-            and performance-review text are sent too.
+            provider, Google (Gemini)</b>, to generate your result. If you've added a performance
+            review, its text is sent too — in any mode. In Veteran mode, your job codes are sent as well.
           </p>
           <p>
             That content is processed only to answer your request. It is <b className="text-ink">never
             sold, never used for advertising</b>, and your resume itself is stored only on this device.
           </p>
           <p>
-            Scoring, design templates, and job alerts run without AI and don't send anything.
+            Scoring and design templates run without AI and send nothing. Job alerts also run
+            without AI — they send only your search terms (job title, company, location) to the
+            job boards, never anything from your resume.
           </p>
         </div>
         <Button variant="emerald" className="w-full mt-5 !min-h-[52px]" onClick={() => { setAiConsent(true); setAiConsentDeclined(false); }}>
