@@ -12,6 +12,7 @@ import {
 } from "@/lib/goal-ideas";
 import { GoalIdeas } from "@/components/goal-ideas";
 import { AiResponse } from "@/lib/types";
+import { postAi } from "@/lib/ai-client";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, Pill, inputCls } from "@/components/ui";
 import { AiOffNote } from "@/components/consent";
 
@@ -161,12 +162,7 @@ export default function RoadmapPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "roadmap", mode, resume, goals, military }),
-      });
-      const json = (await res.json()) as AiResponse<RoadmapNode[]>;
+      const json = await postAi<RoadmapNode[]>({ task: "roadmap", mode, resume, goals, military });
       if (!Array.isArray(json.data)) throw new Error("Unexpected response");
       setNodes(json);
       setOpen(1);
