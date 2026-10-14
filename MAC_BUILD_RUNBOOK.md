@@ -1,4 +1,4 @@
-# HireCraft — Your Side: App Store, Start to Finish
+# RoadmapResume — Your Side: App Store, Start to Finish
 
 Everything on Jarvis's side is done (code, consent gate, listing copy, iOS
 project, icons). This is your complete sequence. Parts A and B are the
@@ -49,11 +49,11 @@ In Xcode:
 
 ## Part C — After the upload (~20 min, web)
 
-1. App Store Connect → **My Apps** — HireCraft appears once the build
+1. App Store Connect → **My Apps** — RoadmapResume appears once the build
    processes (~5–15 min). If there's no app record: **+ → New App** →
-   iOS, name **HireCraft**, primary language English, bundle ID
+   iOS, name **RoadmapResume**, primary language English, bundle ID
    `com.hirecraft.app`, SKU `hirecraft-001`.
-2. **Monetization → Subscriptions**: create group **HireCraft Pro**, then
+2. **Monetization → Subscriptions**: create group **RoadmapResume Pro**, then
    product `hirecraft_pro_yearly`, $25.00/year, and add the introductory
    offer: **2 weeks free**. (Field-by-field text: `APP_STORE_LISTING.md`.)
 3. **App Store tab**: paste name/subtitle/description/keywords from

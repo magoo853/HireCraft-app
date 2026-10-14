@@ -1,4 +1,4 @@
-# HireCraft — James Action Packet
+# RoadmapResume — James Action Packet
 
 Account-owner actions only. Work top to bottom; items 1–3 harden the live service, item 4 is post-launch, item 5 is the remaining native-launch step.
 
@@ -27,7 +27,7 @@ Account-owner actions only. Work top to bottom; items 1–3 harden the live serv
 ## 4. SheerID & ID.me — POST-LAUNCH (not a v1 gate)
 
 - [ ] **Skip for launch.** These are for the 6-month military trial in a post-launch update only.
-- [ ] When ready: create a SheerID developer account and an ID.me developer app for HireCraft.
+- [ ] When ready: create a SheerID developer account and an ID.me developer app for RoadmapResume.
 - [ ] Send the resulting credentials to be wired into the app as an update — the v1 launch does not wait on this.
 
 ## 5. App Store Connect & Mac session
