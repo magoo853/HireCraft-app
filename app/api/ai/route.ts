@@ -138,6 +138,17 @@ const HONESTY = `Critical rules: NEVER invent facts, numbers, job titles, compan
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/* Time budget for the provider retry chain. maxDuration is 60s; if the
+ * chain is still running when the platform kills the function, the client
+ * receives a non-JSON platform error page instead of the built-in fallback
+ * JSON below — and Safari's Response.json() throws "The string did not
+ * match the expected pattern." on that body (live-measured chain times on
+ * an identical small request: 17s / 30s / 55s under provider 503 load).
+ * Keep the whole chain, and any single attempt, comfortably inside the
+ * limit so a slow/503ing provider degrades to the fallback, as designed. */
+const LLM_BUDGET_MS = 42_000;
+const LLM_ATTEMPT_TIMEOUT_MS = 15_000;
+
 /**
  * Call the LLM with resilience: the free tier 503s under load, so retry the
  * primary model, then walk a fallback chain of other current models before
@@ -146,11 +157,14 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function callLLM(system: string, user: string): Promise<string> {
   const models = Array.from(new Set([MODEL, "gemini-3.6-flash", "gemini-3.5-flash-lite"]));
   let lastErr = new Error("AI provider unavailable");
+  const startedAt = Date.now();
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
+      if (Date.now() - startedAt > LLM_BUDGET_MS) throw lastErr;
       let res: Response;
       try {
         res = await fetch(`${API_BASE}/chat/completions`, {
+          signal: AbortSignal.timeout(LLM_ATTEMPT_TIMEOUT_MS),
           method: "POST",
           headers: {
             "Content-Type": "application/json",

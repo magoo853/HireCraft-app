@@ -544,12 +544,20 @@ function SummaryCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task: "summary", mode, resume, jobText, targetTitle, company, military }),
       });
-      const json = (await res.json()) as AiResponse<SummaryResult>;
-      if (!json.data?.text) throw new Error("Unexpected response");
+      // Parse the body manually instead of res.json(): on a non-JSON error
+      // body, Safari's res.json() throws a raw browser exception ("The
+      // string did not match the expected pattern.") — that must never
+      // reach the user. Raw details go to the console only.
+      const raw = await res.text();
+      let json: AiResponse<SummaryResult> | null = null;
+      try { json = JSON.parse(raw) as AiResponse<SummaryResult>; } catch { /* non-JSON body — handled below */ }
+      if (!json) throw new Error(`Summary draft failed: non-JSON response (HTTP ${res.status})`);
+      if (!json.data?.text) throw new Error(`Summary draft failed: unexpected response (HTTP ${res.status})`);
       setResult(json);
       updateResume({ summary: json.data.text });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      console.error("Summary draft failed:", e);
+      setError("Couldn't draft your summary right now. Please try again in a moment.");
     } finally {
       setLoading(false);
     }
