@@ -216,15 +216,37 @@ export function Logo({ size = 34 }: { size?: number }) {
 }
 
 export function TopBar({ title, right }: { title: string; right?: ReactNode }) {
+  // RR-14: when an on-device save fails (storage full), say so once,
+  // visibly, instead of letting the app silently work only in memory.
+  const { saveFailed, setSaveFailed } = useApp();
   return (
-    <header className="sticky top-0 z-40 bg-paper/95 backdrop-blur border-b border-line print:hidden">
-      <div className="max-w-lg mx-auto px-4 h-[60px] flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 min-h-[44px]" aria-label="ResumeRoadmap — home">
-          <Logo />
-          <span className="font-extrabold text-navy tracking-tight">{title}</span>
-        </Link>
-        <div className="flex items-center gap-1">{right}</div>
-      </div>
-    </header>
+    <>
+      <header className="sticky top-0 z-40 bg-paper/95 backdrop-blur border-b border-line print:hidden">
+        <div className="max-w-lg mx-auto px-4 h-[60px] flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 min-h-[44px]" aria-label="ResumeRoadmap — home">
+            <Logo />
+            <span className="font-extrabold text-navy tracking-tight">{title}</span>
+          </Link>
+          <div className="flex items-center gap-1">{right}</div>
+        </div>
+      </header>
+      {saveFailed && (
+        <div className="bg-amber-50 border-b border-amber-200 print:hidden">
+          <div className="max-w-lg mx-auto px-4 py-2.5 flex items-start gap-3">
+            <p className="text-[13px] text-amber-900 leading-snug flex-1">
+              <b>Couldn&apos;t save on this device</b> — its storage is full, so your latest changes are
+              only in memory and will be lost when this tab closes. Export your resume now to keep a copy.
+            </p>
+            <button
+              onClick={() => setSaveFailed(false)}
+              aria-label="Dismiss save warning"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center text-amber-900 font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
