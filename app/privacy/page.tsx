@@ -43,8 +43,9 @@ export default function PrivacyPage() {
 
         <S>
           <H>What we collect</H>
-          <P><strong>Stored only on your device:</strong> resume text (including text extracted from files you upload), job postings you paste or link, LinkedIn text you provide, career goals and salary targets, quiz answers, generated content, job alerts, and — in Veteran mode — your branch, job codes, and performance-review text. This information is kept in the app's local storage on your device.</P>
-          <P><strong>Sent only when you use a feature:</strong> after you consent, AI features send the relevant resume, job, LinkedIn, goal, and military text to Google Gemini to generate a response. Job alerts send only your search terms, described below. The app sends us no record of the pages you visit or the features you use, and no advertising identifiers are collected or shared.</P>
+          <P><strong>Stored only on your device:</strong> resume text (including text extracted from files you upload), job postings you paste or link, LinkedIn text you provide, career goals and salary targets, quiz answers, generated content, job alerts, your latest performance review (the civilian review you add on the Resume tab, whatever mode you use), and — in Veteran mode — your branch, job codes, and military evaluation text. This information is kept in the app's local storage on your device.</P>
+          <P><strong>Filtered before it is kept or sent:</strong> performance reviews and evaluations are filtered to remove names and ID numbers before they are stored or sent. The app keeps the accomplishments — that is all the review features need — not the identifiers.</P>
+          <P><strong>Sent only when you use a feature:</strong> after you consent, AI features send the relevant resume, job, LinkedIn, goal, military, and performance-review text to Google Gemini to generate a response. Job alerts send only your search terms, described below. The app sends us no record of the pages you visit or the features you use, and no advertising identifiers are collected or shared.</P>
         </S>
 
         <S>
