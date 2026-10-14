@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { deriveSkills, structuredToText, textToStructured } from "@/lib/parse";
 import { mosTranslations } from "@/lib/mos";
+import { redactDocumentText } from "@/lib/redact";
 import { SAMPLE_MILITARY, SAMPLE_RESUME } from "@/lib/sample";
 import { AiResponse, ExperienceItem, ProjectItem, StructuredResume, SummaryResult, emptyResume } from "@/lib/types";
 import { Button, Card, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
@@ -86,7 +87,9 @@ export default function ResumePage() {
       const { parseFile } = await import("@/lib/parse-file");
       const text = await parseFile(f);
       if (text.trim().length < 50) throw new Error("Couldn't read much text from that file. Try pasting the text instead.");
-      setMilitary({ ...military, evalText: text });
+      // B1: filter identifiers BEFORE the text is stored — persisted state
+      // never holds names/SSN/DoD ID from an evaluation.
+      setMilitary({ ...military, evalText: redactDocumentText(text) });
       setEvalMsg(`Performance review loaded (${text.split(/\s+/).length} words). It now feeds Discover, Roadmap, and Rewrites.`);
     } catch (e) {
       setEvalMsg(e instanceof Error ? e.message : "Couldn't parse that file.");
@@ -326,7 +329,7 @@ export default function ResumePage() {
                       className="w-full mt-2"
                       onClick={() => {
                         if (evalPaste.trim().length < 50) { setEvalMsg("Paste a bit more — at least a few lines of your review."); return; }
-                        setMilitary({ ...military, evalText: evalPaste });
+                        setMilitary({ ...military, evalText: redactDocumentText(evalPaste) });
                         setEvalMsg("Performance review saved. It now feeds Discover, Roadmap, and Rewrites.");
                       }}
                     >
@@ -415,7 +418,7 @@ function PerformanceReviewCard() {
       const { parseFile } = await import("@/lib/parse-file");
       const text = await parseFile(f);
       if (text.trim().length < 50) throw new Error("Couldn't read much text from that file. Try pasting the review instead.");
-      setPerfReview({ text, updatedAt: Date.now() });
+      setPerfReview({ text: redactDocumentText(text), updatedAt: Date.now() });
       setMsg(`Performance review loaded (${text.split(/\s+/).length} words). Find mined accomplishments in Rewrite and strengths below.`);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Couldn't parse that file.");
@@ -429,7 +432,7 @@ function PerformanceReviewCard() {
       setMsg("Paste a bit more — at least a few lines of your review.");
       return;
     }
-    setPerfReview({ text: paste, updatedAt: Date.now() });
+    setPerfReview({ text: redactDocumentText(paste), updatedAt: Date.now() });
     setMsg("Performance review saved. Find mined accomplishments in Rewrite and strengths below.");
   }
 

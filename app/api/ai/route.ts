@@ -18,6 +18,7 @@ import {
   generateSummary,
   rewriteBullets,
 } from "@/lib/fallback";
+import { redactDocumentText } from "@/lib/redact";
 import { MilitaryInfo, Mode, PerformanceReview, RewriteResult, StructuredResume, SummaryResult } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -231,6 +232,14 @@ export async function POST(req: NextRequest) {
   if (validationError) return badRequest(validationError);
 
   const body = rawBody as AiRequest;
+  // B1: filter eval/review identifiers at the ingestion point, before ANY
+  // downstream use — militaryContext(), reviewContext(), and the fallback
+  // miners (extractEvalAdditions/extractReviewAdditions) all read from
+  // `body`, so every consumer works on redacted text. This also covers
+  // legacy text stored on a user's device before the client-side filter
+  // shipped: identifiers never reach the AI prompt from this route.
+  if (body.military?.evalText) body.military.evalText = redactDocumentText(body.military.evalText);
+  if (body.perfReview?.text) body.perfReview.text = redactDocumentText(body.perfReview.text);
   const { task, mode, resume, jobText = "", targetTitle = "", company = "", tone = "professional" } = body;
 
   if (!API_KEY) {
