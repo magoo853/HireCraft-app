@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { hasLinkedInContent } from "@/lib/linkedin-result";
 import { AiResponse, CoverLetterResult, LinkedInResult } from "@/lib/types";
+import { postAi, readJson } from "@/lib/ai-client";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, TargetJobBanner, inputCls } from "./ui";
 import { AiOffNote } from "./consent";
 
@@ -19,6 +20,7 @@ export function CoverLetter() {
   const [error, setError] = useState("");
   const [edited, setEdited] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
   // The letter persists in the store (coverLetterText); `edited` is the
@@ -45,8 +47,11 @@ export function CoverLetter() {
     setFetchMsg("");
     try {
       const res = await fetch(`/api/fetch-job?url=${encodeURIComponent(jobUrl.trim())}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Fetch failed");
+      // Guarded parse (RR-11): a non-JSON error body must not throw a raw
+      // browser exception into the user's message line.
+      const json = (await readJson(res)) as { error?: string; text?: string } | null;
+      if (!res.ok) throw new Error(json?.error || "Fetch failed");
+      if (!json?.text) throw new Error("Fetch failed");
       setJobText(json.text);
       setFetchMsg(`Pulled ${json.text.split(/\s+/).length} words from the posting.`);
     } catch (e) {
@@ -61,12 +66,7 @@ export function CoverLetter() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "cover-letter", mode, resume, jobText, targetTitle, company, tone: t, military }),
-      });
-      const json = (await res.json()) as AiResponse<CoverLetterResult>;
+      const json = await postAi<CoverLetterResult>({ task: "cover-letter", mode, resume, jobText, targetTitle, company, tone: t, military });
       setResult(json);
       editedDirty.current = true;
       setEdited(json.data.text);
@@ -87,10 +87,17 @@ export function CoverLetter() {
   }
 
   function copy() {
+    // RR-25: a denied clipboard permission used to fail silently — the
+    // button now says so and tells the user the manual path.
     navigator.clipboard.writeText(edited).then(() => {
+      setCopyFailed(false);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    }).catch(() => {});
+    }).catch(() => {
+      setCopied(false);
+      setCopyFailed(true);
+      setTimeout(() => setCopyFailed(false), 2500);
+    });
   }
 
   function download() {
@@ -200,7 +207,7 @@ export function CoverLetter() {
               ↻ Regenerate
             </button>
             <button onClick={copy} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-brand text-white min-h-[44px]">
-              {copied ? "✓ Copied" : "Copy letter"}
+              {copyFailed ? "Copy failed — select the text to copy" : copied ? "✓ Copied" : "Copy letter"}
             </button>
             <button onClick={download} className="flex-1 text-center text-[13px] font-bold py-3 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">
               .txt
@@ -224,6 +231,7 @@ export function LinkedIn() {
   const [meta, setMeta] = useState<{ source: "ai" | "fallback"; note?: string } | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
+  const [copyFailed, setCopyFailed] = useState("");
   const [picked, setPicked] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -254,12 +262,7 @@ export function LinkedIn() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "linkedin", mode, resume, jobText, targetTitle, linkedinText, feedback: fb, military }),
-      });
-      const json = (await res.json()) as AiResponse<LinkedInResult>;
+      const json = await postAi<LinkedInResult>({ task: "linkedin", mode, resume, jobText, targetTitle, linkedinText, feedback: fb, military });
       setLinkedinResult(json.data);
       setMeta({ source: json.source, note: json.note });
       setPicked(0);
@@ -287,10 +290,16 @@ export function LinkedIn() {
   }
 
   function copy(text: string, id: string) {
+    // RR-25: surface clipboard failures instead of swallowing them.
     navigator.clipboard.writeText(text).then(() => {
+      setCopyFailed("");
       setCopied(id);
       setTimeout(() => setCopied(""), 1500);
-    }).catch(() => {});
+    }).catch(() => {
+      setCopied("");
+      setCopyFailed(id);
+      setTimeout(() => setCopyFailed(""), 2500);
+    });
   }
 
   function copyAll() {
@@ -383,7 +392,7 @@ export function LinkedIn() {
             <textarea value={about} onChange={(e) => patchResult({ about: e.target.value })} rows={8}
               className="w-full bg-transparent text-[13px] text-slate-700 leading-relaxed resize-y" />
             <button onClick={() => copy(about, "about")}
-              className="text-xs text-linkedin font-bold mt-1 min-h-[44px] inline-flex items-center">{copied === "about" ? "✓ Copied" : "Tap to copy →"}</button>
+              className="text-xs text-linkedin font-bold mt-1 min-h-[44px] inline-flex items-center">{copyFailed === "about" ? "Copy failed — select the text to copy" : copied === "about" ? "✓ Copied" : "Tap to copy →"}</button>
           </div>
 
           {bullets.length > 0 && (
@@ -428,7 +437,7 @@ export function LinkedIn() {
           )}
 
           <Button variant="emerald" onClick={copyAll} className="w-full mt-4 !min-h-[52px]">
-            {copied === "all" ? "✓ Copied" : "Copy all to LinkedIn"}
+            {copyFailed === "all" ? "Copy failed — try the sections above" : copied === "all" ? "✓ Copied" : "Copy all to LinkedIn"}
           </Button>
           <Card className="mt-3">
             <Field label="Not quite right? Say what to change" hint='e.g. "make it punchier", "shorter", "warmer", "more formal"'>
