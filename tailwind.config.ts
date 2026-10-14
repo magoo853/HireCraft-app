@@ -11,6 +11,7 @@ module.exports = {
         navy: "#0B1220",
         pine: "#0B3B2E",
         brand: "#10B981",
+        cta: "#047857",
         mint: "#ECFDF5",
         paper: "#F8FAFC",
         ink: "#0B1220",
