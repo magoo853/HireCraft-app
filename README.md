@@ -15,7 +15,7 @@ AI resume & LinkedIn optimizer for veterans and civilian job seekers. Next.js 14
 - **9 design templates** — Classic, Modern, Minimal, Executive, Bold, Slate, Ocean, Mono, plus a Custom Studio (user picks colors/fonts, formatting stays locked). Inline editing, Print → Save as PDF with template colors preserved
 - **LinkedIn builder** — headline options, About rewrite, polished bullets, skills-gap analysis
 - **Career roadmap** — 2/5/10-year goals + salary targets → recommended titles with estimated salary bands (✓/⚠ vs. your target), stepping-stone roles, skill gaps; visual timeline
-- **Discover** — 18-question RIASEC work-style quiz → Holland Code + job matches with fit scores, "why this fits", have-vs-missing skills per role. Also **job alerts**: save a title/company/location + minimum match, and matching postings (Remotive, Himalayas, Arbeitnow; USAJobs when its keys are configured) are scored against the resume with why-you-match breakdowns. Alerts are in-app only in v1 — no push notifications yet.
+- **Discover** — 18-question RIASEC work-style quiz → Holland Code + job matches with fit scores, "why this fits", have-vs-missing skills per role. Also **job alerts**: save a title/company/location + minimum match, and matching postings (Adzuna, Remotive, Himalayas, Arbeitnow; USAJobs when its keys are configured) are scored against the resume with why-you-match breakdowns. Alerts are in-app only in v1 — no push notifications yet.
 
 ## Pricing
 
@@ -30,20 +30,20 @@ AI resume & LinkedIn optimizer for veterans and civilian job seekers. Next.js 14
 
 The 6-month free military tier is planned as a **post-launch update**. It is **not** live in v1:
 
-- SheerID / ID.me verification is **not configured** in the production build, and there is no working verification flow for users today. The paywall says so in plain language ("Instant verification isn't configured in this build").
+- SheerID / ID.me verification is **not configured** in the production build, and there is no working verification flow for users today. The paywall says so in plain language ("Coming in a post-launch update").
 - Stub code exists in the repo (`lib/verification.ts`, routes under `app/api/verify/`) as scaffolding for that future update. Its env vars are listed in `.env.example` under a clearly marked post-launch section — **do not set them for v1**; setting them does not create a supported flow.
 - When the update ships, verification will be handled by SheerID or ID.me; ResumeRoadmap will receive only a yes/no result, never military records.
 
 ## AI layer
 
-`POST /api/ai` handles `rewrite`, `cover-letter`, `linkedin`, `roadmap`, `discover` tasks.
+`POST /api/ai` handles `summary`, `rewrite`, `cover-letter`, `linkedin`, `roadmap`, `discover` tasks.
 
 - **Provider: Google Gemini**, called server-side through Gemini's OpenAI-compatible endpoint (`https://generativelanguage.googleapis.com/v1beta/openai`).
 - **The API key is the operator's, set server-side as `AI_API_KEY`.** Users never supply their own key, and the key is never shipped to the client.
 - **Models:** default `gemini-3.8-flash`, with a built-in fallback chain (`gemini-3.6-flash`, then `gemini-3.5-flash-lite`) and per-model retries on transient errors. (`gemini-2.0-flash` was retired by Google and is no longer used.)
 - Optional overrides: `AI_API_BASE` / `AI_MODEL` point the same code at any other OpenAI-compatible provider/model.
 - If no key is set or the provider is unavailable, a deterministic rules/template engine in `lib/fallback.ts` answers instead (scoring, keyword extraction, template rewrites, cover-letter scaffolds, LinkedIn content), and the response says so. **No button is ever dead.**
-- **Consent:** on first launch the app discloses that resume text (and, in Veteran mode, job codes + performance-review text) is sent to Google Gemini when AI features are used, and nothing is sent until the user agrees. Consent can be withdrawn in Settings. `GET /api/ai-health` reports live AI status.
+- **Consent:** on first launch the app discloses that resume text is sent to Google Gemini when AI features are used — plus, if the user has added a performance review, its text (in any mode), and in Veteran mode their job codes — and nothing is sent until the user agrees. Consent can be withdrawn in Settings. `GET /api/ai-health` reports live AI status.
 - **Email:** the app sends no email and uses no email provider (no Resend or similar) anywhere in the codebase.
 
 ## Run it (quickstart)
@@ -58,9 +58,10 @@ Copy `.env.example` to `.env.local`. Set `AI_API_KEY` (the operator's Google AI 
 
 ## Verify
 
-There is no automated test script yet. The pre-deploy gate is:
+The parser has an automated regression suite (`tests/parser-regression/run.mjs`). The pre-deploy gate is:
 
 ```bash
+node tests/parser-regression/run.mjs   # parser regression suite
 npm run build    # must pass clean
 npm run lint
 ```
@@ -86,7 +87,7 @@ plus a manual pass over the main flows (upload → score → rewrite → design 
 app/            # routes: resume, score, rewrite, design, cover, linkedin,
                 # roadmap, discover, paywall, settings, privacy, support
 app/api/ai/     # AI proxy (Gemini) + fallback router
-app/api/jobs/   # job-alert feed (Remotive / Himalayas / Arbeitnow / USAJobs)
+app/api/jobs/   # job-alert feed (Adzuna / Remotive / Himalayas / Arbeitnow / USAJobs)
 app/api/extract/  # server-side .doc text extraction
 app/api/verify/ # post-launch military-verification stubs (inactive in v1)
 components/     # shared UI, consent gate, banners

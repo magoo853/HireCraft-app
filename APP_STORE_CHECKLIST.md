@@ -10,11 +10,10 @@ Items marked **[JAMES]** need James directly. Everything else is buildable by th
 - [x] Vercel project `hirecraft-app` (separate for-profit team), production: https://hirecraft-app-steel.vercel.app
 - [x] Privacy policy live at `/privacy`
 - [x] Capacitor config (`com.hirecraft.app`) + icon/splash assets
-- [ ] **[JAMES]** Apple Developer Program enrollment ($99/yr) — <https://developer.apple.com/programs/enroll/>
+- [x] **[JAMES]** Apple Developer Program enrollment ($99/yr) — submitted 2026-10-12; **approval unverified** (RR-03 — confirm status in the portal: https://developer.apple.com/programs/enroll/)
 - [ ] **[JAMES]** SheerID account + API key (military verification — post-launch update, NOT needed for v1)
 - [ ] **[JAMES]** ID.me developer app registration (military verification — post-launch update, NOT needed for v1)
 - [x] AI API key (`AI_API_KEY`) live in Vercel; all AI tasks production-verified 2026-10-12
-- [x] **[JAMES]** Apple Developer enrollment submitted 2026-10-12 (approval pending)
 - [x] AI data-sharing consent gate shipped (Guideline 5.1.2)
 - [x] Mac build runbook + paste-ready listing pack written (`MAC_BUILD_RUNBOOK.md`, `APP_STORE_LISTING.md`)
 
@@ -27,11 +26,12 @@ Items marked **[JAMES]** need James directly. Everything else is buildable by th
 
 ## 2. Native shell (needs a Mac — one-time)
 
-Capacitor wraps the hosted web app; the Xcode project must be generated on macOS:
+Capacitor wraps the hosted web app; the Xcode project lives in `ios/`
+(already generated and committed — do NOT run `npx cap add ios`). On the
+Mac you only install dependencies and sync:
 
 ```bash
 npm install
-npx cap add ios        # generates ios/ (commit it)
 npx cap sync ios       # copies www/ + config into the native project
 ```
 
@@ -65,8 +65,8 @@ npx cap sync ios       # copies www/ + config into the native project
 - **Bundle ID:** `com.hirecraft.app` — register in Identifiers, enable In-App Purchase capability
 - **Category:** Business (primary), Productivity (secondary)
 - **Age rating:** 4+ (no objectionable content; questionnaire will confirm)
-- **Privacy policy URL:** `https://<production-url>/privacy`
-- **Support URL:** repo or landing page URL
+- **Privacy policy URL:** `https://hirecraft-app-steel.vercel.app/privacy`
+- **Support URL:** `https://hirecraft-app-steel.vercel.app/support`
 - **Keywords:** resume builder,ats checker,resume score,cover letter,linkedin,veteran jobs,job search,career (100 chars max, comma-separated, no spaces — string identical to the listing pack)
 - **Description:** lead with the veteran wedge + free scan; mention $25/yr, free tier, the launch 2-week trial, and the military 6-month offer **in future tense only** ("coming in a free update" — it is NOT in v1; do not promise it at launch)
 
@@ -85,7 +85,7 @@ npx cap sync ios       # copies www/ + config into the native project
   (8 total — identical to `APP_STORE_LISTING.md` § Screenshots; the
   paywall shot belongs to the subscription's review materials, §5)
 
-## 5. In-App Purchase (StoreKit 2) — after TestFlight, before submission
+## 5. In-App Purchase (StoreKit via cordova-plugin-purchase) — after TestFlight, before submission
 
 - Create subscription group "ResumeRoadmap Pro" in App Store Connect
 - Product: `hirecraft_pro_yearly` — $25.00/yr, auto-renewable
@@ -106,8 +106,9 @@ npx cap sync ios       # copies www/ + config into the native project
 2. Add James + internal testers (up to 100, no review needed)
 3. External beta (up to 10,000): requires **Beta App Review** — include
    the same review notes as step 5, plus a demo account if login exists
-4. Test the full loop: free scan → paywall → sandbox purchase → military
-   trial claim → cancel
+4. Test the full loop: free scan → paywall → sandbox purchase → cancel;
+   confirm the military card shows "coming in a post-launch update"
+   (there is no military trial claim flow in v1)
 
 ## 7. App Review landmines (handled or flagged)
 

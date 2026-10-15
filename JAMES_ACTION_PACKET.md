@@ -1,5 +1,7 @@
 # ResumeRoadmap — James Action Packet
 
+> ⚠️ **SUPERSEDED (2026-10-15)** — this packet is stale: it omits the domain + attorney gate (RR-04), the Adzuna keys (RR-08), and the Vercel toggles check (RR-23). For the current action list, use `~/workspace/your_files/hirecraft/james-must-do-2026-10-14.md`. Kept for reference only — do not work from this file.
+
 Account-owner actions only. Work top to bottom; items 1–3 harden the live service, item 4 is post-launch, item 5 is the remaining native-launch step.
 
 ## 1. Google AI Studio / Gemini — billing & paid tier
