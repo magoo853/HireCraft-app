@@ -102,3 +102,7 @@ paid surfaces; after purchase they open).
 | Findings register, improvement log, verification lane | Jarvis | (Jarvis workspace — register + log) | standing |
 | RR-26 + RR-29 implementation (native Pro gate + copy alignment) | Jarvis | lib/pro-gate.ts, components/pro-gate.tsx, app/{rewrite,roadmap,cover,linkedin,discover,design,paywall,support}, APP_STORE_LISTING.md, README.md, COORDINATION.md | 2026-10-15 — **completed, released** (commit `d57a33a6…` + docs commit; production-verified) |
 | — none claimed — | Perplexity | — | — |
+
+## Build behavior
+
+Vercel builds are gated by `ignoreCommand` in `vercel.json`, which runs `scripts/vercel-ignore.sh`: a deployment is **skipped** only when every file it changes is documentation (any `*.md` file, or anything under `docs/`). Any code, config, asset, or lockfile change — and any diff the script cannot determine — **builds** (fail-safe). Verified 2026-10-15 by production build IDs: the config commit built, this docs-only note's commit was skipped, and a following code commit built again. The script is plain POSIX sh and unit-tested against synthetic git ranges; editing it counts as a code change and triggers a build.
