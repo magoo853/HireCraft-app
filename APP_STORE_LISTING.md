@@ -24,6 +24,8 @@ you points, and fixes it with you.
 FREE TO START
 • ATS score with tap-to-open findings — not just a number, the actual
   deficiencies and how to fix them
+• ATS simulator — see your resume the way the robot reads it
+• Keyword match preview against a target job posting
 • Resume builder and file upload (PDF, Word — even old .doc files)
 • 9 design templates with live previews of YOUR resume
 
@@ -34,6 +36,7 @@ RESUMEROADMAP PRO — $25/YEAR (one tier, everything included)
 • Career roadmaps with 2/5/10-year checkpoints and salary targets
 • Job alerts: watch a role — or a specific company — and get new postings
   scored against your resume, with the gaps spelled out
+• PDF & DOCX export of your finished resume
 
 BUILT FOR VETERANS
 • MOS / AFSC / rating translation: enter your job codes and ResumeRoadmap speaks
@@ -84,8 +87,10 @@ notes if asked).
   (SheerID/ID.me) — can ship in the first update if verification isn't live
   at launch; do not hold the release for it.
 - Review screenshot + notes for the subscription: explain Pro unlocks AI
-  rewrites/cover letters/LinkedIn/roadmap depth; free tier includes the ATS
-  score and templates.
+  rewrites/tailoring/cover letters/LinkedIn/roadmap depth, job alerts,
+  and PDF & DOCX export; free tier includes the ATS score + breakdown,
+  ATS simulator, keyword match preview, resume builder, and all 9
+  templates with live previews.
 
 ## Review notes (paste into App Review Information)
 
@@ -100,7 +105,8 @@ top right).
 To evaluate Pro features without purchasing: the web build at the support
 URL runs with all features unlocked for demonstration. In the iOS build,
 Pro is an auto-renewable subscription ($25/yr, 2-week introductory free
-trial) via StoreKit.
+trial) via StoreKit, and the Pro features are genuinely gated behind
+it — a free user who opens one sees a prompt to the subscription page.
 
 Veteran mode (Settings → Mode) enables military job-code translation and
 performance-review mining; the six-month military trial will be delivered

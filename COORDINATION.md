@@ -2,7 +2,7 @@
 
 **Product:** ResumeRoadmap (repo: `magoo853/HireCraft-app`)
 **Production:** https://hirecraft-app-steel.vercel.app
-**Last updated:** 2026-10-15 by Jarvis
+**Last updated:** 2026-10-15 by Jarvis (RR-26/29 landed — see claims)
 
 This file is the repo-visible source of truth for two AI builders working the
 same codebase. Read it at the start of every session. Update it at the end.
@@ -70,14 +70,14 @@ commit. A session that doesn't update this file didn't happen.
 
 ## Current state — 2026-10-15
 
-**Findings register: 29 of 39 closed (Critical 1/2 · High 0/3 · Medium 6/9 ·
+**Findings register: 31 of 39 closed (Critical 1/2 · High 1/3 · Medium 7/9 ·
 Low 22/25).** FEATURE FREEZE in force: the register is the only queue.
 Features reopen only at zero Critical/High + one clean re-audit pass.
 
 | Item | Sev | What | Owner / status |
 |---|---|---|---|
-| RR-26 | High | Native builds don't gate "Paid" features behind Pro status while listing copy describes a free/Pro split (Guideline 3.1.1 exposure). Submission gate. | **HELD — James's fix-shape decision. Do not implement unilaterally.** |
-| RR-29 | Med | Template entitlement wording (free vs paid) inconsistent across listing/FAQ/paywall. | Blocked on RR-26 decision. |
+| RR-26 | High | Native builds didn't gate "Paid" features behind Pro status (Guideline 3.1.1 exposure). | **CLOSED 2026-10-15** — James chose option A; gate shipped (commit `d57a33a6…`, production-verified on web; native-side proof completes at the Mac session sandbox test). |
+| RR-29 | Med | Template entitlement wording inconsistent across listing/FAQ/paywall. | **CLOSED 2026-10-15** — one story everywhere: templates free; Pro = rewrites, tailoring, cover letters, LinkedIn, roadmaps, job alerts, PDF & DOCX export. |
 | RR-02 | Crit | Gemini paid tier unverified (free tier lets Google train on submissions). | James verifies in Google console. |
 | RR-03 | High | Apple Developer enrollment + Paid Apps Agreement status unverified. | James verifies in Apple portals. |
 | RR-04 | High | Domain `resumeroadmap.app` unregistered; attorney clearance of the name pending. | James / external. |
@@ -91,11 +91,14 @@ Features reopen only at zero Critical/High + one clean re-audit pass.
 `npm install` (also lands RR-19) → `npx cap sync ios` → install iOS assets →
 Xcode: enable In-App Purchase capability → create `hirecraft_pro_yearly` +
 launch intro offer in App Store Connect → archive → upload → sandbox
-purchase test (meaningful only after RR-26 ships).
+purchase test (RR-26 gating shipped 2026-10-15 — the sandbox test now
+also proves the gate: a free sandbox account sees Pro prompts on the
+paid surfaces; after purchase they open).
 
 ## Claims
 
 | Item / area | Builder | Files | Since |
 |---|---|---|---|
 | Findings register, improvement log, verification lane | Jarvis | (Jarvis workspace — register + log) | standing |
+| RR-26 + RR-29 implementation (native Pro gate + copy alignment) | Jarvis | lib/pro-gate.ts, components/pro-gate.tsx, app/{rewrite,roadmap,cover,linkedin,discover,design,paywall,support}, APP_STORE_LISTING.md, README.md, COORDINATION.md | 2026-10-15 — **completed, released** (commit `d57a33a6…` + docs commit; production-verified) |
 | — none claimed — | Perplexity | — | — |

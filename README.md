@@ -19,8 +19,8 @@ AI resume & LinkedIn optimizer for veterans and civilian job seekers. Next.js 14
 
 ## Pricing
 
-- **Free** — ATS score + breakdown, ATS simulator, keyword match preview. Free forever.
-- **Pro — $25/year** — everything: unlimited bullet rewrites, job tailoring, cover letters, LinkedIn builder, all templates + PDF export, career roadmap, full Discover matches.
+- **Free** — ATS score + breakdown, ATS simulator, keyword match preview, resume builder + file upload, all 9 design templates with live previews. Free forever.
+- **Pro — $25/year** — unlimited bullet rewrites, job tailoring, cover letters, LinkedIn builder, career roadmaps, job alerts, PDF & DOCX export. On the iOS build these are genuinely gated behind the subscription (RR-26); the web build runs unlocked as the demo.
 - **Launch trial — 2 weeks free** — new users get Pro free for 14 days. In the App Store build this ships as the subscription's introductory offer; the web paywall's promo banner is driven by `NEXT_PUBLIC_LAUNCH_DATE` (logic in `lib/promo.ts`).
 - **Military — 6 months free (post-launch update, not in v1)** — see the next section. It is not claimable in the current build.
 
