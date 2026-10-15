@@ -1,6 +1,10 @@
 /**
  * RR-26 — Pro gate decision (native only).
  *
+ * Build behavior: this file is application code, so any commit touching it
+ * triggers a full Vercel build under the docs-skip ignore rule
+ * (vercel.json -> scripts/vercel-ignore.sh; see COORDINATION.md).
+ *
  * The store listing sells a free tier (ATS score + breakdown, ATS
  * simulator, keyword match preview, resume builder + file upload, all 9
  * design templates with live previews) and ResumeRoadmap Pro ($25/yr:
