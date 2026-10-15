@@ -11,6 +11,7 @@ import { AiResponse, RewriteResult, ScoreResult, StructuredResume } from "@/lib/
 import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJobBanner, inputCls } from "@/components/ui";
 import { SaveVersionForm } from "@/components/versions";
 import { AiOffNote } from "@/components/consent";
+import { ProPrompt, useProGate } from "@/components/pro-gate";
 import { ScoreJumpCard } from "@/components/score-card";
 import { scoreJobBasis } from "@/lib/score-history";
 
@@ -34,6 +35,9 @@ function ImproveInner() {
     () => (jobText && hasResume ? extractKeywords(jobText, resume.rawText, 14) : []),
     [jobText, resume, hasResume]
   );
+  // RR-26: rewrites + job tailoring are Pro features in the app (native
+  // gate; web stays unlocked). The prompt replaces the whole surface.
+  const gate = useProGate();
 
   async function runRewrite() {
     if (!aiConsent) return; // AI off — no request fires; the CTA shows AiOffNote instead
@@ -211,6 +215,10 @@ function ImproveInner() {
       </div>
     </div>
   );
+
+  if (gate !== "open") {
+    return <ProPrompt feature="Rewrites & job tailoring" state={gate} />;
+  }
 
   if (!hasResume) {
     return <EmptyState title="No resume yet" body="Add your resume to get bullet-by-bullet rewrites with the reasoning behind each one." cta="Add my resume" href="/resume" />;

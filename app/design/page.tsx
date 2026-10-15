@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import {
   TEMPLATES, EdFn, DesignOptions, DEFAULT_DESIGN_OPTIONS,
@@ -9,6 +10,7 @@ import {
 import { applyTextEditToResume } from "@/lib/resume-sync";
 import { StructuredResume } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle } from "@/components/ui";
+import { ProPrompt, useProGate } from "@/components/pro-gate";
 import { SaveVersionForm } from "@/components/versions";
 
 const LS_DESIGN_OPTS = "hirecraft-design-opts";
@@ -34,6 +36,11 @@ function LiveThumb({ id, resume, designOpts }: { id: string; resume: StructuredR
 
 export default function DesignPage() {
   const { resume, setResume, hasResume, setDesignChosen, setExported, templateId, setTemplateId, designDensity: density, setDesignDensity: setDensity } = useApp();
+  // RR-26: templates + live previews are FREE (listing/FAQ); the paid
+  // element is PDF & DOCX export, gated in the app only (native; web
+  // stays unlocked). Both export handlers route to /paywall when gated.
+  const gate = useProGate();
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pages, setPages] = useState(1);
   const [docxBusy, setDocxBusy] = useState(false);
@@ -112,6 +119,7 @@ export default function DesignPage() {
   };
 
   async function downloadDocx() {
+    if (gate !== "open") { router.push("/paywall"); return; }
     if (docxBusy) return;
     setDocxBusy(true);
     setDocxError("");
@@ -144,6 +152,7 @@ export default function DesignPage() {
   }
 
   function printExport() {
+    if (gate !== "open") { router.push("/paywall"); return; }
     setExported(true);
     window.print();
   }
@@ -298,23 +307,31 @@ export default function DesignPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 mt-4 print:hidden">
-        <Button variant="emerald" onClick={printExport} className="flex-1 !min-h-[52px]">
-          Export PDF
-        </Button>
-        <Button variant="secondary" onClick={downloadDocx} disabled={docxBusy} className="flex-1 !min-h-[52px]">
-          {docxBusy ? "Preparing…" : "📄 Download .docx"}
-        </Button>
-      </div>
-      {docxError && (
-        <p role="alert" className="text-sm text-red-700 font-medium mt-2 print:hidden">{docxError}</p>
-      )}
+      {gate === "open" ? (
+        <>
+          <div className="flex gap-2 mt-4 print:hidden">
+            <Button variant="emerald" onClick={printExport} className="flex-1 !min-h-[52px]">
+              Export PDF
+            </Button>
+            <Button variant="secondary" onClick={downloadDocx} disabled={docxBusy} className="flex-1 !min-h-[52px]">
+              {docxBusy ? "Preparing…" : "📄 Download .docx"}
+            </Button>
+          </div>
+          {docxError && (
+            <p role="alert" className="text-sm text-red-700 font-medium mt-2 print:hidden">{docxError}</p>
+          )}
 
-      <Card className="mt-3 print:hidden">
-        <p className="text-xs text-muted leading-relaxed">
-          <b className="text-ink">PDF tip:</b> tap Export PDF, then choose "Save as PDF" as the destination. Templates use solid colors and standard fonts so they print cleanly from any device.
-        </p>
-      </Card>
+          <Card className="mt-3 print:hidden">
+            <p className="text-xs text-muted leading-relaxed">
+              <b className="text-ink">PDF tip:</b> tap Export PDF, then choose "Save as PDF" as the destination. Templates use solid colors and standard fonts so they print cleanly from any device.
+            </p>
+          </Card>
+        </>
+      ) : (
+        <div className="mt-4 print:hidden">
+          <ProPrompt feature="PDF & DOCX export" state={gate} />
+        </div>
+      )}
 
       <SaveVersionForm className="mt-3" />
     </div>

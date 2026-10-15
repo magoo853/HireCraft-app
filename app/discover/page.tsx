@@ -16,6 +16,7 @@ import { postAi, readJson } from "@/lib/ai-client";
 import { JobPosting, ScoredPosting, checkedAgoLabel, dedupeScoredPostings, scorePosting } from "@/lib/jobs";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, inputCls } from "@/components/ui";
 import { AiOffNote } from "@/components/consent";
+import { ProPrompt, useProGate } from "@/components/pro-gate";
 
 interface DiscoverResult {
   scores: RiasecScores;
@@ -239,7 +240,7 @@ export default function DiscoverPage() {
         </>
       )}
 
-      <JobAlertsSection seedRole={seedRole} />
+      <JobAlertsGate seedRole={seedRole} />
     </div>
   );
 }
@@ -249,11 +250,19 @@ function MatchList({ matches, selected, onSelect, offset, location, veteran }: {
   location: string; veteran: boolean;
 }) {
   const { alerts, setAlerts, setTargetTitle } = useApp();
+  const router = useRouter();
+  const gate = useProGate();
   const [msgs, setMsgs] = useState<Record<number, string>>({});
 
   // Wave 4: a match can become a job alert (the existing alerts
   // machinery below) or the app's target title.
   function watchJobs(m: JobMatch, idx: number) {
+    // RR-26: job alerts are a Pro feature in the app (native gate; web
+    // stays unlocked) — creating a watch routes to the paywall there.
+    if (gate !== "open") {
+      router.push("/paywall");
+      return;
+    }
     const title = m.role.title;
     if (alerts.some((a) => a.role.toLowerCase() === title.toLowerCase())) {
       setMsgs((s) => ({ ...s, [idx]: `Already watching “${title}” — see Job alerts below.` }));
@@ -344,6 +353,16 @@ function MatchList({ matches, selected, onSelect, offset, location, veteran }: {
 /* ------------------------------------------------------------------ */
 /* Job alerts — saved role/company watches with resume match scores    */
 /* ------------------------------------------------------------------ */
+
+/* RR-26: job alerts are a Pro feature in the app. This wrapper keeps
+ * JobAlertsSection (and its mount-time alert check) entirely unmounted
+ * for a gated native user — the prompt renders instead. Web is always
+ * open (unlocked demo), so the section mounts there unchanged. */
+function JobAlertsGate({ seedRole = "" }: { seedRole?: string }) {
+  const gate = useProGate();
+  if (gate !== "open") return <ProPrompt feature="Job alerts" state={gate} />;
+  return <JobAlertsSection seedRole={seedRole} />;
+}
 
 function JobAlertsSection({ seedRole = "" }: { seedRole?: string }) {
   const { resume, alerts, setAlerts, seenJobIds, setSeenJobIds, setNewJobCount, setJobText, setTargetTitle, setCompany } = useApp();

@@ -10,14 +10,26 @@ import {
   currentProductInfo, isNativeShell, purchasePro, refreshProStatus, restorePro, type ProProductInfo,
 } from "@/lib/purchases";
 
-const FREE_FEATURES = ["Full ATS score + breakdown", "ATS simulator (see what the robot reads)", "Keyword match preview"];
+const FREE_FEATURES = [
+  "Full ATS score + breakdown",
+  "ATS simulator (see what the robot reads)",
+  "Keyword match preview",
+  "Resume builder + file upload",
+  "All 9 design templates with live previews",
+];
+// RR-29: this list, the store listing, and the support FAQ tell the
+// same story — templates are FREE; the paid export element is PDF &
+// DOCX export. In the app these Pro features are gated behind the
+// subscription (RR-26); the web build runs unlocked as the demo.
 const PAID_FEATURES = [
   "Everything in Free",
   "Unlimited bullet rewrites",
   "Job posting tailoring",
   "Cover letter generator (3 tones)",
   "LinkedIn profile builder",
-  "All 9 design templates + PDF & DOCX export",
+  "Career roadmaps (2/5/10-year checkpoints)",
+  "Job alerts — new postings scored against your resume",
+  "PDF & DOCX export",
 ];
 
 interface ProviderStatus {

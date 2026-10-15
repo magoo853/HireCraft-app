@@ -15,6 +15,7 @@ import { AiResponse } from "@/lib/types";
 import { postAi } from "@/lib/ai-client";
 import { Button, Card, EmptyState, Field, SectionTitle, SourceNote, Pill, inputCls } from "@/components/ui";
 import { AiOffNote } from "@/components/consent";
+import { ProPrompt, useProGate } from "@/components/pro-gate";
 
 const LS_KEY = "hirecraft-roadmap-goals-v2";
 const LS_OLD = "hirecraft-roadmap-goals";
@@ -39,6 +40,9 @@ function parseYears(s: string): number {
 
 export default function RoadmapPage() {
   const { resume, mode, hasResume, military, aiConsent, targetTitle } = useApp();
+  // RR-26: career roadmaps are a Pro feature in the app (native gate;
+  // web stays unlocked). The prompt replaces the whole surface.
+  const gate = useProGate();
   const [goals, setGoals] = useState<RoadmapGoal[]>(defaultGoals());
   const [loading, setLoading] = useState(false);
   const [nodes, setNodes] = useState<AiResponse<RoadmapNode[]> | null>(null);
@@ -131,6 +135,10 @@ export default function RoadmapPage() {
     setCustomIdeas(null);
     setEditingIdeas(false);
   };
+
+  if (gate !== "open") {
+    return <ProPrompt feature="Career roadmaps" state={gate} />;
+  }
 
   if (!hasResume) {
     return (

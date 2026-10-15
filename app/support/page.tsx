@@ -12,7 +12,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "How does the free trial and Pro work?",
-    a: "The ATS score, resume builder, and design templates are free. ResumeRoadmap Pro ($25/year) unlocks the AI features. New users get a two-week free trial of Pro. Veterans and service members get six months of Pro free once military verification (SheerID / ID.me) is enabled in the app — it's rolling out as an update. The two-week trial is a launch offer: it activates at launch, during the launch window.",
+    a: "The ATS score + breakdown, the ATS simulator, keyword match preview, the resume builder, and all 9 design templates are free. ResumeRoadmap Pro ($25/year) unlocks unlimited rewrites, job tailoring, the cover letter generator, the LinkedIn builder, career roadmaps, job alerts, and PDF & DOCX export. New users get a two-week free trial of Pro. Veterans and service members get six months of Pro free once military verification (SheerID / ID.me) is enabled in the app — it's rolling out as an update. The two-week trial is a launch offer: it activates at launch, during the launch window.",
   },
   {
     q: "I bought Pro — how do I restore it?",
