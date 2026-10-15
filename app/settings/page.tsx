@@ -84,7 +84,7 @@ export default function SettingsPage() {
         <Link href="/support"><Button variant="secondary" className="w-full">Open support &amp; FAQ</Button></Link>
       </Card>
 
-      <p className="text-center text-xs text-muted">ResumeRoadmap v0.1.0 · working title</p>
+      <p className="text-center text-xs text-muted">ResumeRoadmap v0.1.0</p>
     </div>
   );
 }

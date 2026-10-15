@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
+import { readJson } from "@/lib/ai-client";
 import { deriveSkills, structuredToText, textToStructured } from "@/lib/parse";
 import { mosTranslations } from "@/lib/mos";
 import { redactDocumentText } from "@/lib/redact";
@@ -127,17 +128,25 @@ export default function ResumePage() {
     if (!jobUrl.trim()) { setFetchMsg("Paste a job posting URL first."); return; }
     setFetching(true);
     setFetchMsg("");
+    let res: Response;
     try {
-      const res = await fetch(`/api/fetch-job?url=${encodeURIComponent(jobUrl.trim())}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Fetch failed");
+      res = await fetch(`/api/fetch-job?url=${encodeURIComponent(jobUrl.trim())}`);
+    } catch (e) {
+      console.error("Job fetch failed to send:", e);
+      setFetchMsg("Couldn't reach that page. Check the link and your connection, or paste the text manually below.");
+      setFetching(false);
+      return;
+    }
+    // Guarded parse (RR-30): a non-JSON error body must not throw a raw
+    // browser exception into the user's message line.
+    const json = (await readJson(res)) as { error?: string; text?: string } | null;
+    if (!res.ok || !json?.text) {
+      setFetchMsg(json?.error || "Fetch failed — paste the text manually below.");
+    } else {
       setJobText(json.text);
       setFetchMsg(`Pulled ${json.text.split(/\s+/).length} words from the posting.`);
-    } catch (e) {
-      setFetchMsg(e instanceof Error ? e.message : "Fetch failed — paste the text manually below.");
-    } finally {
-      setFetching(false);
     }
+    setFetching(false);
   }
 
   return (

@@ -4,7 +4,7 @@ import { Card, SectionTitle } from "@/components/ui";
 const FAQS: { q: string; a: string }[] = [
   {
     q: "What does the AI see?",
-    a: "Only what you send it, and only with your consent. When you run an AI feature (rewrites, cover letters, LinkedIn, roadmaps, matching), your resume text goes to our AI provider to generate the result. In Veteran mode your job codes and performance-review text go too. Scoring, design templates, and job alerts never send your resume anywhere — alerts send only your search terms (role, company, location) to public job boards.",
+    a: "Only what you send it, and only with your consent. When you run an AI feature (rewrites, cover letters, LinkedIn, roadmaps, matching), your resume text goes to our AI provider to generate the result. If you've added a performance review, its text is sent too — in any mode. In Veteran mode, your job codes are sent as well. Scoring, design templates, and job alerts never send your resume anywhere — alerts send only your search terms (role, company, location) to public job boards.",
   },
   {
     q: "Where is my resume stored?",
