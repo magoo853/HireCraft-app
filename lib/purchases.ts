@@ -148,6 +148,7 @@ function bridge(): CdvPurchaseGlobal | null {
 /* ------------------------------------------------------------------ */
 
 let initStarted = false;
+let initCompleted = false;
 let statusListener: ((s: ProStatus) => void) | null = null;
 
 function publishStatus(cdv: CdvPurchaseGlobal, initialized: boolean) {
@@ -196,12 +197,36 @@ export async function initPurchases(onStatus: (s: ProStatus) => void): Promise<v
     cdv.store.when().receiptUpdated(() => publishStatus(cdv, true));
     cdv.store.when().productUpdated(() => publishStatus(cdv, true));
     await cdv.store.initialize([cdv.Platform.APPLE_APPSTORE]);
+    initCompleted = true;
     publishStatus(cdv, true);
   } catch {
     // Initialization failed (e.g. product not yet created in App Store
     // Connect): stay "unknown" so the paywall shows its retry state.
     onStatus("unknown");
   }
+}
+
+/**
+ * Re-check entitlement — the paywall's retry for the "unknown" state
+ * (RR-27). If initialization never completed (the first-native-build
+ * case: product missing in App Store Connect, store unreachable), run
+ * it again from scratch; otherwise ask the store to refresh and
+ * republish through the registered listener. No-op on web.
+ */
+export async function refreshProStatus(): Promise<void> {
+  const cdv = bridge();
+  if (!cdv || !statusListener) return;
+  if (!initCompleted) {
+    initStarted = false;
+    await initPurchases(statusListener);
+    return;
+  }
+  try {
+    await cdv.store.update();
+  } catch {
+    // Keep the last published state; the publish below re-derives it.
+  }
+  publishStatus(cdv, true);
 }
 
 /** The store product's display info, once loaded; null before that. */

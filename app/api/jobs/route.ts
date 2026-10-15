@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { JobPosting } from "@/lib/jobs";
 import { normalizeLocation } from "@/lib/jobs";
 import { fetchAdzuna } from "@/lib/adzuna";
+import { JOBS_RATE_LIMIT, checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 
 /**
  * Job-posting search for alerts. Fans out to free, no-key job APIs
@@ -118,6 +119,23 @@ async function fromUsaJobs(q: string, location: string): Promise<JobPosting[]> {
 }
 
 export async function GET(req: NextRequest) {
+  // RR-32: per-IP throttle in the /api/ai idiom — 60 requests / 10
+  // minutes / IP (JOBS_RATE_LIMIT). Each call fans out to up to five
+  // job sources, so the check runs before any of that work; over-limit
+  // is a 429 in this route's JSON shape. (CDN s-maxage caching still
+  // absorbs most repeat traffic before it reaches here.)
+  const throttle = checkRateLimit(
+    `jobs:${clientIpFromHeaders((n) => req.headers.get(n))}`,
+    JOBS_RATE_LIMIT.limit,
+    JOBS_RATE_LIMIT.windowMs
+  );
+  if (!throttle.allowed) {
+    return NextResponse.json(
+      { error: "You've run a lot of job searches in a short stretch — please wait a few minutes and try again." },
+      { status: 429, headers: { "Retry-After": String(throttle.retryAfterSeconds) } }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const role = (searchParams.get("role") || "").slice(0, 80).trim();
   const company = (searchParams.get("company") || "").slice(0, 80).trim();

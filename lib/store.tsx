@@ -143,7 +143,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // RR-20: every user-facing mode change is a persona pick (Home picker,
   // Settings picker, sample loader). Hydration below uses setModeState
   // directly so restoring a saved session can't fabricate a pick.
-  const setMode = (m: Mode) => { setModeState(m); setModePicked(true); };
+  // RR-33: picking a NON-veteran persona also clears the military
+  // record. The disclosures scope that record to Veteran mode; before
+  // this, a record entered as a veteran kept flowing to the AI after
+  // switching personas. The veteran sample is safe: its loader calls
+  // setMode("veteran") — no clear — and sets the record after the pick.
+  const setMode = (m: Mode) => {
+    setModeState(m);
+    setModePicked(true);
+    if (m !== "veteran") setMilitary(emptyMilitary());
+  };
   const [targetTitle, setTargetTitle] = useState("");
   const [company, setCompany] = useState("");
   const [resume, setResume] = useState<StructuredResume>(emptyResume());

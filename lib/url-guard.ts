@@ -37,6 +37,17 @@ function isPrivateIpv6(host: string): boolean {
     const nums = parseIpv4(v4);
     if (nums && isPrivateIpv4(nums)) return true;
   }
+  // Hex form of the IPv4-mapped address: URL parsers normalize
+  // [::ffff:127.0.0.1] to ::ffff:7f00:1, which the dotted check above
+  // never sees. Decode the two trailing hex groups back into octets
+  // and apply the same IPv4 ranges (RR-31).
+  const mapped = h.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/) ?? h.match(/^::ffff:([0-9a-f]{1,4})$/);
+  if (mapped) {
+    const hi = parseInt(mapped[1], 16);
+    const lo = mapped[2] !== undefined ? parseInt(mapped[2], 16) : 0;
+    const nums = [(hi >> 8) & 0xff, hi & 0xff, (lo >> 8) & 0xff, lo & 0xff];
+    if (isPrivateIpv4(nums)) return true;
+  }
   return false;
 }
 
@@ -44,6 +55,11 @@ function isPrivateIpv6(host: string): boolean {
 export function isBlockedHost(rawHostname: string): boolean {
   let host = rawHostname.trim().toLowerCase();
   if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
+  // RR-31: strip ONE trailing dot before any check — "localhost." and
+  // "127.0.0.1." are the same hosts with a root dot, and resolvers
+  // treat them identically; without this they slipped past every
+  // comparison below.
+  if (host.endsWith(".")) host = host.slice(0, -1);
   if (!host) return true;
   if (host === "localhost" || host.endsWith(".localhost")) return true;
   if (host.endsWith(".local") || host.endsWith(".internal")) return true;

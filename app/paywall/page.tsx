@@ -7,7 +7,7 @@ import { Button, Card, SectionTitle } from "@/components/ui";
 import { getPromoState, loadTrial, startLaunchTrial, TrialRecord } from "@/lib/promo";
 import { useApp } from "@/lib/store";
 import {
-  currentProductInfo, isNativeShell, purchasePro, restorePro, type ProProductInfo,
+  currentProductInfo, isNativeShell, purchasePro, refreshProStatus, restorePro, type ProProductInfo,
 } from "@/lib/purchases";
 
 const FREE_FEATURES = ["Full ATS score + breakdown", "ATS simulator (see what the robot reads)", "Keyword match preview"];
@@ -37,6 +37,7 @@ function PaywallInner() {
   const [prodInfo, setProdInfo] = useState<ProProductInfo | null>(null);
   const [buying, setBuying] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [shopNote, setShopNote] = useState("");
 
   // Military verification is NOT available in v1 (post-launch update, once
@@ -115,6 +116,16 @@ function PaywallInner() {
     setShopNote(r.message);
   }
 
+  // RR-27: retry for the "unknown" entitlement state — re-checks with
+  // the store (re-running initialization if it never completed) instead
+  // of dropping the user into a live buy UI on an unconfirmed status.
+  async function doRetry() {
+    setRetrying(true);
+    setShopNote("");
+    await refreshProStatus();
+    setRetrying(false);
+  }
+
   function startPromoTrial() {
     const t = startLaunchTrial();
     setLaunchTrial(t);
@@ -183,7 +194,7 @@ function PaywallInner() {
           <div className="flex items-baseline justify-between mb-1">
             <p className="text-lg font-extrabold text-navy">Paid</p>
             <p className="text-right">
-              <span className="text-2xl font-extrabold text-navy">{native && prodInfo?.price ? prodInfo.price : "$25"}</span>
+              <span className="text-2xl font-extrabold text-navy">{native && proStatus === "unknown" ? "—" : native && prodInfo?.price ? prodInfo.price : "$25"}</span>
               <span className="block text-[11px] text-muted">per year</span>
             </p>
           </div>
@@ -205,6 +216,27 @@ function PaywallInner() {
                 </p>
               </div>
               <Button variant="secondary" onClick={doRestore} disabled={restoring} className="w-full">
+                {restoring ? "Restoring…" : "Restore purchases"}
+              </Button>
+            </div>
+          ) : proStatus === "unknown" ? (
+            // RR-27: entitlement not confirmed (plugin absent, product
+            // not yet in App Store Connect, or initialization failed —
+            // the first-native-build state). Show a checking/retry state
+            // with NO price and NO buy action; the purchase branch below
+            // is for a confirmed "free" status only.
+            <div>
+              <div className="rounded-xl bg-mint border border-brand/40 p-4 mb-2">
+                <p className="font-extrabold text-navy">Checking your subscription status…</p>
+                <p className="text-sm text-ink/70 leading-relaxed">
+                  We couldn&apos;t confirm your Pro status with the App Store just now. If you&apos;ve
+                  already subscribed, tap Check again — or restore your purchase below.
+                </p>
+              </div>
+              <Button variant="emerald" onClick={doRetry} disabled={retrying} className="w-full !min-h-[52px]">
+                {retrying ? "Checking…" : "Check again"}
+              </Button>
+              <Button variant="secondary" onClick={doRestore} disabled={restoring} className="w-full mt-2">
                 {restoring ? "Restoring…" : "Restore purchases"}
               </Button>
             </div>

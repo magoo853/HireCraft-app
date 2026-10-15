@@ -2,12 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { BlockedHostError, FetchLikeResponse, fetchWithGuardedRedirects } from "@/lib/fetch-guarded";
 import { isBlockedHost } from "@/lib/url-guard";
+import { FETCH_JOB_RATE_LIMIT, checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /** Fetch a job posting URL and extract readable text. Falls back gracefully. */
 export async function GET(req: NextRequest) {
+  // RR-32: per-IP throttle in the /api/ai idiom — 30 requests / 10
+  // minutes / IP (FETCH_JOB_RATE_LIMIT). This route fetches arbitrary
+  // public URLs server-side, so the check runs before any fetch work;
+  // over-limit is a 429 in this route's JSON shape.
+  const throttle = checkRateLimit(
+    `fetch-job:${clientIpFromHeaders((n) => req.headers.get(n))}`,
+    FETCH_JOB_RATE_LIMIT.limit,
+    FETCH_JOB_RATE_LIMIT.windowMs
+  );
+  if (!throttle.allowed) {
+    return NextResponse.json(
+      { error: "You've fetched a lot of job postings in a short stretch — please wait a few minutes and try again." },
+      { status: 429, headers: { "Retry-After": String(throttle.retryAfterSeconds) } }
+    );
+  }
+
   const url = req.nextUrl.searchParams.get("url");
   if (!url) return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
 

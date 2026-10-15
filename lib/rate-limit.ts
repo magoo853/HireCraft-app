@@ -32,6 +32,21 @@ export const AI_RATE_LIMIT = { limit: 30, windowMs: 10 * 60 * 1000 } as const;
 export const EXTRACT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60 * 1000 } as const;
 
 /**
+ * /api/fetch-job throttle (RR-32): the route fetches arbitrary public
+ * URLs server-side, so it gets the AI route's ceiling — 30 requests /
+ * 10 minutes / IP, same fixed-window idiom.
+ */
+export const FETCH_JOB_RATE_LIMIT = { limit: 30, windowMs: 10 * 60 * 1000 } as const;
+
+/**
+ * /api/jobs throttle (RR-32): each call fans out to up to five job
+ * sources, so the ceiling is a notch above the AI route's — 60 requests
+ * / 10 minutes / IP, same fixed-window idiom. (Responses are also
+ * CDN-cached s-maxage=600, which absorbs most repeat traffic first.)
+ */
+export const JOBS_RATE_LIMIT = { limit: 60, windowMs: 10 * 60 * 1000 } as const;
+
+/**
  * Record one hit for `key` and report whether it is within the limit.
  * Fixed window: the window starts at the first hit and resets whole.
  */
