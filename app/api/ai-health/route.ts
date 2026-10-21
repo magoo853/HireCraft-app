@@ -9,6 +9,10 @@ type AiHealth = {
 };
 
 const CACHE_TTL_MS = 3 * 60 * 1000;
+/** Hard ceiling for one probe, across all models/attempts. A stalled
+ *  provider must degrade to working:false, never hang the caller
+ *  (observed in production: 47–90s stalls, Oct 2026). */
+const PROBE_BUDGET_MS = 12_000;
 let cachedHealth: { expiresAt: number; result: Promise<AiHealth> } | null = null;
 
 /** Honest AI status check: does a live call actually work right now? */
@@ -21,9 +25,17 @@ async function probeAiHealth(): Promise<AiHealth> {
     return { working: false, detail: "AI is not configured — running on the built-in engine." };
   }
 
+  const deadline = Date.now() + PROBE_BUDGET_MS;
+  const timeLeft = () => deadline - Date.now();
   const models = Array.from(new Set([model, "gemini-3.6-flash", "gemini-3.5-flash-lite"]));
   for (const m of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
+      if (timeLeft() <= 0) {
+        return {
+          working: false,
+          detail: "AI is configured, but the AI endpoint is unreachable.",
+        };
+      }
       try {
         const res = await fetch(`${base}/chat/completions`, {
           method: "POST",
@@ -36,6 +48,7 @@ async function probeAiHealth(): Promise<AiHealth> {
             messages: [{ role: "user", content: "Reply with the single word: ok" }],
             max_tokens: 5,
           }),
+          signal: AbortSignal.timeout(timeLeft()),
         });
         if (res.ok) {
           return { working: true, detail: "AI is live." };
@@ -44,7 +57,7 @@ async function probeAiHealth(): Promise<AiHealth> {
         await res.text().catch(() => "");
         if (res.status === 503 || res.status === 429) {
           if (attempt === 0) {
-            await new Promise((r) => setTimeout(r, 900));
+            await new Promise((r) => setTimeout(r, Math.min(900, Math.max(0, timeLeft()))));
             continue;
           }
           break;
