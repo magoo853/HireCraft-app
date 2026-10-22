@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { aiBreakerOpen, recordAiFailure, recordAiSuccess } from "@/lib/ai-breaker";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ async function probeAiHealth(): Promise<AiHealth> {
   for (const m of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
       if (timeLeft() <= 0) {
+        recordAiFailure();
         return {
           working: false,
           detail: "AI is configured, but the AI endpoint is unreachable.",
@@ -51,6 +53,7 @@ async function probeAiHealth(): Promise<AiHealth> {
           signal: AbortSignal.timeout(timeLeft()),
         });
         if (res.ok) {
+          recordAiSuccess();
           return { working: true, detail: "AI is live." };
         }
         // Consume the response without exposing provider error details to callers.
@@ -64,6 +67,7 @@ async function probeAiHealth(): Promise<AiHealth> {
         }
         break; // 404 etc. — try the next model
       } catch {
+        recordAiFailure();
         return {
           working: false,
           detail: "AI is configured, but the AI endpoint is unreachable.",
@@ -71,6 +75,7 @@ async function probeAiHealth(): Promise<AiHealth> {
       }
     }
   }
+  recordAiFailure();
   return {
     working: false,
     detail: "AI is configured, but the AI call failed.",
@@ -78,6 +83,14 @@ async function probeAiHealth(): Promise<AiHealth> {
 }
 
 export async function GET() {
+  // RR-43: while the circuit breaker is open, report down immediately
+  // (uncached) instead of spending a probe budget re-discovering it.
+  if (aiBreakerOpen()) {
+    return NextResponse.json({
+      working: false,
+      detail: "AI is configured, but the AI endpoint is unreachable.",
+    });
+  }
   const now = Date.now();
   if (!cachedHealth || cachedHealth.expiresAt <= now) {
     cachedHealth = {

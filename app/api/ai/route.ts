@@ -20,6 +20,7 @@ import {
 } from "@/lib/fallback";
 import { normalizeResume } from "@/lib/normalize-resume";
 import { redactDocumentText } from "@/lib/redact";
+import { aiBreakerOpen, recordAiFailure, recordAiSuccess } from "@/lib/ai-breaker";
 import { checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { MilitaryInfo, Mode, PerformanceReview, RewriteResult, StructuredResume, SummaryResult } from "@/lib/types";
 
@@ -157,6 +158,12 @@ const LLM_ATTEMPT_TIMEOUT_MS = 15_000;
  * giving up (the caller then falls back to the built-in engine).
  */
 async function callLLM(system: string, user: string): Promise<string> {
+  // RR-43 circuit breaker: while the provider is in a known-down window,
+  // skip the chain entirely — the caller degrades to the built-in engine
+  // immediately instead of burning the full retry budget on every request.
+  if (aiBreakerOpen()) {
+    throw new Error("AI provider circuit breaker is open");
+  }
   const models = Array.from(new Set([MODEL, "gemini-3.6-flash", "gemini-3.5-flash-lite"]));
   let lastErr = new Error("AI provider unavailable");
   const startedAt = Date.now();
@@ -200,9 +207,13 @@ async function callLLM(system: string, user: string): Promise<string> {
       const json = await res.json();
       const text = json.choices?.[0]?.message?.content;
       if (!text) throw new Error("Empty AI response");
+      recordAiSuccess();
       return text;
     }
   }
+  // The whole chain surrendered (retryable errors / network failures on
+  // every model): open the breaker so the next requests fail fast.
+  recordAiFailure();
   throw lastErr;
 }
 
