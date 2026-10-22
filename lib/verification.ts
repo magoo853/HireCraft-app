@@ -8,6 +8,8 @@
  * Env vars (server-side only):
  *   IDME_CLIENT_ID, IDME_CLIENT_SECRET, IDME_SANDBOX ("true" -> api.idmelabs.com)
  *   SHEERID_API_TOKEN (Bearer token), SHEERID_PROGRAM_ID (military program id)
+ *   SHEERID_WEBHOOK_SECRET (account Secret Token from MySheerID — the HMAC key
+ *                        for X-SheerID-Signature webhook verification)
  *   NEXT_PUBLIC_APP_URL (public base URL, e.g. https://hirecraft.app — callbacks must be
  *                        registered in the ID.me app dashboard / SheerID program settings)
  *
@@ -21,8 +23,14 @@
  *     the app re-checks status via /api/verify/sheerid/callback (also wired to a
  *     "I've finished — check status" button). If SheerID supports a return redirect
  *     for your program, point it at that callback URL.
- *  4. SheerID webhook payload shape — stubbed in /api/verify/sheerid/webhook; confirm
- *     the event format in the SheerID dashboard when you enable notifications.
+ *  4. SheerID webhook contract — RESOLVED 2026-10-21 from SheerID's developer
+ *     guide (developer.sheerid.com/tutorials/verifications/webhooks): POSTs
+ *     carry a minimal JSON payload { verificationId, notifierEventType } with
+ *     no PII, plus an X-SheerID-Signature header — the lowercase hex
+ *     HMAC-SHA256 of the RAW body, keyed by the account Secret Token
+ *     (SHEERID_WEBHOOK_SECRET). verifySheeridSignature() below implements it;
+ *     the webhook treats the event as a signal only and re-checks status
+ *     server-side, and it can never grant a trial by itself.
  *
  * V1 LAUNCH STATE — VERIFICATION IS DISABLED (fail closed):
  *  Provider accounts/credentials are not in place and the response contracts
@@ -33,6 +41,12 @@
  *  SheerID/ID.me integration above is finished and tested end to end.
  *  There is deliberately NO attestation/self-declaration path.
  */
+
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+/** Provider calls must never hang a request path (RR-40 lesson): hard timeout. */
+const PROVIDER_TIMEOUT_MS = 10_000;
+const providerSignal = () => AbortSignal.timeout(PROVIDER_TIMEOUT_MS);
 
 export type ProviderId = "idme" | "sheerid";
 
@@ -93,6 +107,7 @@ export async function idmeVerify(code: string, redirectUri: string): Promise<Ver
   const tokenRes = await fetch(`${host}/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    signal: providerSignal(),
     body: new URLSearchParams({
       code,
       client_id: process.env.IDME_CLIENT_ID ?? "",
@@ -111,6 +126,7 @@ export async function idmeVerify(code: string, redirectUri: string): Promise<Ver
 
   const attrRes = await fetch(`${host}/api/public/v3/attributes.json`, {
     headers: { Authorization: `Bearer ${tokenJson.access_token}` },
+    signal: providerSignal(),
   });
   if (!attrRes.ok) {
     return { verified: false, provider: "idme", detail: `attributes fetch failed (${attrRes.status})` };
@@ -154,6 +170,7 @@ export async function sheeridCreateVerification(): Promise<{ verificationId: str
       Authorization: `Bearer ${process.env.SHEERID_API_TOKEN ?? ""}`,
       "Content-Type": "application/json",
     },
+    signal: providerSignal(),
     body: JSON.stringify({ programId }),
   });
   if (!res.ok) throw new Error(`SheerID verification creation failed (${res.status})`);
@@ -169,6 +186,7 @@ export async function sheeridCreateVerification(): Promise<{ verificationId: str
 export async function sheeridCheckStatus(verificationId: string): Promise<VerificationResult> {
   const res = await fetch(`${SHEER_API}/rest/v2/verification/${verificationId}`, {
     headers: { Authorization: `Bearer ${process.env.SHEERID_API_TOKEN ?? ""}` },
+    signal: providerSignal(),
   });
   if (!res.ok) {
     return { verified: false, provider: "sheerid", detail: `status check failed (${res.status})` };
@@ -179,6 +197,35 @@ export async function sheeridCheckStatus(verificationId: string): Promise<Verifi
     provider: "sheerid",
     detail: json.result === true ? "verified" : `current step: ${json.currentStep ?? "unknown"}`,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* SheerID webhook signature                                           */
+/* ------------------------------------------------------------------ */
+
+/** The account Secret Token (MySheerID → API Access) that keys webhook HMACs. */
+export function sheeridWebhookSecret(): string | undefined {
+  return process.env.SHEERID_WEBHOOK_SECRET || undefined;
+}
+
+/**
+ * Verify an X-SheerID-Signature header per SheerID's webhook guide: the
+ * signature is the lowercase hex HMAC-SHA256 digest of the RAW request body
+ * (never re-serialized JSON), keyed by the account Secret Token. Compared in
+ * constant time. Fails closed: no configured secret, a missing header, or any
+ * mismatch returns false.
+ */
+export function verifySheeridSignature(
+  rawBody: string,
+  signature: string | null | undefined
+): boolean {
+  const secret = sheeridWebhookSecret();
+  if (!secret || !signature) return false;
+  const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(signature.trim().toLowerCase(), "utf8");
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 /* ------------------------------------------------------------------ */
