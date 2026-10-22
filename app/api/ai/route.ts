@@ -147,15 +147,99 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * JSON below — and Safari's Response.json() throws "The string did not
  * match the expected pattern." on that body (live-measured chain times on
  * an identical small request: 17s / 30s / 55s under provider 503 load).
- * Keep the whole chain, and any single attempt, comfortably inside the
+ * Keep the whole chain, and any single model, comfortably inside the
  * limit so a slow/503ing provider degrades to the fallback, as designed. */
 const LLM_BUDGET_MS = 42_000;
-const LLM_ATTEMPT_TIMEOUT_MS = 15_000;
+/** Per-model deadline (RR-44): the first attempt and any hedged retry must
+ *  both finish inside this window, counted from the model's start. */
+const LLM_MODEL_DEADLINE_MS = 12_000;
+/** Hedging delay (RR-44): if the first attempt hasn't answered by now, a
+ *  parallel attempt starts on the same model and whichever finishes first
+ *  wins — a stalled connection no longer costs a full timeout before the
+ *  retry even begins. Before RR-44 the chain was serial (15s attempt,
+ *  sleep, retry, sleep, next model): measured 16.9s when the primary's
+ *  first attempt merely hung, 3.8s when it 503'd instantly. */
+const LLM_HEDGE_MS = 6_000;
+
+/** Non-retryable provider errors (a 400-class response, an empty body):
+ *  a request/config problem, not capacity — never walked, never trips
+ *  the RR-43 breaker (same semantics as the pre-RR-44 immediate throw). */
+class AiFatalError extends Error {}
+
+/** One provider attempt, aborted at `msLeft`. Retryable failures (503 /
+ *  429 / 404 / network / timeout) throw plain Errors; non-retryable ones
+ *  throw AiFatalError. */
+async function attemptOnce(model: string, system: string, user: string, msLeft: number): Promise<string> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.max(1, msLeft));
+  try {
+    const res = await fetch(`${API_BASE}/chat/completions`, {
+      signal: ctrl.signal,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+    if (res.status === 503 || res.status === 429 || res.status === 404) {
+      throw new Error(`AI provider returned ${res.status}`);
+    }
+    if (!res.ok) throw new AiFatalError(`AI provider returned ${res.status}`);
+    const json = await res.json();
+    const text = json.choices?.[0]?.message?.content;
+    if (!text) throw new AiFatalError("Empty AI response");
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
- * Call the LLM with resilience: the free tier 503s under load, so retry the
- * primary model, then walk a fallback chain of other current models before
- * giving up (the caller then falls back to the built-in engine).
+ * Call one model with a hedged retry: the first attempt races a hedge
+ * timer. If it answers (or fails) before LLM_HEDGE_MS, no second request
+ * is fired on a success and the retry starts immediately on a fast
+ * failure; if it is still hanging at the hedge mark, the retry runs in
+ * parallel. Both attempts share the model's deadline.
+ */
+async function callModel(model: string, system: string, user: string, budgetLeftMs: number): Promise<string> {
+  const deadlineMs = Math.min(LLM_MODEL_DEADLINE_MS, budgetLeftMs);
+  const startedAt = Date.now();
+  const left = () => deadlineMs - (Date.now() - startedAt);
+
+  const first = attemptOnce(model, system, user, left());
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    const win = (v: string) => { if (!settled) { settled = true; resolve(v); } };
+    const lose = (e: unknown) => { if (!settled) { settled = true; reject(e); } };
+    const launchRetry = () => {
+      if (settled) return;
+      if (left() <= 0) { lose(new Error("AI provider timed out")); return; }
+      attemptOnce(model, system, user, left()).then(win, lose);
+    };
+    const timer = setTimeout(launchRetry, LLM_HEDGE_MS);
+    first.then(win, (e) => {
+      clearTimeout(timer);
+      // A fatal error will fail identically on a retry — don't waste one.
+      if (e instanceof AiFatalError) { lose(e); return; }
+      launchRetry();
+    });
+  });
+}
+
+/**
+ * Call the LLM with resilience: the free tier 503s and stalls under load,
+ * so each model gets a hedged attempt (RR-44) and the chain walks the
+ * fallback models quickly before giving up (the caller then falls back
+ * to the built-in engine).
  */
 async function callLLM(system: string, user: string): Promise<string> {
   // RR-43 circuit breaker: while the provider is in a known-down window,
@@ -168,47 +252,18 @@ async function callLLM(system: string, user: string): Promise<string> {
   let lastErr = new Error("AI provider unavailable");
   const startedAt = Date.now();
   for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (Date.now() - startedAt > LLM_BUDGET_MS) throw lastErr;
-      let res: Response;
-      try {
-        res = await fetch(`${API_BASE}/chat/completions`, {
-          signal: AbortSignal.timeout(LLM_ATTEMPT_TIMEOUT_MS),
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${API_KEY}`,
-          },
-          body: JSON.stringify({
-            model,
-            temperature: 0.4,
-            response_format: { type: "json_object" },
-            messages: [
-              { role: "system", content: system },
-              { role: "user", content: user },
-            ],
-          }),
-        });
-      } catch (e) {
-        lastErr = e instanceof Error ? e : new Error("Network error calling AI provider");
-        await sleep(800);
-        continue;
-      }
-      if (res.status === 503 || res.status === 429) {
-        lastErr = new Error(`AI provider returned ${res.status}`);
-        await sleep(attempt === 0 ? 900 : 1800);
-        continue;
-      }
-      if (res.status === 404) {
-        lastErr = new Error("AI provider returned 404");
-        break; // model gone — try the next one
-      }
-      if (!res.ok) throw new Error(`AI provider returned ${res.status}`);
-      const json = await res.json();
-      const text = json.choices?.[0]?.message?.content;
-      if (!text) throw new Error("Empty AI response");
+    const budgetLeft = LLM_BUDGET_MS - (Date.now() - startedAt);
+    if (budgetLeft <= 0) break;
+    try {
+      const text = await callModel(model, system, user, budgetLeft);
       recordAiSuccess();
       return text;
+    } catch (e) {
+      // Request/config problem — not capacity: stop immediately and
+      // never trip the breaker (pre-RR-44 semantics).
+      if (e instanceof AiFatalError) throw e;
+      lastErr = e instanceof Error ? e : new Error("Network error calling AI provider");
+      await sleep(400); // brief pause before the next model (429 politeness)
     }
   }
   // The whole chain surrendered (retryable errors / network failures on
