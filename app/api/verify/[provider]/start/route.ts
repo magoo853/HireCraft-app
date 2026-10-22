@@ -52,7 +52,7 @@ export async function GET(
 
   if (provider === "idme") {
     const state = randomState();
-    jar.set("idme_state", state, { httpOnly: true, path: "/", maxAge: 600, sameSite: "lax" });
+    jar.set("idme_state", state, { httpOnly: true, path: "/", maxAge: 600, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
     // redirect_uri must exactly match the URI registered in the ID.me app dashboard
     const redirectUri = `${base}/api/verify/idme/callback`;
     return NextResponse.redirect(idmeAuthorizeUrl(state, redirectUri));
@@ -61,7 +61,7 @@ export async function GET(
   if (provider === "sheerid") {
     try {
       const { verificationId, hostedUrl } = await sheeridCreateVerification();
-      jar.set("sheerid_vid", verificationId, { httpOnly: true, path: "/", maxAge: 3600, sameSite: "lax" });
+      jar.set("sheerid_vid", verificationId, { httpOnly: true, path: "/", maxAge: 3600, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
       return NextResponse.redirect(hostedUrl);
     } catch (e) {
       console.error("SheerID start failed:", e);

@@ -52,6 +52,7 @@ export async function GET(
       path: "/",
       maxAge: 60 * 60 * 24 * 180, // 6 months
       sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
     });
     return NextResponse.redirect(`${origin}/paywall?trial=verified&provider=${provider}`);
   };
