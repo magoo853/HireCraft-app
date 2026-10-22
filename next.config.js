@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // No next/image usage anywhere in the app, so disable the Image
+  // Optimization API outright (security pass 2026-10-21): it removes the
+  // whole optimizer attack surface (e.g. the AVIF/libheif RCE family,
+  // GHSA-2xp9-vwfh-vxw4) instead of leaving an unused endpoint live.
+  images: { unoptimized: true },
   webpack: (config) => {
     // pdfjs-dist needs the DOM canvas; keep it client-side only.
     config.resolve.alias.canvas = false;
@@ -23,6 +28,9 @@ const nextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
           { key: "Permissions-Policy", value: "camera=(), geolocation=()" },
           {
             key: "Strict-Transport-Security",
