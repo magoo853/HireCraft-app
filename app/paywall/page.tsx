@@ -177,9 +177,14 @@ function PaywallInner() {
           <Card className="!border-2 !border-brand !bg-mint">
             <p className="font-extrabold text-navy mb-1">✓ Launch trial active</p>
             <p className="text-sm text-ink/70 leading-relaxed">
-              Full paid tier free until{" "}
-              {launchTrial.expiresAt ? new Date(launchTrial.expiresAt).toLocaleDateString() : "soon"}
-              . After that, keep it for $25/yr or drop to Free.
+              {launchTrial.expiresAt ? (
+                <>
+                  Full paid tier free until {new Date(launchTrial.expiresAt).toLocaleDateString()}. After that,
+                  keep it for $25/yr or drop to Free.
+                </>
+              ) : (
+                <>Full paid tier free for 14 days from activation. After that, keep it for $25/yr or drop to Free.</>
+              )}
             </p>
           </Card>
         )}
@@ -201,7 +206,7 @@ function PaywallInner() {
 
         <Card className="!border-2 !border-brand">
           <span className="inline-block text-[11px] font-extrabold uppercase tracking-wide bg-emerald-700 text-white rounded-full px-3 py-1 mb-2">
-            All the bells and whistles
+            All features included
           </span>
           <div className="flex items-baseline justify-between mb-1">
             <p className="text-lg font-extrabold text-navy">Paid</p>
