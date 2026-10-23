@@ -477,7 +477,7 @@ export function LettersGate({ children }: { children: React.ReactNode }) {
 export function CoverPageShell() {
   return (
     <div>
-      <SectionTitle sub="Tailored to your resume and the posting. Edit anything — it's yours.">Cover Letter</SectionTitle>
+      <SectionTitle>Cover Letter</SectionTitle>
       <LettersGate><CoverLetter /></LettersGate>
     </div>
   );

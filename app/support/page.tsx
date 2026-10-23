@@ -35,7 +35,7 @@ const FAQS: { q: string; a: string }[] = [
 export default function SupportPage() {
   return (
     <div>
-      <SectionTitle sub="Help, honest answers, and a human to email.">Support</SectionTitle>
+      <SectionTitle>Support</SectionTitle>
 
       <Card className="mb-4">
         <p className="font-bold text-ink text-sm mb-1">Contact us</p>

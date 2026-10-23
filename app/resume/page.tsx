@@ -359,7 +359,7 @@ export default function ResumePage() {
       )}
 
       <div className="mt-8">
-        <SectionTitle sub="Paste a posting to tailor everything against it. Optional — but this is where the magic happens.">
+        <SectionTitle sub="Paste a posting to tailor everything against it. Optional.">
           Target job
         </SectionTitle>
         <Card>

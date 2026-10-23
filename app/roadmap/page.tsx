@@ -193,7 +193,7 @@ export default function RoadmapPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <SectionTitle sub="Tell us where you want to be. We'll map how to get there — roles, the skills each checkpoint demands, and the gaps to close.">
+        <SectionTitle sub="Tell us where you want to be.">
           Career roadmap
         </SectionTitle>
       </div>

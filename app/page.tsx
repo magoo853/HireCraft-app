@@ -41,9 +41,6 @@ export default function Home() {
       <h1 className="text-[22px] font-extrabold tracking-tight text-navy mb-1">
         Which best describes you?
       </h1>
-      <p className="text-[13px] text-muted leading-relaxed mb-2">
-        We'll tailor every rewrite, template, and tip to your situation.
-      </p>
 
       <div className="grid gap-2.5 mb-4">
         {MODES.map((m) => (

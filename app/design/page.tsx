@@ -168,7 +168,7 @@ export default function DesignPage() {
 
   return (
     <div>
-      <SectionTitle sub="Your content, nine ways. Tap to preview — export to PDF when it's perfect.">
+      <SectionTitle sub="Tap a template to preview it.">
         Design
       </SectionTitle>
 

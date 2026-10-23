@@ -127,7 +127,7 @@ export default function DiscoverPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <SectionTitle sub="A work-style quiz meets your real resume. Find the lanes you're built for.">
+        <SectionTitle>
           Discover
         </SectionTitle>
       </div>

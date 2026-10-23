@@ -14,7 +14,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <SectionTitle sub="Modes, AI, and your data.">Settings</SectionTitle>
+      <SectionTitle>Settings</SectionTitle>
 
       <Card className="mb-4">
         <Field label="Mode">
