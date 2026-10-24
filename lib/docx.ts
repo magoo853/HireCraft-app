@@ -48,6 +48,10 @@ export interface DocxTemplateIdentity {
   nameAlign: "left" | "center";
   /** Draw a rule under each section heading (Classic / Slate / Custom-rule look). */
   headingBorder: boolean;
+  /** Design-tab auto-fit type scale (1 = none). Set by buildResumeDocxBlob
+   * from the scale the on-screen fit loop settled on, so the DOCX export
+   * shrinks its type the same way the preview/print render did. */
+  fontScale?: number;
   order: DocxSectionKey[];
   labels: Record<DocxSectionKey, string>;
 }
@@ -231,24 +235,30 @@ const contactLine = (r: StructuredResume) =>
 const GRAY = "5B6470";
 const BULLETS_REF = "hirecraft-bullets";
 
+/** Auto-fit scaling: font sizes (half-points) and paragraph spacing
+ * (twips) shrink by the identity's fontScale. Font sizes keep a floor so
+ * scaled type never goes unreadably small. */
+const sz = (n: number, id: DocxTemplateIdentity) => Math.max(12, Math.round(n * (id.fontScale ?? 1)));
+const sp = (n: number, id: DocxTemplateIdentity) => Math.round(n * (id.fontScale ?? 1));
+
 function headingPara(text: string, id: DocxTemplateIdentity): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
-    spacing: { before: 260, after: 110 },
+    spacing: { before: sp(260, id), after: sp(110, id) },
     keepNext: true,
     ...(id.headingBorder
       ? { border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: id.accent, space: 2 } } }
       : {}),
     children: [
-      new TextRun({ text: text.toUpperCase(), bold: true, size: 24, color: id.accent }),
+      new TextRun({ text: text.toUpperCase(), bold: true, size: sz(24, id), color: id.accent }),
     ],
   });
 }
 
-function bulletPara(text: string): Paragraph {
+function bulletPara(text: string, id?: DocxTemplateIdentity): Paragraph {
   return new Paragraph({
     numbering: { reference: BULLETS_REF, level: 0 },
-    spacing: { after: 45 },
+    spacing: { after: id ? sp(45, id) : 45 },
     children: [new TextRun({ text })],
   });
 }
@@ -259,7 +269,7 @@ function sectionParagraphs(key: DocxSectionKey, r: StructuredResume, id: DocxTem
   switch (key) {
     case "summary": {
       if (!r.summary.trim()) return out;
-      out.push(head(), new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: r.summary })] }));
+      out.push(head(), new Paragraph({ spacing: { after: sp(80, id) }, children: [new TextRun({ text: r.summary })] }));
       return out;
     }
     case "experience": {
@@ -268,17 +278,17 @@ function sectionParagraphs(key: DocxSectionKey, r: StructuredResume, id: DocxTem
       for (const e of r.experience) {
         out.push(
           new Paragraph({
-            spacing: { before: 110, after: 20 },
+            spacing: { before: sp(110, id), after: sp(20, id) },
             keepNext: true,
             tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
             children: [
               new TextRun({ text: e.title, bold: true }),
               ...(e.company ? [new TextRun({ text: ` — ${e.company}` })] : []),
-              ...(e.dates ? [new TextRun({ text: `\t${e.dates}`, color: GRAY, size: 21 })] : []),
+              ...(e.dates ? [new TextRun({ text: `\t${e.dates}`, color: GRAY, size: sz(21, id) })] : []),
             ],
           }),
         );
-        for (const b of e.bullets) if (b.trim()) out.push(bulletPara(b));
+        for (const b of e.bullets) if (b.trim()) out.push(bulletPara(b, id));
       }
       return out;
     }
@@ -288,18 +298,18 @@ function sectionParagraphs(key: DocxSectionKey, r: StructuredResume, id: DocxTem
       for (const p of r.projects) {
         out.push(
           new Paragraph({
-            spacing: { before: 100, after: 20 },
+            spacing: { before: sp(100, id), after: sp(20, id) },
             keepNext: true,
             children: [
               new TextRun({ text: p.name, bold: true }),
-              ...(p.tech ? [new TextRun({ text: ` — ${p.tech}`, color: GRAY, size: 21 })] : []),
+              ...(p.tech ? [new TextRun({ text: ` — ${p.tech}`, color: GRAY, size: sz(21, id) })] : []),
             ],
           }),
         );
         if (p.description.trim()) {
-          out.push(new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: p.description })] }));
+          out.push(new Paragraph({ spacing: { after: sp(40, id) }, children: [new TextRun({ text: p.description })] }));
         }
-        for (const b of p.bullets) if (b.trim()) out.push(bulletPara(b));
+        for (const b of p.bullets) if (b.trim()) out.push(bulletPara(b, id));
       }
       return out;
     }
@@ -309,37 +319,37 @@ function sectionParagraphs(key: DocxSectionKey, r: StructuredResume, id: DocxTem
       for (const e of r.education) {
         out.push(
           new Paragraph({
-            spacing: { after: 30 },
+            spacing: { after: sp(30, id) },
             children: [
               new TextRun({ text: e.degree, bold: true }),
               ...(e.school ? [new TextRun({ text: ` — ${e.school}` })] : []),
-              ...(e.dates ? [new TextRun({ text: `, ${e.dates}`, color: GRAY, size: 21 })] : []),
+              ...(e.dates ? [new TextRun({ text: `, ${e.dates}`, color: GRAY, size: sz(21, id) })] : []),
             ],
           }),
         );
         if (e.details.trim()) {
-          out.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: e.details, color: GRAY, size: 21 })] }));
+          out.push(new Paragraph({ spacing: { after: sp(60, id) }, children: [new TextRun({ text: e.details, color: GRAY, size: sz(21, id) })] }));
         }
       }
       return out;
     }
     case "skills": {
       if (r.skills.length === 0) return out;
-      out.push(head(), new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: r.skills.join("  ·  ") })] }));
+      out.push(head(), new Paragraph({ spacing: { after: sp(80, id) }, children: [new TextRun({ text: r.skills.join("  ·  ") })] }));
       return out;
     }
     case "certifications": {
       const certs = r.certifications ?? [];
       if (certs.length === 0) return out;
       out.push(head());
-      for (const c of certs) if (c.trim()) out.push(bulletPara(c));
+      for (const c of certs) if (c.trim()) out.push(bulletPara(c, id));
       return out;
     }
     case "awards": {
       const awards = r.awards ?? [];
       if (awards.length === 0) return out;
       out.push(head());
-      for (const a of awards) if (a.trim()) out.push(bulletPara(a));
+      for (const a of awards) if (a.trim()) out.push(bulletPara(a, id));
       return out;
     }
   }
@@ -350,9 +360,9 @@ export function buildResumeDocument(resume: StructuredResume, identity: DocxTemp
   const children: Paragraph[] = [
     new Paragraph({
       alignment: identity.nameAlign === "center" ? AlignmentType.CENTER : AlignmentType.LEFT,
-      spacing: { after: 30 },
+      spacing: { after: sp(30, identity) },
       children: [
-        new TextRun({ text: resume.name || "Your Name", bold: true, size: 46, color: identity.nameColor }),
+        new TextRun({ text: resume.name || "Your Name", bold: true, size: sz(46, identity), color: identity.nameColor }),
       ],
     }),
   ];
@@ -361,8 +371,8 @@ export function buildResumeDocument(resume: StructuredResume, identity: DocxTemp
     children.push(
       new Paragraph({
         alignment: identity.nameAlign === "center" ? AlignmentType.CENTER : AlignmentType.LEFT,
-        spacing: { after: 140 },
-        children: [new TextRun({ text: contact, size: 21, color: GRAY })],
+        spacing: { after: sp(140, identity) },
+        children: [new TextRun({ text: contact, size: sz(21, identity), color: GRAY })],
       }),
     );
   }
@@ -376,7 +386,7 @@ export function buildResumeDocument(resume: StructuredResume, identity: DocxTemp
     description: `Resume exported from ResumeRoadmap (${identity.templateName} template).`,
     styles: {
       default: {
-        document: { run: { font: identity.font, size: 22, color: "1A1A1A" } },
+        document: { run: { font: identity.font, size: sz(22, identity), color: "1A1A1A" } },
       },
     },
     numbering: {
@@ -389,7 +399,7 @@ export function buildResumeDocument(resume: StructuredResume, identity: DocxTemp
               format: LevelFormat.BULLET,
               text: "•",
               alignment: AlignmentType.LEFT,
-              style: { paragraph: { indent: { left: 360, hanging: 220 } } },
+              style: { paragraph: { indent: { left: sp(360, identity), hanging: sp(220, identity) } } },
             },
           ],
         },
@@ -452,12 +462,18 @@ export async function buildCoverLetterDocxBlob(text: string): Promise<Blob> {
   return Packer.toBlob(buildCoverLetterDocument(text));
 }
 
-/** Browser entry point: build the .docx Blob for `resume` in template `templateId`. */
+/** Browser entry point: build the .docx Blob for `resume` in template `templateId`.
+ * `scale` is the Design tab's auto-fit scale (1/undefined = no shrink). */
 export async function buildResumeDocxBlob(
   resume: StructuredResume,
   templateId: string,
   custom?: CustomDocxOptions,
+  scale?: number,
 ): Promise<Blob> {
-  const doc = buildResumeDocument(resume, resolveDocxIdentity(templateId, custom));
+  const identity = resolveDocxIdentity(templateId, custom);
+  const doc = buildResumeDocument(
+    resume,
+    scale && scale < 1 ? { ...identity, fontScale: scale } : identity,
+  );
   return Packer.toBlob(doc);
 }

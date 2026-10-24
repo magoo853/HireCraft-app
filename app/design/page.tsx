@@ -15,6 +15,22 @@ import { SaveVersionForm } from "@/components/versions";
 
 const LS_DESIGN_OPTS = "hirecraft-design-opts";
 
+/** Auto-fit: when the rendered resume runs over the 2-page rule, step the
+ * template zoom down from the density base until it fits — no user action.
+ * FIT_FLOOR is the readability floor; past it the warning banner takes over
+ * again (the content genuinely needs trimming). */
+const FIT_FLOOR = 0.8;
+const FIT_STEP = 0.02;
+
+/** Print geometry at 96 CSS px/in: US Letter minus the print
+ * stylesheet's #resume-print padding (0.6in sides, 0.55in top/bottom).
+ * The 2-page rule is about the PRINTED sheet, so pages are estimated at
+ * true print width — the on-screen preview is capped near phone width by
+ * the app shell, and its raw height overcounts pages several-fold. */
+const PRINT_CONTENT_PX = 701; // 7.3in of printable width
+const PRINT_PAGE_PX = 1056; // 11in page height
+const PRINT_VPAD_PX = 106; // top + bottom print padding
+
 const thumbEd: EdFn = (value, _onChange, className = "") => <span className={className}>{value}</span>;
 
 /** Mini live render of the user's actual resume in this template. */
@@ -47,6 +63,18 @@ export default function DesignPage() {
   const [docxError, setDocxError] = useState("");
   const [designOpts, setDesignOpts] = useState<DesignOptions>(DEFAULT_DESIGN_OPTIONS);
   const previewRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  // Auto-fit scale: the TOTAL zoom applied to the template render. Starts
+  // at the density base (Comfortable 1, Compact 0.88) and only shrinks
+  // further when the measured render is over 2 pages.
+  const densityBase = density === "compact" ? 0.88 : 1;
+  const [fitScale, setFitScale] = useState(1);
+
+  // Auto-fit reset: a different resume/template/density/options restarts
+  // from the density base; the fit loop below only ever shrinks from there.
+  useEffect(() => {
+    setFitScale(densityBase);
+  }, [templateId, resume, density, designOpts, densityBase]);
 
   useEffect(() => {
     try {
@@ -61,19 +89,40 @@ export default function DesignPage() {
     } catch { /* noop */ }
   }, [designOpts]);
 
-  // 2-page guard: estimate printed pages from rendered height vs. US Letter ratio.
+  // 2-page guard: estimate PRINTED pages from a hidden measuring copy of
+  // the template rendered at true print width (see PRINT_CONTENT_PX).
+  // The copy's width grows as the auto-fit scale shrinks — mirroring how
+  // the zoomed sheet lays out wider locally when printed — and the
+  // painted height (scale × local height, plus the sheet's vertical
+  // print padding) is divided into letter pages. Estimator and print
+  // renderer are the same layout, so they cannot disagree.
   useEffect(() => {
-    const el = previewRef.current;
+    const el = measureRef.current;
     if (!el) return;
     const measure = () => {
-      const pageH = el.clientWidth * 11 / 8.5;
-      if (pageH > 0) setPages(Math.max(1, Math.ceil(el.scrollHeight / pageH)));
+      const h = el.scrollHeight;
+      if (h > 0) {
+        setPages(Math.max(1, Math.ceil((fitScale * h + PRINT_VPAD_PX) / PRINT_PAGE_PX)));
+      }
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [templateId, resume, density, designOpts]);
+  }, [templateId, resume, density, designOpts, fitScale]);
+
+  // Auto-fit loop: while the measured render is over 2 pages, shrink the
+  // zoom one step (the measurement above re-runs on the new scale) until
+  // it fits or the readability floor is reached. The estimator measures
+  // the same zoomed DOM the user sees and prints, so the page count and
+  // the render can never disagree.
+  useEffect(() => {
+    if (pages <= 2 || fitScale <= FIT_FLOOR + 0.001) return;
+    const t = setTimeout(() => {
+      setFitScale((s) => Math.max(FIT_FLOOR, +(s - FIT_STEP).toFixed(2)));
+    }, 40);
+    return () => clearTimeout(t);
+  }, [pages, fitScale]);
 
   if (!hasResume) {
     return (
@@ -131,7 +180,7 @@ export default function DesignPage() {
         font: designOpts.font,
         nameAlign: designOpts.nameAlign,
         headerStyle: designOpts.headerStyle,
-      });
+      }, fitScale);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -288,6 +337,9 @@ export default function DesignPage() {
           <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${pages <= 2 ? "bg-mint text-emerald-900" : "bg-red-100 text-red-800"}`}>
             {pages <= 2 ? `✓ ${pages} page${pages > 1 ? "s" : ""} — fits the 2-page rule` : `⚠ ~${pages} pages — over the 2-page rule`}
           </span>
+          {fitScale < densityBase - 0.001 && (
+            <span className="text-[11px] font-semibold text-muted">Auto-fit {Math.round(fitScale * 100)}%</span>
+          )}
           <div className="flex bg-slate-100 rounded-lg p-0.5 text-[11px] font-bold">
             {(["comfortable", "compact"] as const).map((d) => (
               <button key={d} onClick={() => setDensity(d)}
@@ -299,11 +351,24 @@ export default function DesignPage() {
         </div>
         {pages > 2 && (
           <p className="text-xs text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3 print:hidden">
-            Recruiters skim — trim older roles or switch to <b>Compact</b> density to fit 2 pages.
+            {fitScale <= FIT_FLOOR + 0.001 ? (
+              <>Recruiters skim — even at the smallest readable size this runs ~{pages} pages. Trim older roles to fit 2 pages.</>
+            ) : (
+              <>Recruiters skim — trim older roles or switch to <b>Compact</b> density to fit 2 pages.</>
+            )}
           </p>
         )}
-        <div ref={previewRef} style={density === "compact" ? { zoom: 0.88 } : undefined}>
+        <div ref={previewRef} style={fitScale < 1 ? { zoom: fitScale } : undefined}>
           {templateId === "custom" ? renderCustom(resume, ed, designOpts) : template.render(resume, ed)}
+        </div>
+      </div>
+
+      {/* Print-pagination measuring copy: the same template laid out at
+          true print width, off-screen and never printed. Its width tracks
+          the auto-fit scale (see the measure effect above). */}
+      <div aria-hidden className="print:hidden" style={{ position: "fixed", left: 0, top: 0, width: 0, height: 0, overflow: "hidden", visibility: "hidden" }}>
+        <div ref={measureRef} style={{ width: PRINT_CONTENT_PX / fitScale }}>
+          {templateId === "custom" ? renderCustom(resume, thumbEd, designOpts) : template.render(resume, thumbEd)}
         </div>
       </div>
 
