@@ -19,6 +19,56 @@ const parts: ReactNode[] = [];
 const contact = (r: StructuredResume) =>
   [r.location, r.phone, r.email, r.linkedin].filter(Boolean).join("  ·  ");
 
+/* ------------------------------------------------------------------ */
+/* Skills flow: in full-width sections the skills/competencies items   */
+/* render as one dot-separated flow. With 6+ items that single flow    */
+/* eats vertical space while the rest of the page sits empty, so the  */
+/* items split into two columns — a contiguous first part down the    */
+/* left column, the remainder down the right (standard resume reading */
+/* order). The split point balances cumulative text length rather     */
+/* than raw count, so the columns come out even when the early items  */
+/* are systematically longer than the late ones. Each item stays a     */
+/* single unit inside one column — it can wrap within its column but  */
+/* never straddles the split — and each column carries break-inside:  */
+/* avoid so print never cuts an item across pages. Below 6 items       */
+/* callers keep their legacy single-flow rendering.                    */
+/* ------------------------------------------------------------------ */
+
+export const SKILLS_TWO_COL_MIN = 6;
+
+function SkillColumns({ skills, sep, className = "", renderItem }: {
+  skills: string[];
+  sep: string;
+  className?: string;
+  renderItem?: (s: string) => ReactNode;
+}) {
+  const render = renderItem ?? ((s: string) => s);
+  const total = skills.reduce((a, s) => a + s.length + 2, 0);
+  let mid = Math.ceil(skills.length / 2);
+  let acc = 0;
+  let best = Infinity;
+  for (let i = 1; i < skills.length; i++) {
+    acc += skills[i - 1].length + 2;
+    const d = Math.abs(total - 2 * acc);
+    if (d < best) { best = d; mid = i; }
+  }
+  const cols = [skills.slice(0, mid), skills.slice(mid)];
+  return (
+    <div className={`grid grid-cols-2 gap-x-6 hc-skills-cols ${className}`}>
+      {cols.map((col, ci) => (
+        <div key={ci} className="[break-inside:avoid]">
+          {col.map((s, i) => (
+            <span key={i}>
+              <span className="hc-skill-unit">{render(s)}</span>
+              {i < col.length - 1 ? sep : null}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const TEMPLATES: TemplateDef[] = [
   {
     id: "classic",
@@ -70,7 +120,11 @@ export const TEMPLATES: TemplateDef[] = [
         {r.skills.length > 0 && (
           <section>
             <h3 className="text-[13px] font-bold tracking-[0.2em] uppercase border-b border-[#999] pb-1 mb-2">Skills</h3>
-            <p>{r.skills.join("  ·  ")}</p>
+            {r.skills.length >= SKILLS_TWO_COL_MIN ? (
+              <SkillColumns skills={r.skills} sep={"  ·  "} />
+            ) : (
+              <p>{r.skills.join("  ·  ")}</p>
+            )}
           </section>
         )}
         {(r.certifications ?? []).length > 0 && (
@@ -209,7 +263,11 @@ export const TEMPLATES: TemplateDef[] = [
           {r.skills.length > 0 && (
             <div>
               <p className="text-[11px] uppercase tracking-[0.25em] text-[#999] mb-1">Skills</p>
-              <p className="text-[13px] text-[#444]">{r.skills.join("   ·   ")}</p>
+              {r.skills.length >= SKILLS_TWO_COL_MIN ? (
+                <SkillColumns skills={r.skills} sep={"   ·   "} className="text-[13px] text-[#444]" />
+              ) : (
+                <p className="text-[13px] text-[#444]">{r.skills.join("   ·   ")}</p>
+              )}
             </div>
           )}
           {(r.certifications ?? []).length > 0 && (
@@ -277,13 +335,19 @@ export const TEMPLATES: TemplateDef[] = [
               {r.education.map((e, i) => <p key={i} className="text-[13px] mb-1"><b>{ed(e.degree, () => {}, "inline")}</b><br />{ed(e.school, () => {}, "inline")}{e.dates && `, ${e.dates}`}</p>)}
             </section>
           )}
-          {r.skills.length > 0 && (
+          {r.skills.length > 0 && r.skills.length < SKILLS_TWO_COL_MIN && (
             <section>
               <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#8a6d2f] mb-1.5">Core Competencies</h3>
               <p className="text-[13px]">{r.skills.join("  ·  ")}</p>
             </section>
           )}
         </div>
+        {r.skills.length >= SKILLS_TWO_COL_MIN && (
+          <section className={r.education.length > 0 ? "mt-4" : ""}>
+            <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#8a6d2f] mb-1.5">Core Competencies</h3>
+            <SkillColumns skills={r.skills} sep={"  ·  "} className="text-[13px]" />
+          </section>
+        )}
         {(r.certifications ?? []).length > 0 && (
           <section className="mt-4">
             <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#8a6d2f] mb-1.5">Certifications & Training</h3>
@@ -343,13 +407,19 @@ export const TEMPLATES: TemplateDef[] = [
                   {r.education.map((e, i) => <p key={i} className="text-[13px]"><b>{ed(e.degree, () => {}, "inline")}</b><br />{ed(e.school, () => {}, "inline")}</p>)}
                 </div>
               )}
-              {r.skills.length > 0 && (
+              {r.skills.length > 0 && r.skills.length < SKILLS_TWO_COL_MIN && (
                 <div>
                   <h3 className="inline-block bg-[#141414] text-white text-[11px] font-extrabold uppercase tracking-[0.2em] px-3 py-1.5 rounded mb-2">Skills</h3>
                   <p className="text-[13px] font-medium">{r.skills.join("  ·  ")}</p>
                 </div>
               )}
             </div>
+            {r.skills.length >= SKILLS_TWO_COL_MIN && (
+              <div className={r.education.length > 0 ? "mt-4" : ""}>
+                <h3 className="inline-block bg-[#141414] text-white text-[11px] font-extrabold uppercase tracking-[0.2em] px-3 py-1.5 rounded mb-2">Skills</h3>
+                <SkillColumns skills={r.skills} sep={"  ·  "} className="text-[13px] font-medium" />
+              </div>
+            )}
             {(r.certifications ?? []).length > 0 && (
               <section className="mt-4">
                 <h3 className="inline-block bg-[#141414] text-white text-[11px] font-extrabold uppercase tracking-[0.2em] px-3 py-1.5 rounded mb-2">Certifications & Training</h3>
@@ -493,13 +563,19 @@ export const TEMPLATES: TemplateDef[] = [
               ))}
             </section>
           )}
-          {r.skills.length > 0 && (
+          {r.skills.length > 0 && r.skills.length < SKILLS_TWO_COL_MIN && (
             <section>
               <h3 className="text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-1.5">Skills</h3>
               <p className="text-[12px]">{r.skills.map((s, i) => <span key={i}>{ed(s, () => {}, "inline")}{i < r.skills.length - 1 ? "  ·  " : ""}</span>)}</p>
             </section>
           )}
         </div>
+        {r.skills.length >= SKILLS_TWO_COL_MIN && (
+          <section className={r.education.length > 0 ? "mt-4" : ""}>
+            <h3 className="text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-1.5">Skills</h3>
+            <SkillColumns skills={r.skills} renderItem={(s) => ed(s, () => {}, "inline")} sep={"  ·  "} className="text-[12px]" />
+          </section>
+        )}
         {(r.certifications ?? []).length > 0 && (
           <section className="mt-4">
             <h3 className="text-[12px] font-extrabold uppercase tracking-[0.25em] text-[#0A66C2] mb-1.5">Certifications & Training</h3>
@@ -566,7 +642,11 @@ export const TEMPLATES: TemplateDef[] = [
         {r.skills.length > 0 && (
           <section className="mb-4">
             <h3 className="text-[12px] font-bold mb-1.5">## SKILLS</h3>
-            <p>{r.skills.join(" | ")}</p>
+            {r.skills.length >= SKILLS_TWO_COL_MIN ? (
+              <SkillColumns skills={r.skills} sep={" | "} />
+            ) : (
+              <p>{r.skills.join(" | ")}</p>
+            )}
           </section>
         )}
         {(r.certifications ?? []).length > 0 && (
@@ -722,7 +802,7 @@ export function renderCustom(r: StructuredResume, ed: EdFn, opts: DesignOptions)
             ))}
           </section>
         )}
-        {r.skills.length > 0 && (
+        {r.skills.length > 0 && !(opts.skillsStyle === "list" && r.skills.length >= SKILLS_TWO_COL_MIN) && (
           <section><SecHead>Skills</SecHead>
             {opts.skillsStyle === "list" ? (
               <p className="text-[12px]">{r.skills.join(" · ")}</p>
@@ -742,6 +822,11 @@ export function renderCustom(r: StructuredResume, ed: EdFn, opts: DesignOptions)
           </section>
         )}
       </div>
+      {opts.skillsStyle === "list" && r.skills.length >= SKILLS_TWO_COL_MIN && (
+        <section className={secMb}><SecHead>Skills</SecHead>
+          <SkillColumns skills={r.skills} sep={" · "} className="text-[12px]" />
+        </section>
+      )}
       {(r.certifications ?? []).length > 0 && (
         <section className={secMb}><SecHead>Certifications & Training</SecHead>
           <ul className={bulletGap}>{(r.certifications ?? []).map((c, i) => <li key={i} className="flex gap-2">{bulletMark}<span>{ed(c, () => {}, "inline")}</span></li>)}</ul>
