@@ -537,6 +537,67 @@ CASES.push(
   }
 );
 
+CASES.push(
+  {
+    file: "federal-multiline.txt",
+    title: "Federal multi-line headers — title/company/dates on separate lines, GS grade on title line and standalone, Title Case Training header",
+    run(r, a) {
+      a.eq("name", r.name, "Michael Ortiz");
+      a.includes("summary keeps the qualifications prose", r.summary, "administrative specialist");
+      a.check("summary has no grade code leaked into it", !/GS-0962/.test(r.summary), {
+        detail: `got ${JSON.stringify(r.summary)}`,
+      });
+      a.count("two roles (no phantom jobs from split headers)", r.experience, 2);
+      a.eq("role 1 title (grade segment dropped)", r.experience[0]?.title, "Program Support Specialist");
+      a.includes("role 1 company from its own line", r.experience[0]?.company, "Bureau of Land Management");
+      a.includes("role 1 dates from the dates-only line", r.experience[0]?.dates, "03/2016");
+      a.minCount("role 1 bullets", r.experience[0]?.bullets, 2);
+      a.eq("role 2 title", r.experience[1]?.title, "Administrative Assistant");
+      a.includes("role 2 company is the agency, not the grade line", r.experience[1]?.company, "Forest Service");
+      a.includes("role 2 dates", r.experience[1]?.dates, "Jan 2012");
+      a.check(
+        "no role's company is a grade code",
+        r.experience.every((j) => !/GS-\d/.test(j.company ?? "")),
+        { detail: `got ${JSON.stringify(r.experience.map((j) => j.company))}` }
+      );
+      a.count("Title Case 'Training' header lands in certifications", r.certifications, 2);
+      a.includes("certifications include the records course", r.certifications.join(" | "), "Records Management");
+      a.count("one education entry", r.education, 1);
+    },
+  },
+  {
+    file: "batch-patterns.txt",
+    title: "Batch patterns — Career Highlights, Areas of Expertise, colon skill labels, label-only group line, project description, trailing pipe, Licenses and Endorsements",
+    run(r, a) {
+      a.eq("name", r.name, "Robin Alvarez");
+      a.includes("highlights prose lands in summary (combined handler)", r.summary, "Raised event attendance");
+      a.check("summary has no 'Career Highlights' header text", !/Career Highlights/.test(r.summary), {
+        detail: `got ${JSON.stringify(r.summary)}`,
+      });
+      a.hasSkill("Areas of Expertise item lands in skills", r.skills, "Volunteer Management");
+      a.hasSkill("label-stripped skill (Salesforce)", r.skills, "Salesforce");
+      a.hasSkill("one-word label not glued (stakeholder briefings)", r.skills, "stakeholder briefings");
+      a.hasSkill("label-only group line kept as a skill", r.skills, "Project Coordination");
+      a.hasSkill("items after a label-only line survive", r.skills, "budget tracking");
+      a.check("no skill entry carries a colon label", r.skills.every((s) => !s.includes(":")), {
+        detail: `got ${JSON.stringify(r.skills)}`,
+      });
+      a.count("two roles", r.experience, 2);
+      a.includes("role 1 company", r.experience[0]?.company, "Mile High United Way, Denver");
+      a.check("role 1 company has no trailing pipe", !(r.experience[0]?.company ?? "").includes("|"), {
+        detail: `got ${JSON.stringify(r.experience[0]?.company)}`,
+      });
+      a.count("one project (description is not a second project)", r.projects, 1);
+      a.eq("project name", r.projects[0]?.name, "Volunteer Portal");
+      a.includes("project description captured", r.projects[0]?.description, "Web portal");
+      a.minCount("project bullets", r.projects[0]?.bullets, 1);
+      a.count("Licenses and Endorsements land in certifications", r.certifications, 2);
+      a.includes("certifications include Notary Public", r.certifications.join(" | "), "Notary Public");
+      a.count("one education entry", r.education, 1);
+    },
+  }
+);
+
 /* ---------------- PDF extraction cases (synthetic item streams) -------- */
 
 /**

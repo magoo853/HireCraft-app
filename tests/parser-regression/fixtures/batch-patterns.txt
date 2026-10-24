@@ -1,0 +1,37 @@
+Robin Alvarez
+Denver, CO | (555) 310-8842 | robin.alvarez@example.com
+
+Professional Summary
+Program coordinator with 8 years in nonprofit operations and volunteer programs.
+
+Career Highlights
+• Raised event attendance 30 percent across two annual fundraisers
+• Built a volunteer roster of 120 active members
+
+Areas of Expertise
+Volunteer Management, Event Planning, Grant Reporting
+
+Technical Skills
+Platforms: Salesforce, Asana
+Communication: stakeholder briefings, meeting facilitation
+Project Coordination:
+budget tracking, vendor follow-up
+
+Experience
+Program Coordinator, Mile High United Way, Denver, CO | Mar 2019 – Present
+• Coordinate 40 volunteers across six program sites
+
+Operations Assistant, City Parks Foundation, Aurora, CO | Jun 2015 – Feb 2019
+• Tracked grant spending for a $400K program budget
+
+Projects
+Volunteer Portal
+Web portal for volunteer signup and shift scheduling used by 300 members
+• Built the signup flow and reminder emails
+
+Licenses and Endorsements
+Notary Public, State of Colorado
+Defensive Driving Certificate
+
+Education
+B.A., Public Administration, University of Colorado Denver, 2015

@@ -30,6 +30,11 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
   // job line. Caps-only on purpose: a Title Case "Team Leadership"
   // line is a skill, not a section, and must not flip anything.
   [/^[A-Z][A-Z\s&,.'-]{0,60}LEADERSHIP$/, "summaryExperience"],
+  // "Career Highlights" bullets are achievements: the combined handler
+  // keeps the prose as summary and flips to experience at the first
+  // dated job line, instead of letting the header and its bullets glue
+  // onto whatever section came before (usually the profile summary).
+  [/^career\s+highlights$/i, "summaryExperience"],
   // Generic titled experience header: 1–4 capitalized words (plus
   // connectors) ending in Experience/Employment — "Leadership Experience",
   // "Professional Accomplishments and Experience". The leading token must
@@ -39,6 +44,13 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
   [/^military\s+(experience|service)$/i, "experience"],
   [/^education$/i, "education"],
   [/^(technical\s+)?skills$/i, "skills"],
+  [/^clinical\s+skills$/i, "skills"],
+  [/^areas?\s+of\s+expertise$/i, "skills"],
+  // Generic "… Skills" headers ("Computer Skills", "Language Skills").
+  // Capitalization-constrained on purpose: a lowercase prose line that
+  // merely ends in the word "skills" must never flip the section.
+  [/^([A-Z][a-z]+\s+){0,3}Skills$/, "skills"],
+  [/^([A-Z]+\s+){0,3}SKILLS$/, "skills"],
   [/^core\s+competencies$/i, "skills"],
   [/^core\s+qualifications$/i, "skills"],
   [/^qualifications$/i, "skills"],
@@ -48,12 +60,22 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
   [/^professional\s+military\s+education$/i, "certifications"],
   [/^(professional\s+)?certifications/i, "certifications"],
   [/^licenses?\s*(&|and)?\s*certifications/i, "certifications"],
+  [/^licen[cs]es?\s*(&|and)\s*endorsements?$/i, "certifications"],
+  [/^licen[cs]es?$/i, "certifications"],
+  [/^endorsements?$/i, "certifications"],
   [/^training\s*(&|and)\s*certifications/i, "certifications"],
   // All-caps training sections ("MUNICIPAL TRAINING & STATEWIDE
   // SERVICE") list training and service credentials. The caps + length
   // shape keeps ordinary prose lines that mention training from
   // flipping the section mid-resume.
   [/(?=[A-Z0-9\s&,.'-]{4,55}$)(?=.*TRAINING)/, "certifications"],
+  // Title Case training headers ("Training", "Professional Training",
+  // "Training & Development") — the caps lookahead above only catches
+  // the all-caps shape. Whole-line matches only, like every header, so
+  // a bullet that mentions training can't trip them.
+  [/^training$/i, "certifications"],
+  [/^professional\s+training$/i, "certifications"],
+  [/^training\s*(&|and)\s*development$/i, "certifications"],
   [/^awards/i, "awards"],
   [/^honors?\s*(&|and)\s*awards/i, "awards"],
   [/^decorations/i, "awards"],
@@ -68,18 +90,51 @@ function matchJobDates(line: string): string {
 function hasJobDates(line: string): boolean {
   return DATE_RANGE_RE.test(line) || DATE_OPEN_RE.test(line);
 }
+/** Federal grade/series codes ("GS-0346-12", "GS-12"): metadata that
+ * rides along on job headers — never an employer, never a job itself. */
+const CODE_LINE_RE = /^[A-Z]{1,5}-\d{2,4}(-\d{1,2})?$/;
+function isCodeLine(line: string): boolean {
+  return line.length <= 20 && CODE_LINE_RE.test(line);
+}
+/** Drop grade/code segments from a comma-split header line. */
+function stripCodeSegments(line: string): string {
+  const segs = line.split(/,\s*/);
+  if (segs.length < 2) return line;
+  const kept = segs.filter((s) => !CODE_LINE_RE.test(s.trim()));
+  return kept.length ? kept.join(", ") : line;
+}
+/** A line that is ONLY a date range / open-ended start ("10/2018 – Present"). */
+function isDatesOnlyLine(line: string): boolean {
+  if (!hasJobDates(line)) return false;
+  return line.replace(DATE_RANGE_RE, "").replace(DATE_OPEN_RE, "").replace(/[\s;:,|()—–-]+/g, "") === "";
+}
+/** Header-shaped but unknown: short, ALL-CAPS, no sentence punctuation. */
+function isUnknownCapsHeader(line: string): boolean {
+  const words = line.split(/\s+/);
+  return (
+    line.length >= 4 &&
+    line.length <= 60 &&
+    words.length >= 2 &&
+    words.length <= 6 &&
+    /^[A-Z0-9][A-Z0-9 &,'’.\/-]*$/.test(line) &&
+    /[A-Z]{2,}/.test(line)
+  );
+}
 const ACTION_VERBS = /^(administered|managed|led|developed|provided|directed|supervised|responsible|oversaw|maintained|coordinated|performed|conducted|executed|delivered|supported|assisted|ensured|prepared|operated|served|worked|handled|processed|created|built|implemented|trained|evaluated|reviewed|planned|organized|monitored|advised|negotiated|achieved|improved|increased|reduced|streamlined|established|designed|launched|mentored|briefed)\b/i;
 
 /** "Title, Company, Location; Feb 2015 – Present, Rank, …" → parts. */
 function parseJobHeader(line: string): { title: string; company: string; dates: string } {
   const dates = matchJobDates(line);
   let head = line.split(";")[0];
-  head = head.replace(DATE_RANGE_RE, "").replace(DATE_OPEN_RE, "").replace(/[:;,]\s*$/, "").trim();
+  head = head.replace(DATE_RANGE_RE, "").replace(DATE_OPEN_RE, "").replace(/[:;,|]\s*$/, "").trim();
   let segs = head.split(/,\s*/).filter(Boolean);
   if (segs.length === 1 && /[|—–]/.test(head)) segs = head.split(/\s*[|—–]\s*/).filter(Boolean);
+  // A grade/series code in the second slot ("Title, GS-0346-12, Agency"
+  // or a bare "Title, GS-0346-12") is metadata, not the employer.
+  if (segs.length > 1 && CODE_LINE_RE.test(segs[1])) segs.splice(1, 1);
   return {
     title: segs[0] ?? head,
-    company: segs.slice(1, 3).join(", "),
+    company: segs.slice(1, 3).join(", ").replace(/\s*\|\s*$/, "").trim(),
     dates,
   };
 }
@@ -165,6 +220,15 @@ export function textToStructured(text: string): StructuredResume {
       if (!sections.has(current)) sections.set(current, []);
       continue;
     }
+    // Unknown-header guard: a short ALL-CAPS line inside a prose
+    // summary is a section header we don't know. Rather than gluing the
+    // whole following block into the summary, park it in the catch-all
+    // bucket until the next known header arrives.
+    if (current === "summary" && isUnknownCapsHeader(line)) {
+      current = "other";
+      if (!sections.has(current)) sections.set(current, []);
+      continue;
+    }
     // Combined summary+experience header: summary prose runs until the
     // first line carrying a job date range, then it's experience.
     if (current === "summaryExperience" && DATE_RANGE_RE.test(line)) {
@@ -218,7 +282,7 @@ export function textToStructured(text: string): StructuredResume {
           !currentJob.company &&
           currentJob.bullets.length === 0
         ) {
-          currentJob.company = line;
+          currentJob.company = line.replace(/\s*\|\s*$/, "").trim();
           continue;
         }
         // Two-line job header: the title stands alone (blank lines may
@@ -231,11 +295,63 @@ export function textToStructured(text: string): StructuredResume {
           const next = expLines[j];
           if (next && hasJobDates(next) && !/^[•\-\*▪◦‣·]/.test(next)) {
             const nd = matchJobDates(next);
-            const nHead = next.split(";")[0].replace(DATE_RANGE_RE, "").replace(DATE_OPEN_RE, "").replace(/[:;,]\s*$/, "").trim();
-            currentJob = { title: line, company: nHead, dates: nd, bullets: [] };
+            const nHead = next.split(";")[0].replace(DATE_RANGE_RE, "").replace(DATE_OPEN_RE, "").replace(/[:;,|]\s*$/, "").trim();
+            currentJob = { title: stripCodeSegments(line), company: nHead, dates: nd, bullets: [] };
             r.experience.push(currentJob);
             idx = j; // the company/dates line is consumed
             continue;
+          }
+          // Three-line job header: title / company / dates on separate
+          // lines ("Westlake High School, Atlanta, GA" over "Aug 2018 –
+          // Present"). Federal resumes add a grade line ("GS-0346-12")
+          // standing alone between company and dates — absorb it; it
+          // is not the employer and not a job of its own.
+          const peekIdx = (from: number): number => {
+            let k = from;
+            while (k < expLines.length && !expLines[k]) k++;
+            return k;
+          };
+          const isBulletLine = (s: string) => /^[•\-\*▪◦‣·]/.test(s);
+          const headerish = (s: string) =>
+            s.length < 100 && !/^[a-z]/.test(s) && !(s.split(/\s+/).length > 6 && ACTION_VERBS.test(s));
+          const cleanCompany = (s: string) => s.replace(/\s*\|\s*$/, "").trim();
+          const j1 = peekIdx(idx + 1);
+          const l1 = expLines[j1];
+          if (l1 && !isBulletLine(l1) && !hasJobDates(l1)) {
+            if (isCodeLine(l1)) {
+              // title / grade / company+dates — the whole head of the
+              // dated line is the employer (as in the two-line merge).
+              const j2 = peekIdx(j1 + 1);
+              const l2 = expLines[j2];
+              if (l2 && !isBulletLine(l2) && hasJobDates(l2)) {
+                const head2 = l2.split(";")[0].replace(DATE_RANGE_RE, "").replace(DATE_OPEN_RE, "").replace(/[:;,|]\s*$/, "").trim();
+                currentJob = { title: stripCodeSegments(line), company: head2, dates: matchJobDates(l2), bullets: [] };
+                r.experience.push(currentJob);
+                idx = j2;
+                continue;
+              }
+            } else if (headerish(l1)) {
+              const j2 = peekIdx(j1 + 1);
+              const l2 = expLines[j2];
+              // title / company / dates-only
+              if (l2 && isDatesOnlyLine(l2)) {
+                currentJob = { title: stripCodeSegments(line), company: cleanCompany(l1), dates: matchJobDates(l2), bullets: [] };
+                r.experience.push(currentJob);
+                idx = j2;
+                continue;
+              }
+              // title / company / grade / dates-only
+              if (l2 && isCodeLine(l2)) {
+                const j3 = peekIdx(j2 + 1);
+                const l3 = expLines[j3];
+                if (l3 && isDatesOnlyLine(l3)) {
+                  currentJob = { title: stripCodeSegments(line), company: cleanCompany(l1), dates: matchJobDates(l3), bullets: [] };
+                  r.experience.push(currentJob);
+                  idx = j3;
+                  continue;
+                }
+              }
+            }
           }
         }
         currentJob = { ...parseJobHeader(line), bullets: [] };
@@ -279,11 +395,37 @@ export function textToStructured(text: string): StructuredResume {
     }
   }
 
-  const skillText = (sections.get("skills") ?? []).join("\n");
-  r.skills = skillText
-    .split(/[,;•\n|]/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 1 && s.length < 40)
+  // Skills lines often carry a colon category label ("Languages:
+  // TypeScript, Go"). The label is organizational, not a skill: strip
+  // it and parse the rest as items. Two exceptions: a multi-word label
+  // in a functional resume IS the competency ("Project Coordination:
+  // multi-team scheduling, …"), so it stays as an item of its own; and
+  // a line that is ONLY a label ("Project Coordination:") is the group
+  // header for the items after it — it survives below as a token with
+  // its trailing colon trimmed, and the following lines parse normally.
+  const SKILL_LABEL_DROP = new Set([
+    "languages", "tools", "technologies", "software", "platforms", "databases",
+    "frameworks", "frontend", "front-end", "backend", "back-end", "devops",
+    "systems", "applications", "other", "miscellaneous",
+  ]);
+  const skillTokens: string[] = [];
+  for (const line of sections.get("skills") ?? []) {
+    const labelMatch = line.match(/^([A-Za-z][A-Za-z0-9 &/'-]{0,30}):\s+(\S.*)$/);
+    const labelWords = labelMatch ? labelMatch[1].trim().split(/\s+/) : [];
+    if (labelMatch && labelWords.length <= 3) {
+      const label = labelMatch[1].trim();
+      if (labelWords.length >= 2 && !SKILL_LABEL_DROP.has(label.toLowerCase())) skillTokens.push(label);
+      for (const part of labelMatch[2].split(/[,;•|]/)) skillTokens.push(part);
+    } else {
+      for (const part of line.split(/[,;•|]/)) skillTokens.push(part);
+    }
+  }
+  r.skills = skillTokens
+    .map((s) => s.trim().replace(/:\s*$/, ""))
+    // The length cap keeps sentence fragments out of skills; 45 (was
+    // 40) so a long two-noun skill at exactly 40 chars ("IV Therapy
+    // and Medication Administration") is not dropped on the boundary.
+    .filter((s) => s.length > 1 && s.length < 45)
     .slice(0, 30);
   // A thin skills section still outranks derivation: keep the user's own
   // listed skills first and only top up with derived terms that aren't
@@ -302,8 +444,20 @@ export function textToStructured(text: string): StructuredResume {
       const bullet = line.replace(/^[•\-\*▪◦‣·]\s*/, "").trim();
       if (currentProj) currentProj.bullets.push(bullet);
     } else if (line.length > 3) {
-      currentProj = { name: line, description: "", tech: "", bullets: [] };
-      r.projects.push(currentProj);
+      // A long sentence-like line directly under a project name, before
+      // any bullets, is that project's description — not a second
+      // project ("Open Ledger CLI" / "Open-source command-line tool…").
+      if (
+        currentProj &&
+        !currentProj.description &&
+        currentProj.bullets.length === 0 &&
+        (line.length > 50 || line.split(/\s+/).length > 8)
+      ) {
+        currentProj.description = line;
+      } else {
+        currentProj = { name: line, description: "", tech: "", bullets: [] };
+        r.projects.push(currentProj);
+      }
     }
   }
 
