@@ -148,8 +148,11 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * match the expected pattern." on that body (live-measured chain times on
  * an identical small request: 17s / 30s / 55s under provider 503 load).
  * Keep the whole chain, and any single model, comfortably inside the
- * limit so a slow/503ing provider degrades to the fallback, as designed. */
-const LLM_BUDGET_MS = 42_000;
+ * limit so a slow/503ing provider degrades to the fallback, as designed.
+ * Trimmed 42s -> 36s on 2026-10-24 after a live rewrite died at the cap
+ * and surfaced to the user as a client-side network error: 36s of chain
+ * plus fallback generation and response overhead stays ~20s clear. */
+const LLM_BUDGET_MS = 36_000;
 /** Per-model deadline (RR-44): the first attempt and any hedged retry must
  *  both finish inside this window, counted from the model's start. */
 const LLM_MODEL_DEADLINE_MS = 12_000;

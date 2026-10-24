@@ -14,6 +14,7 @@ import type { AiResponse } from "./types";
 
 const FRIENDLY = {
   network: "Couldn't reach the AI service. Check your connection and try again in a moment.",
+  timeout: "The AI service took too long to respond. Please try again in a moment.",
   unreadable: "The AI service sent back something unreadable. Please try again in a moment.",
   incomplete: "The AI service sent back an incomplete response. Please try again.",
   http: (status: number) => `The AI service returned an error (HTTP ${status}). Please try again in a moment.`,
@@ -39,17 +40,32 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  *  throttle) are already user-shaped and pass through. */
 export async function postAi<T>(body: unknown): Promise<AiResponse<T>> {
   let res: Response;
+  // Client-side backstop (2026-10-24): with no timeout here, a request
+  // that stalls server-side hangs until the browser or platform kills
+  // it — a minute or more of spinner, then the network error below.
+  // The server chain is budgeted to answer well inside this limit; the
+  // abort fires only when something is truly stuck, and it gets its own
+  // honest message — a timeout is not the user's connection.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 50_000);
   try {
     res = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
   } catch (e) {
+    clearTimeout(timer);
+    if ((e as Error)?.name === "AbortError") {
+      console.error("AI request timed out after 50s");
+      throw new Error(FRIENDLY.timeout);
+    }
     console.error("AI request failed to send:", e);
     throw new Error(FRIENDLY.network);
   }
   const json = await readJson(res);
+  clearTimeout(timer);
   if (!isRecord(json)) {
     console.error(`AI request returned a non-JSON body (HTTP ${res.status})`);
     throw new Error(res.ok ? FRIENDLY.unreadable : FRIENDLY.http(res.status));

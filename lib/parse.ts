@@ -24,6 +24,12 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
   [/^professional\s+accomplishments\s*(and|&)\s*experience$/i, "experience"],
   [/^career\s+history$/i, "experience"],
   [/^professional\s+background$/i, "experience"],
+  // All-caps "… LEADERSHIP" sections ("MUNICIPAL & GOVERNMENT
+  // LEADERSHIP") hold prose plus dated roles — the combined handler
+  // keeps prose as summary and flips to experience at the first dated
+  // job line. Caps-only on purpose: a Title Case "Team Leadership"
+  // line is a skill, not a section, and must not flip anything.
+  [/^[A-Z][A-Z\s&,.'-]{0,60}LEADERSHIP$/, "summaryExperience"],
   // Generic titled experience header: 1–4 capitalized words (plus
   // connectors) ending in Experience/Employment — "Leadership Experience",
   // "Professional Accomplishments and Experience". The leading token must
@@ -34,6 +40,8 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
   [/^education$/i, "education"],
   [/^(technical\s+)?skills$/i, "skills"],
   [/^core\s+competencies$/i, "skills"],
+  [/^core\s+qualifications$/i, "skills"],
+  [/^qualifications$/i, "skills"],
   [/^projects?$/i, "projects"],
   // Certifications / training / awards have real homes now — they render in
   // every design template and the text export.
@@ -41,6 +49,11 @@ const SECTION_HEADERS: [RegExp, keyof Pick<StructuredResume, "summary" | "experi
   [/^(professional\s+)?certifications/i, "certifications"],
   [/^licenses?\s*(&|and)?\s*certifications/i, "certifications"],
   [/^training\s*(&|and)\s*certifications/i, "certifications"],
+  // All-caps training sections ("MUNICIPAL TRAINING & STATEWIDE
+  // SERVICE") list training and service credentials. The caps + length
+  // shape keeps ordinary prose lines that mention training from
+  // flipping the section mid-resume.
+  [/(?=[A-Z0-9\s&,.'-]{4,55}$)(?=.*TRAINING)/, "certifications"],
   [/^awards/i, "awards"],
   [/^honors?\s*(&|and)\s*awards/i, "awards"],
   [/^decorations/i, "awards"],
@@ -132,7 +145,9 @@ export function textToStructured(text: string): StructuredResume {
   // Contact block: first ~6 lines
   const head = lines.slice(0, 8).join("\n");
   r.email = head.match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] ?? "";
-  r.phone = head.match(/(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/)?.[0] ?? "";
+  // PDF extraction often spaces the separators ("706 - 436 - 9695");
+  // allow whitespace around them, then store the compact form.
+  r.phone = (head.match(/(\+?1[\s.-]*)?\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{4}/)?.[0] ?? "").replace(/\s*([-.])\s*/g, "$1");
   r.linkedin = head.match(/(linkedin\.com\/[^\s)]+)/i)?.[0] ?? "";
   const locMatch = head.match(/\b([A-Z][a-z]+(?:[^\S\n]+[A-Z][a-z]+)?),[^\S\n]*([A-Z]{2})\b/);
   r.location = locMatch ? locMatch[0] : "";
@@ -182,7 +197,12 @@ export function textToStructured(text: string): StructuredResume {
       // A long sentence opening with an action verb is a bullet that lost
       // its marker, not a job title — don't promote it to a role.
       const sentenceLike = line.split(/\s+/).length > 6 && ACTION_VERBS.test(line);
-      const looksLikeHeader = hasDate || (line.length < 90 && !sentenceLike);
+      // A line opening lowercase is a wrapped bullet continuation, never
+      // a job header — real headers open with a capital or a digit (or
+      // carry the job's dates). Without this, every wrapped line of a
+      // long bullet could mint a phantom job ("shipping/receiving").
+      const startsLower = /^[a-z]/.test(line);
+      const looksLikeHeader = hasDate || (line.length < 90 && !sentenceLike && !startsLower);
       if (looksLikeHeader) {
         // Table-layout split: in table extractions a job's company can
         // land on its own row right after the dated title row. A dateless
@@ -221,7 +241,14 @@ export function textToStructured(text: string): StructuredResume {
         currentJob = { ...parseJobHeader(line), bullets: [] };
         r.experience.push(currentJob);
       } else if (currentJob) {
-        currentJob.bullets.push(line);
+        // Wrapped-bullet continuation: rejoin the previous bullet
+        // instead of minting a fragment bullet of its own.
+        if (startsLower && currentJob.bullets.length) {
+          const last = currentJob.bullets.length - 1;
+          currentJob.bullets[last] = `${currentJob.bullets[last]} ${line}`;
+        } else {
+          currentJob.bullets.push(line);
+        }
       }
     }
   }
