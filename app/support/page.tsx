@@ -44,7 +44,7 @@ export default function SupportPage() {
           a person reads it. Include your device model and what you tapped, and we'll get back to you.
         </p>
         <p className="text-xs text-muted mt-2">
-          Privacy questions go to the same address. Full policy: <Link href="/privacy" className="underline font-semibold">Privacy Policy</Link>.
+          Privacy questions go to the same address. Full policy: <Link href="/privacy" className="underline font-semibold">Privacy Policy</Link> · <Link href="/terms" className="underline font-semibold">Terms of Use</Link>.
         </p>
       </Card>
 

@@ -23,7 +23,7 @@ export function AiConsentGate() {
   }, []);
 
   if (!ready || aiConsent || aiConsentDeclined) return null;
-  if (path === "/privacy") return null; // let them read the policy first
+  if (path === "/privacy" || path === "/terms") return null; // let them read the policy/terms first
 
   return (
     <div className="fixed inset-0 z-[60] bg-navy/60 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-4">

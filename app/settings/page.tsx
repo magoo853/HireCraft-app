@@ -66,6 +66,10 @@ export default function SettingsPage() {
           you use an AI feature (see above) or run a job-alert check, which sends just your search
           terms — never your resume — to the job boards. Deleting below wipes everything stored locally.
         </p>
+        <p className="text-xs text-muted leading-relaxed mb-3">
+          Read the <Link href="/privacy" className="underline font-semibold">Privacy Policy</Link> and{" "}
+          <Link href="/terms" className="underline font-semibold">Terms of Use</Link>.
+        </p>
         {!confirmReset ? (
           <Button variant="danger" onClick={() => setConfirmReset(true)} className="w-full">Delete all my data</Button>
         ) : (

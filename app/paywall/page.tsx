@@ -273,6 +273,15 @@ function PaywallInner() {
           {native && shopNote && (
             <p className="text-sm text-ink/80 leading-relaxed mt-3">{shopNote}</p>
           )}
+          <p className="text-[11px] text-muted leading-relaxed mt-3 text-center">
+            By subscribing, you agree to the{" "}
+            <Link href="/terms" className="underline font-semibold">Terms of Use</Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="underline font-semibold">Privacy Policy</Link>.
+            Pro renews automatically each year unless auto-renew is turned off at least
+            24 hours before the period ends; manage or cancel any time in your Apple ID
+            subscription settings.
+          </p>
         </Card>
 
         <Card className="!bg-navy !border-navy text-white">
