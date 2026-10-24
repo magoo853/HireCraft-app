@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { extractKeywords, scoreResume } from "@/lib/fallback";
 import { applyRewriteToResume } from "@/lib/resume-sync";
+import { hashRawText } from "@/lib/rewrite-session";
 import { postAi } from "@/lib/ai-client";
 import { AiResponse, RewriteResult, ScoreResult, StructuredResume } from "@/lib/types";
 import { Button, Card, EmptyState, SectionTitle, SourceNote, ModeBadge, TargetJobBanner, inputCls } from "@/components/ui";
@@ -17,19 +18,29 @@ import { scoreJobBasis } from "@/lib/score-history";
 
 function ImproveInner() {
   const params = useSearchParams();
-  const { resume, jobText, mode, hasResume, setResume, military, perfReview, setRewriteAccepted, aiConsent, recordScore, targetTitle, company } = useApp();
+  const { resume, jobText, mode, hasResume, setResume, military, perfReview, setRewriteAccepted, aiConsent, recordScore, targetTitle, company, rewriteSession, setRewriteSession } = useApp();
   const [tab, setTab] = useState<"rewrite" | "tailor">(params.get("tab") === "tailor" ? "tailor" : "rewrite");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AiResponse<RewriteResult[]> | null>(null);
   const [error, setError] = useState("");
-  const [accepted, setAccepted] = useState<Set<number>>(new Set());
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
-  const [edits, setEdits] = useState<Record<number, string>>({});
-  // Score snapshot captured when a rewrite result is generated — the
-  // "before" anchor for the score-delta readout. Component state only,
-  // same lifetime as `result`; nothing is persisted to the store.
-  const [baseline, setBaseline] = useState<{ score: ScoreResult; jobText: string } | null>(null);
+  // The working set — result, accept choices, text edits, and the
+  // baseline score snapshot (the "before" anchor for the score-delta
+  // readout) — lives in the persisted store session, so it survives
+  // tab switches and reloads until the user clears it ("run again").
+  // It is owned by one resume state: if the resume's rawText no longer
+  // matches the hash the session was generated against (a different
+  // resume was loaded), the session is dropped. The accept flow below
+  // refreshes the hash as it folds accepted text into the resume.
+  const result: AiResponse<RewriteResult[]> | null = rewriteSession?.result ?? null;
+  const edits: Record<number, string> = rewriteSession?.edits ?? {};
+  const baseline = rewriteSession?.baseline ?? null;
+  const accepted = useMemo(() => new Set(rewriteSession?.accepted ?? []), [rewriteSession]);
+  useEffect(() => {
+    if (rewriteSession && rewriteSession.resumeRawHash !== hashRawText(resume.rawText)) {
+      setRewriteSession(null);
+    }
+  }, [rewriteSession, resume.rawText, setRewriteSession]);
 
   const keywords = useMemo(
     () => (jobText && hasResume ? extractKeywords(jobText, resume.rawText, 14) : []),
@@ -46,10 +57,13 @@ function ImproveInner() {
     try {
       const json = await postAi<RewriteResult[]>({ task: "rewrite", mode, resume, jobText, military, perfReview });
       if (!Array.isArray(json.data)) throw new Error("Unexpected response");
-      setResult(json);
-      setBaseline({ score: scoreResume(resume, jobText), jobText });
-      setAccepted(new Set());
-      setEdits({});
+      setRewriteSession({
+        result: json,
+        accepted: [],
+        edits: {},
+        baseline: { score: scoreResume(resume, jobText), jobText },
+        resumeRawHash: hashRawText(resume.rawText),
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -150,7 +164,13 @@ function ImproveInner() {
     recordIfScoreChanged(resume, next);
     setResume(next);
     setRewriteAccepted(true);
-    setAccepted((s) => new Set(s).add(i));
+    if (rewriteSession) {
+      setRewriteSession({
+        ...rewriteSession,
+        accepted: Array.from(new Set(rewriteSession.accepted.concat(i))),
+        resumeRawHash: hashRawText(next.rawText),
+      });
+    }
     setEditingIdx(null);
   }
 
@@ -168,7 +188,13 @@ function ImproveInner() {
     recordIfScoreChanged(resume, next);
     setResume(next);
     setRewriteAccepted(true);
-    setAccepted((s) => { const n = new Set(s); ids.forEach((id) => n.add(id)); return n; });
+    if (rewriteSession) {
+      setRewriteSession({
+        ...rewriteSession,
+        accepted: Array.from(new Set(rewriteSession.accepted.concat(ids))),
+        resumeRawHash: hashRawText(next.rawText),
+      });
+    }
     setEditingIdx(null);
   }
 
@@ -195,7 +221,7 @@ function ImproveInner() {
       <div className="flex gap-2 mt-2.5">
         {editingIdx === i ? (
           <>
-            <button onClick={() => { setEdits({ ...edits, [i]: editText }); setEditingIdx(null); }}
+            <button onClick={() => { if (rewriteSession) setRewriteSession({ ...rewriteSession, edits: { ...edits, [i]: editText } }); setEditingIdx(null); }}
               className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-cta text-white min-h-[44px]">Save edit</button>
             <button onClick={() => setEditingIdx(null)}
               className="flex-1 text-center text-[13px] font-bold py-2.5 rounded-[10px] bg-slate-100 text-slate-700 min-h-[44px]">Cancel</button>
@@ -266,7 +292,7 @@ function ImproveInner() {
             <>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs text-muted">Tap Accept to apply a rewrite to your resume.{hiddenCount > 0 ? ` ${hiddenCount} bullet${hiddenCount > 1 ? "s were" : " was"} already strong — not shown.` : ""}</p>
-                <button onClick={() => { setResult(null); setBaseline(null); }} className="text-xs text-muted underline min-h-[44px] px-2">run again</button>
+                <button onClick={() => setRewriteSession(null)} className="text-xs text-muted underline min-h-[44px] px-2">run again</button>
               </div>
               {baseline && currentScore && visible.length > 0 && (
                 <Card className="mb-3">

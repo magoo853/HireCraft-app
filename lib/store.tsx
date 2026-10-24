@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { LinkedInResult, MilitaryInfo, Mode, PerformanceReview, ScoreHistoryEntry, StructuredResume, emptyMilitary, emptyPerfReview, emptyResume } from "./types";
 import { appendScoreHistory, sanitizeScoreHistory } from "./score-history";
 import { sanitizeLinkedInResult } from "./linkedin-result";
+import { sanitizeRewriteSession, type RewriteSession } from "./rewrite-session";
 import type { JobAlert } from "./jobs";
 import {
   SavedVersion, VersionApplication, VersionDensity, addVersion, createVersion, findVersion,
@@ -97,6 +98,12 @@ interface AppState {
   /** Wave 3: the last generated LinkedIn result — survives navigation. */
   linkedinResult: LinkedInResult | null;
   setLinkedinResult: (r: LinkedInResult | null) => void;
+  /** The Rewrite tab's working set (result + accepts + edits +
+   *  baseline) — persists across navigation and reloads until the
+   *  user clears it ("run again") or resetAll. Owned by one resume
+   *  state via its rawText hash; see lib/rewrite-session.ts. */
+  rewriteSession: RewriteSession | null;
+  setRewriteSession: (s: RewriteSession | null) => void;
   /** Wave 4: Design density lives in the store so version snapshots can
    *  capture it and loads can restore it. */
   designDensity: VersionDensity;
@@ -175,6 +182,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [scoreHistory, setScoreHistory] = useState<ScoreHistoryEntry[]>([]);
   const [coverLetterText, setCoverLetterText] = useState("");
   const [linkedinResult, setLinkedinResult] = useState<LinkedInResult | null>(null);
+  const [rewriteSession, setRewriteSession] = useState<RewriteSession | null>(null);
   const [designDensity, setDesignDensity] = useState<VersionDensity>("comfortable");
   const [proStatus, setProStatus] = useState<ProStatus>("unknown");
   const [saveFailed, setSaveFailed] = useState(false);
@@ -214,6 +222,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(s.scoreHistory)) setScoreHistory(sanitizeScoreHistory(s.scoreHistory));
       if (typeof s.coverLetterText === "string") setCoverLetterText(s.coverLetterText);
       setLinkedinResult(sanitizeLinkedInResult(s.linkedinResult));
+      setRewriteSession(sanitizeRewriteSession(s.rewriteSession));
       if (s.designDensity === "comfortable" || s.designDensity === "compact") setDesignDensity(s.designDensity);
       if (Array.isArray(s.versions)) setVersions(sanitizeVersions(s.versions));
     }
@@ -235,14 +244,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ mode, modePicked, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity }));
+      localStorage.setItem(KEY, JSON.stringify({ mode, modePicked, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, rewriteSession, designDensity }));
     } catch {
       // RR-14: storage full used to fail silently while the UI kept
       // "working" in memory. Surface it once (the TopBar notice reads
       // this flag) — the write is still non-fatal for the session.
       setSaveFailed(true);
     }
-  }, [hydrated, mode, modePicked, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, designDensity]);
+  }, [hydrated, mode, modePicked, targetTitle, company, resume, jobText, jobUrl, linkedinText, military, perfReview, alerts, seenJobIds, newJobCount, aiConsent, aiConsentDeclined, scoreViewed, rewriteAccepted, designChosen, exported, onboardingDismissed, templateId, versions, scoreHistory, coverLetterText, linkedinResult, rewriteSession, designDensity]);
 
   const updateResume = (patch: Partial<StructuredResume>) =>
     setResume((r) => ({ ...r, ...patch }));
@@ -319,6 +328,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setScoreHistory([]);
     setCoverLetterText("");
     setLinkedinResult(null);
+    setRewriteSession(null);
     setDesignDensity("comfortable");
     setProStatus("unknown");
     setSaveFailed(false);
@@ -345,6 +355,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       scoreHistory, recordScore,
       coverLetterText, setCoverLetterText,
       linkedinResult, setLinkedinResult,
+      rewriteSession, setRewriteSession,
       designDensity, setDesignDensity,
       proStatus, setProStatus,
       saveFailed, setSaveFailed,
