@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { RoadmapGoal, RoadmapNode, fmtSalary, jobSearchLinks } from "@/lib/careers-core";
+import { gapInfo } from "@/lib/gap-kinds";
 import { parseRoadmapState, serializeRoadmapState } from "@/lib/roadmap-persist";
 import {
   clearCustomGoalIdeas,
@@ -388,16 +389,21 @@ export default function RoadmapPage() {
                         {n.gaps.length > 0 && (
                           <div className="mt-3">
                             <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted mb-1.5">Gaps to close</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {n.gaps.map((g, k) => (
-                                <a key={k} href={`/discover?q=${encodeURIComponent(g)}`}
-                                  aria-label={`Search jobs for ${g} on Discover`}
-                                  className="text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 rounded-full px-2.5 py-1.5 underline-offset-2 hover:underline min-h-[32px] inline-flex items-center">
-                                  {g} ↗
-                                </a>
-                              ))}
+                            <div className="grid gap-1.5">
+                              {n.gaps.map((g, k) => {
+                                const info = gapInfo(g);
+                                return (
+                                  <a key={k} href={info.href}
+                                    aria-label={info.kind === "evidence" ? `Fix in Rewrite: ${g}` : `See jobs for this gap on Discover: ${g}`}
+                                    className="block bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 min-h-[44px]">
+                                    <span className="block text-xs font-semibold text-amber-900 leading-snug">{g}</span>
+                                    <span className="block text-[11px] text-amber-800/80 leading-snug mt-1">{info.meaning}</span>
+                                    <span className="block text-[11px] font-extrabold text-amber-900 mt-1.5">{info.actionLabel}</span>
+                                  </a>
+                                );
+                              })}
                             </div>
-                            <p className="text-[11px] text-muted mt-1.5">Tap a gap to search jobs for it on Discover →</p>
+                            <p className="text-[11px] text-muted mt-1.5">Tap a gap to work on it — we'll take you to the right place.</p>
                           </div>
                         )}
                       </div>

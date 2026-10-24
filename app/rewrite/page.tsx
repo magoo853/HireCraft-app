@@ -18,6 +18,10 @@ import { scoreJobBasis } from "@/lib/score-history";
 
 function ImproveInner() {
   const params = useSearchParams();
+  // Roadmap evidence gaps deep-link here as /rewrite?note=<gap text>:
+  // the gap is about this resume's own bullets, so the user lands with
+  // the gap quoted and one line of guidance instead of a cold tab.
+  const gapNote = (params.get("note") ?? "").trim();
   const { resume, jobText, mode, hasResume, setResume, military, perfReview, setRewriteAccepted, aiConsent, recordScore, targetTitle, company, rewriteSession, setRewriteSession } = useApp();
   const [tab, setTab] = useState<"rewrite" | "tailor">(params.get("tab") === "tailor" ? "tailor" : "rewrite");
   const [loading, setLoading] = useState(false);
@@ -270,6 +274,15 @@ function ImproveInner() {
 
       {tab === "rewrite" && (
         <>
+          {gapNote && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3 mb-4">
+              <p className="text-[11px] font-extrabold uppercase tracking-widest text-amber-800">From your roadmap</p>
+              <p className="text-[13px] font-semibold text-amber-900 leading-snug mt-1">“{gapNote}”</p>
+              <p className="text-xs text-amber-900/80 leading-snug mt-1.5">
+                This gap lives in your bullets: they say what you did, not what it added up to. Run the rewrite, then add the numbers only you know — dollars, percentages, team sizes — before accepting.
+              </p>
+            </div>
+          )}
           {!result && !loading && (
             <Card className="text-center py-8">
               <p className="font-extrabold text-navy mb-2">Rewrite every bullet, impact-first</p>
