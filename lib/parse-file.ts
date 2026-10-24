@@ -4,6 +4,7 @@
  * First Load JS. Structuring (text -> StructuredResume) stays in ./parse. */
 import { DATE_RANGE_RE, DATE_OPEN_RE } from "./date-res";
 
+// Last-resort fallback if the bundled worker (see parsePdf) can't load.
 // Keep the major version in sync with the pdfjs-dist dependency in package.json.
 const PDFJS_CDN_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs";
 
@@ -31,11 +32,19 @@ export async function parseFile(file: File): Promise<string> {
 async function parsePdf(file: File): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
   const buf = await file.arrayBuffer();
-  // Try the locally-served worker first; fall back to CDN if the build
-  // didn't include it (e.g. install-time copy skipped).
-  // CDN first (the locally-served copy isn't reliably included in the
-  // Vercel build); local file as fallback for offline use.
-  const workers = [PDFJS_CDN_WORKER, "/pdf.worker.min.mjs"];
+  // Worker sources, in order:
+  // 1. /pdf-worker — a route handler that serves the worker straight
+  //    from the installed pdfjs-dist (see app/pdf-worker/route.ts).
+  //    Same-origin, so it always exists in the deployment, always
+  //    matches the API version, and passes CSP for both the real
+  //    worker and pdf.js's main-thread fallback. This is primary: the
+  //    old CDN-first order left users with no working path when the
+  //    CDN fetch failed — the CDN copy was the only one that existed
+  //    (the public/ copy never reaches the Vercel deployment) and the
+  //    fallback import of the CDN module is blocked by script-src.
+  // 2. The jsDelivr CDN copy.
+  // 3. The legacy public/ path, if a build ever includes it.
+  const workers = ["/pdf-worker", PDFJS_CDN_WORKER, "/pdf.worker.min.mjs"];
   let lastErr: unknown = null;
   for (const src of workers) {
     try {

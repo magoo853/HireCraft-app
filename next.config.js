@@ -11,12 +11,20 @@ const nextConfig = {
     config.resolve.alias.canvas = false;
     return config;
   },
+  experimental: {
+    // The /pdf-worker route handler reads the pdf.js worker out of
+    // node_modules; make sure it is traced into that route's bundle.
+    outputFileTracingIncludes: {
+      "/pdf-worker": ["./node_modules/pdfjs-dist/build/pdf.worker.min.mjs"],
+    },
+  },
   // Security headers on every route: the Cycle 1 baseline plus a
   // Content-Security-Policy (Cycle 3). The CSP allows exactly what the
   // client actually uses, from a full origin audit of app/, lib/ and
-  // components/: every client fetch is same-origin (/api/*); the only
-  // external load is the pdf.js worker from jsDelivr (with a same-origin
-  // fallback file); there are no external fonts, images, or scripts.
+  // components/: every client fetch is same-origin (/api/*); the pdf.js
+  // worker is served same-origin from /pdf-worker, with jsDelivr kept
+  // in worker-src as a fallback; there are no external fonts, images,
+  // or scripts.
   // 'unsafe-inline' for scripts is required because the Next.js App Router
   // injects inline bootstrap scripts; moving to nonce-based script-src
   // needs middleware and is a separate future tightening.
