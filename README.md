@@ -20,7 +20,7 @@ AI resume & LinkedIn optimizer for veterans and civilian job seekers. Next.js 14
 ## Pricing
 
 - **Free** — ATS score + breakdown, ATS simulator, keyword match preview, resume builder + file upload, all 9 design templates with live previews. Free forever.
-- **Pro — $25/year** — unlimited bullet rewrites, job tailoring, cover letters, LinkedIn builder, career roadmaps, job alerts, PDF & DOCX export. On the iOS build these are genuinely gated behind the subscription (RR-26); the web build runs unlocked as the demo.
+- **Pro — $24.99/year** — unlimited bullet rewrites, job tailoring, cover letters, LinkedIn builder, career roadmaps, job alerts, PDF & DOCX export. On the iOS build these are genuinely gated behind the subscription (RR-26); the web build runs unlocked as the demo.
 - **Launch trial — 2 weeks free** — new users get Pro free for 14 days. In the App Store build this ships as the subscription's introductory offer; the web paywall's promo banner is driven by `NEXT_PUBLIC_LAUNCH_DATE` (logic in `lib/promo.ts`).
 - **Military — 6 months free (post-launch update, not in v1)** — see the next section. It is not claimable in the current build.
 
@@ -78,7 +78,7 @@ plus a manual pass over the main flows (upload → score → rewrite → design 
 
 - The Capacitor iOS project is pre-generated and committed under `ios/` (bundle ID `com.hirecraft.app`); `capacitor.config.ts` points the shell at the production URL above.
 - **Source of truth for the submission:** `MAC_BUILD_RUNBOOK.md` (owner's step-by-step: agreements → Mac build → archive → upload) and `APP_STORE_LISTING.md` (paste-ready listing, privacy answers, review notes). `APP_STORE_CHECKLIST.md` tracks overall status.
-- StoreKit subscription (created in App Store Connect at packaging): group "ResumeRoadmap Pro", product `hirecraft_pro_yearly`, $25/year, with the 2-week free introductory offer.
+- StoreKit subscription (created in App Store Connect at packaging): group "ResumeRoadmap Pro", product `hirecraft_pro_yearly`, $24.99/year, with the 2-week free introductory offer.
 - Military verification (SheerID / ID.me) is a post-launch update — it does not gate the v1 submission.
 
 ## Project structure

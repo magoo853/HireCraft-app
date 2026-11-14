@@ -166,7 +166,7 @@ function PaywallInner() {
             <p className="text-lg font-extrabold text-navy mb-1">Try everything free for 2 weeks</p>
             <p className="text-sm text-ink/70 leading-relaxed mb-4">
               For our first {promoDaysLeft} day{promoDaysLeft === 1 ? "" : "s"}, every new user gets the full paid
-              tier free for 14 days. No card required — keep it for $25/yr after, or drop to Free.
+              tier free for 14 days. No card required — keep it for $24.99/yr after, or drop to Free.
             </p>
             <Button variant="emerald" onClick={startPromoTrial} className="w-full !min-h-[52px]">
               Start my 2-week free trial
@@ -180,10 +180,10 @@ function PaywallInner() {
               {launchTrial.expiresAt ? (
                 <>
                   Full paid tier free until {new Date(launchTrial.expiresAt).toLocaleDateString()}. After that,
-                  keep it for $25/yr or drop to Free.
+                  keep it for $24.99/yr or drop to Free.
                 </>
               ) : (
-                <>Full paid tier free for 14 days from activation. After that, keep it for $25/yr or drop to Free.</>
+                <>Full paid tier free for 14 days from activation. After that, keep it for $24.99/yr or drop to Free.</>
               )}
             </p>
           </Card>
@@ -211,7 +211,7 @@ function PaywallInner() {
           <div className="flex items-baseline justify-between mb-1">
             <p className="text-lg font-extrabold text-navy">Paid</p>
             <p className="text-right">
-              <span className="text-2xl font-extrabold text-navy">{native && proStatus === "unknown" ? "—" : native && prodInfo?.price ? prodInfo.price : "$25"}</span>
+              <span className="text-2xl font-extrabold text-navy">{native && proStatus === "unknown" ? "—" : native && prodInfo?.price ? prodInfo.price : "$24.99"}</span>
               <span className="block text-[11px] text-muted">per year</span>
             </p>
           </div>
@@ -222,7 +222,7 @@ function PaywallInner() {
           </ul>
           {!native ? (
             <Button variant="emerald" onClick={choosePaid} className="w-full !min-h-[52px]">
-              Unlock everything — $25/yr
+              Unlock everything — $24.99/yr
             </Button>
           ) : proStatus === "pro" ? (
             <div>
@@ -260,7 +260,7 @@ function PaywallInner() {
           ) : (
             <div>
               <Button variant="emerald" onClick={buyPro} disabled={buying} className="w-full !min-h-[52px]">
-                {buying ? "Processing…" : `Unlock everything — ${prodInfo?.price || "$25"}/yr`}
+                {buying ? "Processing…" : `Unlock everything — ${prodInfo?.price || "$24.99"}/yr`}
               </Button>
               {prodInfo?.trialNote && (
                 <p className="text-xs text-muted leading-relaxed mt-2">{prodInfo.trialNote}</p>

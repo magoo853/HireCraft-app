@@ -46,7 +46,7 @@ export function ProPrompt({ feature, state }: { feature: string; state: "locked"
     <Card className="text-center py-10">
       <p className="text-lg font-extrabold text-navy mb-2">🔒 {feature}</p>
       <p className="text-sm text-muted mb-5 max-w-sm mx-auto">
-        In the app this is a ResumeRoadmap Pro feature — $25/year unlocks everything: unlimited
+        In the app this is a ResumeRoadmap Pro feature — $24.99/year unlocks everything: unlimited
         rewrites, job tailoring, cover letters, the LinkedIn builder, career roadmaps, job alerts,
         and PDF &amp; DOCX export. Your ATS score, simulator, resume builder, and all 9 design
         templates stay free.

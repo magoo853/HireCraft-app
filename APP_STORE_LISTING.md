@@ -29,7 +29,7 @@ FREE TO START
 • Resume builder and file upload (PDF, Word — even old .doc files)
 • 9 design templates with live previews of YOUR resume
 
-RESUMEROADMAP PRO — $25/YEAR (one tier, everything included)
+RESUMEROADMAP PRO — $24.99/YEAR (one tier, everything included)
 • AI bullet rewrites tailored to the exact job posting you're chasing
 • Cover letters grounded in your real experience
 • LinkedIn headline + About builder from your profile
@@ -81,7 +81,7 @@ notes if asked).
 ## Subscription (create in App Store Connect → Monetization)
 
 - Group: **ResumeRoadmap Pro**
-- Product ID: **hirecraft_pro_yearly** — auto-renewable, $25.00/year (US).
+- Product ID: **hirecraft_pro_yearly** — auto-renewable, $24.99/year (US).
 - Introductory offer: **2 weeks free** (launch promo).
 - Military 6-month free: promotional offer gated by in-app verification
   (SheerID/ID.me) — can ship in the first update if verification isn't live
@@ -104,7 +104,7 @@ top right).
 
 To evaluate Pro features without purchasing: the web build at the support
 URL runs with all features unlocked for demonstration. In the iOS build,
-Pro is an auto-renewable subscription ($25/yr, 2-week introductory free
+Pro is an auto-renewable subscription ($24.99/yr, 2-week introductory free
 trial) via StoreKit, and the Pro features are genuinely gated behind
 it — a free user who opens one sees a prompt to the subscription page.
 
